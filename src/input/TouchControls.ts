@@ -29,7 +29,6 @@ export class TouchControls {
   aimY = 0;
   private readonly move: Stick;
   private readonly aim: Stick;
-  private readonly buttons = new Map<TouchButton, HTMLElement>();
   private readonly queued = new Set<TouchButton>();
   private visible = false;
 
@@ -82,12 +81,6 @@ export class TouchControls {
     if (!v) this.reset();
   }
 
-  /** Shows or hides only the joysticks/buttons used in combat (e.g. hidden in menus). */
-  setInteractive(v: boolean): void {
-    this.root.classList.toggle('inactive', !v);
-    if (!v) this.reset();
-  }
-
   reset(): void {
     for (const s of [this.move, this.aim]) this.release(s);
     this.queued.clear();
@@ -116,7 +109,11 @@ export class TouchControls {
       e.preventDefault();
       this.onActivity();
       if (stick.active) return;
-      zone.setPointerCapture(e.pointerId);
+      try {
+        zone.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture can fail for synthetic/cancelled pointers; tracking still works via pointerId.
+      }
       stick.active = true;
       stick.pointerId = e.pointerId;
       stick.originX = e.clientX;
@@ -189,12 +186,7 @@ export class TouchControls {
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
     parent.appendChild(b);
-    this.buttons.set(id, b);
     return b;
   }
 
-  setButtonLabel(id: TouchButton, label: string): void {
-    const b = this.buttons.get(id);
-    if (b) b.textContent = label;
-  }
 }

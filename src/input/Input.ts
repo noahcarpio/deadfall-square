@@ -1,3 +1,5 @@
+import { isTouchDevice } from '../config/quality';
+
 /**
  * Keyboard + mouse state. Edge-triggered presses are queued until consumed by
  * the fixed-step simulation, so short taps are never lost between frames.
@@ -17,16 +19,19 @@ export class Input {
   private wheel = 0;
   sensitivity = 1;
   /** Set when any mouse/keyboard input happens; used to switch away from touch UI. */
-  lastDevice: 'mouse' | 'touch' = 'mouse';
+  lastDevice: 'mouse' | 'touch' = isTouchDevice() ? 'touch' : 'mouse';
   private enabled = true;
 
   constructor(private readonly element: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
-    window.addEventListener('mousemove', this.onMouseMove);
-    element.addEventListener('mousedown', this.onMouseDown);
-    window.addEventListener('mouseup', this.onMouseUp);
+    // Pointer events (filtered to real mice) rather than mouse events: touch
+    // screens emit compatibility mouse events after taps, which must not be
+    // mistaken for a mouse.
+    window.addEventListener('pointermove', this.onMouseMove);
+    element.addEventListener('pointerdown', this.onMouseDown);
+    window.addEventListener('pointerup', this.onMouseUp);
     element.addEventListener('wheel', this.onWheel, { passive: true });
     element.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -101,8 +106,10 @@ export class Input {
     this.rightDown = false;
   };
 
-  private onMouseMove = (e: MouseEvent): void => {
+  private onMouseMove = (e: PointerEvent): void => {
+    if (e.pointerType !== 'mouse') return;
     if (e.movementX !== 0 || e.movementY !== 0) this.lastDevice = 'mouse';
+    if (e.buttons !== (this.mouseDown ? 1 : 0) + (this.rightDown ? 2 : 0)) this.syncButtons(e.buttons);
     if (this.pointerLocked) {
       this.cursorX = Math.min(window.innerWidth, Math.max(0, this.cursorX + e.movementX * this.sensitivity));
       this.cursorY = Math.min(window.innerHeight, Math.max(0, this.cursorY + e.movementY * this.sensitivity));
@@ -112,24 +119,33 @@ export class Input {
     }
   };
 
-  private onMouseDown = (e: MouseEvent): void => {
+  private onMouseDown = (e: PointerEvent): void => {
+    if (e.pointerType !== 'mouse') return;
     this.lastDevice = 'mouse';
     if (!this.enabled) return;
     if (!this.pointerLocked) {
       this.cursorX = e.clientX;
       this.cursorY = e.clientY;
     }
-    if (e.button === 0) this.mouseDown = true;
-    if (e.button === 2) {
-      this.rightDown = true;
-      this.pressed.add('MouseRight');
-    }
+    this.syncButtons(e.buttons);
   };
 
-  private onMouseUp = (e: MouseEvent): void => {
-    if (e.button === 0) this.mouseDown = false;
-    if (e.button === 2) this.rightDown = false;
+  private onMouseUp = (e: PointerEvent): void => {
+    if (e.pointerType !== 'mouse') return;
+    this.syncButtons(e.buttons);
   };
+
+  /**
+   * Pointer events only report the first press/last release of a chord, so
+   * button state is derived from the `buttons` bitmask on every event.
+   */
+  private syncButtons(buttons: number): void {
+    const left = (buttons & 1) !== 0;
+    const right = (buttons & 2) !== 0;
+    if (right && !this.rightDown && this.enabled) this.pressed.add('MouseRight');
+    this.mouseDown = left && this.enabled;
+    this.rightDown = right;
+  }
 
   private onWheel = (e: WheelEvent): void => {
     if (!this.enabled) return;

@@ -11,4 +11,5 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  { files: ['tests/**'], rules: { 'no-console': 'off' } },
 );

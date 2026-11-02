@@ -197,13 +197,17 @@ export class ZombieManager {
     return best;
   }
 
-  update(dt: number, world: World): void {
-    // Rebuild the spatial hash from current positions.
+  /** Rebuilds the spatial hash from current positions (indices into `list`). */
+  private rebuildHash(): void {
     this.hash.clear();
     for (let i = 0; i < this.list.length; i++) {
       const z = this.list[i] as Zombie;
       if (z.alive) this.hash.insert(i, z.x, z.z);
     }
+  }
+
+  update(dt: number, world: World): void {
+    this.rebuildHash();
 
     const ids = this.neighbourIds;
     for (let i = this.list.length - 1; i >= 0; i--) {
@@ -287,5 +291,7 @@ export class ZombieManager {
     // Deferred so spatial-hash indices stay valid for the whole step.
     for (const z of this.removals) this.remove(z);
     this.removals.length = 0;
+    // Weapons/explosions query between steps: keep indices valid after removals.
+    this.rebuildHash();
   }
 }

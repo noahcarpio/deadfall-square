@@ -1543,10 +1543,6 @@ table.scores {
   pointer-events: none;
 }
 
-.touch-controls.inactive {
-  display: none;
-}
-
 .touch-zone {
   position: absolute;
   top: 25%;

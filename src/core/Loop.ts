@@ -22,6 +22,8 @@ export class Loop {
   fps = 60;
   /** Milliseconds spent in update() during the last frame. */
   lastUpdateMs = 0;
+  /** Simulation steps run during the last frame. */
+  lastSteps = 0;
   /** Milliseconds spent in render() during the last frame. */
   lastRenderMs = 0;
 
@@ -60,6 +62,7 @@ export class Loop {
     this.callbacks.render(frameDt);
     const t2 = performance.now();
     this.lastUpdateMs = t1 - t0;
+    this.lastSteps = steps;
     this.lastRenderMs = t2 - t1;
   };
 }

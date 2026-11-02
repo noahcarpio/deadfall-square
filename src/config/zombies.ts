@@ -68,7 +68,7 @@ export const ZOMBIES: Record<ZombieType, ZombieDef> = {
     body: { torso: [1.25, 1, 1.35], arms: [0.9, 0.9, 0.9], legs: [1.05, 0.9, 1.05], head: [0.9, 0.9, 0.9], hunch: 0.15 },
   },
   boss: {
-    type: 'boss', name: 'The Abomination', hp: 2600, speed: 1.9, damage: 30, reach: 1.6, attackCooldown: 1.4, windup: 0.55,
+    type: 'boss', name: 'The Abomination', hp: 1900, speed: 1.9, damage: 30, reach: 1.6, attackCooldown: 1.4, windup: 0.55,
     radius: 1.35, scale: 2.5, mass: 14, score: 600, coins: 160, cost: 0, dropMult: 0,
     colors: { skin: '#5a6a4a', shirt: '#4a2a2a', pants: '#2a2020', eyes: '#ff2a2a' },
     body: { torso: [1.5, 1.15, 1.4], arms: [1.7, 1.3, 1.7], legs: [1.4, 1, 1.4], head: [0.9, 0.9, 0.9], hunch: 0.35 },
@@ -106,6 +106,6 @@ export const BOSS = {
   slamRingMaxRadius: 13,
   slamRingWidth: 0.9,
   slamDamage: 22,
-  summonCount: 5,
+  summonCount: 4,
   enrageThreshold: 0.5,
 };

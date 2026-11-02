@@ -1,5 +1,6 @@
 import type { Game } from '../game/Game';
 import type { PerkId } from '../config/perks';
+import type { ShopAction } from '../progression/Shop';
 
 export interface GameSnapshot {
   state: string;
@@ -20,6 +21,7 @@ export interface GameSnapshot {
   drawCalls: number;
   triangles: number;
   updateMs: number;
+  steps: number;
   renderMs: number;
 }
 
@@ -31,7 +33,13 @@ export interface GameSnapshot {
  */
 export function installTestHook(game: Game): void {
   game.testMode = true;
-  const api = {
+  (window as unknown as { __game: TestApi }).__game = createApi(game);
+}
+
+export type TestApi = ReturnType<typeof createApi>;
+
+function createApi(game: Game) {
+  return {
     /** Direct access for debugging in the browser console / tests. */
     get world() {
       return game.world;
@@ -58,6 +66,7 @@ export function installTestHook(game: Game): void {
         drawCalls: info.render.calls,
         triangles: info.render.triangles,
         updateMs: game.loop.lastUpdateMs,
+        steps: game.loop.lastSteps,
         renderMs: game.loop.lastRenderMs,
       };
     },
@@ -85,6 +94,10 @@ export function installTestHook(game: Game): void {
     startNextWave(): void {
       game.forceStartWave();
     },
+    /** Purchases through the real shop rules (same path as the shop UI buttons). */
+    buy(action: ShopAction): boolean {
+      return game.buy(action);
+    },
     giveCoins(n: number): void {
       game.world.economy.addCoins(n);
     },
@@ -98,5 +111,4 @@ export function installTestHook(game: Game): void {
       w.combat.damagePlayer(9999, w.player.x + 1, w.player.z, 0, 'test');
     },
   };
-  (window as unknown as { __game: typeof api }).__game = api;
 }

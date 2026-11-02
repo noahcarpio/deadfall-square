@@ -74,6 +74,7 @@ export class Game {
   private panX = 0;
   private panZ = 0;
   private dragging: { id: number; x: number; y: number; moved: boolean } | null = null;
+  private appliedQuality: SettingsData['quality'] | null = null;
   private width = 1;
   private height = 1;
 
@@ -98,7 +99,10 @@ export class Game {
     this.world = new World(this.audio, overlay, this.settings.data.quality);
     this.rig = new CameraRig(window.innerWidth / Math.max(1, window.innerHeight));
     this.input = new Input(canvas);
-    this.touch = new TouchControls(this.ui, () => this.setTouchMode(true));
+    this.touch = new TouchControls(this.ui, () => {
+      this.input.lastDevice = 'touch';
+      this.setTouchMode(true);
+    });
     this.hud = new Hud(this.ui, this.world);
 
     const actions: MenuActions = {
@@ -173,6 +177,7 @@ export class Game {
     // Touch panning / positioning during placement.
     canvas.addEventListener('pointerdown', (e) => {
       if (this.state !== 'placing' || e.pointerType === 'mouse') return;
+      this.input.lastDevice = 'touch';
       this.setTouchMode(true);
       this.dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     });
@@ -230,8 +235,11 @@ export class Game {
     this.hud.setFpsVisible(s.showFps);
     this.world.fx.shakeScale = s.screenShake ? 1 : 0;
     this.world.fx.numbers.enabled = s.damageNumbers;
-    this.world.applyQuality(s.quality);
-    this.resize();
+    if (s.quality !== this.appliedQuality) {
+      this.appliedQuality = s.quality;
+      this.world.applyQuality(s.quality);
+      this.resize();
+    }
   }
 
   private resize(): void {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BOSS, BRUTE, EXPLODER, ZOMBIES } from '../config/zombies';
 import { applyArmor } from '../player/PlayerStats';
+import type { Telegraph } from '../fx/Hazards';
 import type { Collider } from '../world/Collision';
 import type { Structure } from '../progression/Structures';
 import type { Zombie } from '../zombies/Zombie';
@@ -108,7 +109,7 @@ export class Combat {
     if (!z.alive) return;
     const w = this.world;
     w.zombies.markDying(z, dirX || z.x - w.player.x, dirZ || z.z - w.player.z);
-    w.hazards.releaseTelegraph(z.telegraph as never);
+    w.hazards.releaseTelegraph(z.telegraph as Telegraph | null);
     z.telegraph = null;
     // Knock the corpse along the killing blow.
     z.kx += dirX * 3;
@@ -287,7 +288,7 @@ export class Combat {
   // -------------------------------------------------------------------- boss
 
   bossChargeHit(z: Zombie): void {
-    this.damagePlayer(z.damage * 1.3, z.x, z.z, 20, 'boss');
+    this.damagePlayer(z.damage * 1.15, z.x, z.z, 18, 'boss');
     this.world.fx.shake(0.7);
   }
 
