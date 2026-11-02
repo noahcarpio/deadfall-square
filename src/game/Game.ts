@@ -130,6 +130,7 @@ export class Game {
     for (const s of [this.mainMenu, this.pauseMenu, this.howTo, this.settingsPanel, this.scoresPanel, this.gameOverScreen]) this.ui.appendChild(s.root);
     this.ui.append(this.shopUI.root, this.perkUI.root, this.placementUI.root);
 
+    this.container.classList.toggle('touch', this.touchMode);
     this.bindEvents(canvas);
     this.wireGameEvents();
     this.applySettings(this.settings.data);

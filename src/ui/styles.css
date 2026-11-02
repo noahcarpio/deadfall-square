@@ -1605,7 +1605,7 @@ table.scores {
 .touch-buttons {
   position: absolute;
   right: calc(12px + env(safe-area-inset-right, 0px));
-  top: 38%;
+  top: 30%;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1613,8 +1613,8 @@ table.scores {
 
 .touch-btn {
   pointer-events: auto;
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.3);
   background: rgba(13, 17, 22, 0.6);
@@ -1672,10 +1672,10 @@ table.scores {
 }
 
 #app.touch .hud-minimap {
-  left: auto;
-  right: 8px;
+  left: 8px;
+  right: auto;
   bottom: auto;
-  top: calc(118px + var(--safe-top));
+  top: calc(104px + var(--safe-top));
 }
 
 #app.touch .hud-weapon {
@@ -1706,6 +1706,41 @@ table.scores {
 
 #app.touch .toasts {
   top: calc(80px + var(--safe-top));
+}
+
+/* Portrait phones: stack the wave info under the vitals/score row. */
+@media (orientation: portrait) {
+  #app.touch .hud-wave {
+    top: calc(78px + var(--safe-top));
+    max-width: 70vw;
+  }
+
+  #app.touch .hud-vitals {
+    width: min(170px, 44vw);
+  }
+
+  #app.touch .hud-score {
+    min-width: 0;
+  }
+
+  #app.touch .hud-minimap {
+    top: calc(84px + var(--safe-top));
+  }
+
+  #app.touch .toasts {
+    top: calc(140px + var(--safe-top));
+  }
+
+  #app.touch .touch-pause {
+    top: calc(150px + var(--safe-top));
+    left: auto;
+    right: 12px;
+    transform: none;
+  }
+
+  #app.touch .banner-title {
+    font-size: 52px;
+  }
 }
 
 /* ------------------------------------------------------------- responsive */
