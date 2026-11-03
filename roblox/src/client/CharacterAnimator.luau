@@ -13,10 +13,14 @@
 
 	Every client animates every character from replicated state (character
 	attributes set by the server, the Shot remote for others' recoil), so
-	everyone sees the same thing. Poses are written to Motor6D.Transform in
-	RunService.Stepped, after the Animator has applied its tracks, and are
+	everyone sees the same thing. Poses change each joint's offset (Motor6D.C0,
+	or Attachment0 for the AnimationConstraint joints of upgraded avatars)
+	rather than its Transform, which the Animator rewrites every frame, so
+	they always show and the default animations still play on top. Poses are
 	expressed in each joint's parent-part frame so R15 and R6 rigs both work
-	(R6 gets arms, roll and downed; crouching legs need R15).
+	(R6 gets arms, roll and downed; crouching legs need R15). The Output
+	window gets one "[CharacterAnimator]" line per character with the joints
+	it found (or a warning if it found none).
 ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -56,11 +60,21 @@ local JOINTS_R6 = {
 	root = { "HumanoidRootPart", "RootJoint" },
 }
 
+-- A character joint we pose: a Motor6D (posed through C0) or an
+-- AnimationConstraint (posed through its Attachment0), with its rest offset.
+type Joint = {
+	inst: Instance,
+	attachment: Attachment?,
+	original: CFrame,
+	rc: CFrame,
+	active: boolean,
+}
+
 type Rig = {
 	character: Model,
 	r15: boolean,
-	motors: { [string]: Motor6D },
-	written: { [Motor6D]: CFrame },
+	joints: { [string]: Joint },
+	grip: Joint?,
 	legLength: number,
 	aim: number,
 	sprint: number,
@@ -69,20 +83,59 @@ type Rig = {
 	recoil: number,
 	stride: number,
 	rescanAt: number,
+	firstSeen: number,
+	reported: boolean,
+	warned: boolean,
 }
 
 local CharacterAnimator = {}
 
 local rigs: { [Model]: Rig } = {}
 
+local function wrap(inst: Instance): Joint?
+	if inst:IsA("Motor6D") then
+		return { inst = inst, attachment = nil, original = inst.C0, rc = inst.C0.Rotation, active = false }
+	elseif inst:IsA("AnimationConstraint") then
+		local a = inst.Attachment0
+		if a then
+			return { inst = inst, attachment = a, original = a.CFrame, rc = a.CFrame.Rotation, active = false }
+		end
+	end
+	return nil
+end
+
+local function setOffset(j: Joint, cf: CFrame)
+	if j.attachment then
+		j.attachment.CFrame = cf
+	else
+		(j.inst :: Motor6D).C0 = cf
+	end
+end
+
+local function findJoint(character: Model, partName: string, jointName: string): Instance?
+	local part = character:FindFirstChild(partName)
+	local direct = part and part:FindFirstChild(jointName)
+	if direct and (direct:IsA("Motor6D") or direct:IsA("AnimationConstraint")) then
+		return direct
+	end
+	for _, d in character:GetDescendants() do
+		if d.Name == jointName and (d:IsA("Motor6D") or d:IsA("AnimationConstraint")) then
+			return d
+		end
+	end
+	return nil
+end
+
 local function scan(rig: Rig)
-	local joints = if rig.r15 then JOINTS_R15 else JOINTS_R6
-	table.clear(rig.motors)
-	for key, path in joints do
-		local part = rig.character:FindFirstChild(path[1])
-		local motor = part and part:FindFirstChild(path[2])
-		if motor and motor:IsA("Motor6D") then
-			rig.motors[key] = motor
+	local names = if rig.r15 then JOINTS_R15 else JOINTS_R6
+	for key, path in names do
+		local existing = rig.joints[key]
+		if not existing or not existing.inst.Parent then
+			local inst = findJoint(rig.character, path[1], path[2])
+			local j = inst and wrap(inst)
+			if j then
+				rig.joints[key] = j
+			end
 		end
 	end
 	if rig.r15 then
@@ -93,6 +146,40 @@ local function scan(rig: Rig)
 		end
 	end
 	rig.rescanAt = os.clock() + 1
+
+	-- Diagnostics in the Output window, once per character.
+	local count, kinds = 0, {}
+	for _, j in rig.joints do
+		count += 1
+		kinds[j.inst.ClassName] = true
+	end
+	if rig.joints.rShoulder and not rig.reported then
+		rig.reported = true
+		local classes = {}
+		for k in kinds do
+			table.insert(classes, k)
+		end
+		print(
+			`[CharacterAnimator] {rig.character.Name}: {if rig.r15 then "R15" else "R6"}, {count} joints ({table.concat(
+				classes,
+				", "
+			)})`
+		)
+	elseif not rig.joints.rShoulder and not rig.warned and os.clock() - rig.firstSeen > 3 then
+		rig.warned = true
+		local found = {}
+		for _, d in rig.character:GetDescendants() do
+			if d:IsA("JointInstance") or d:IsA("Constraint") then
+				found[d.ClassName .. " " .. d.Name] = true
+			end
+		end
+		local list = {}
+		for k in found do
+			table.insert(list, k)
+		end
+		table.sort(list)
+		warn(`[CharacterAnimator] {rig.character.Name}: no shoulder joint found; joints: {table.concat(list, ", ")}`)
+	end
 end
 
 local function rigFor(character: Model): Rig?
@@ -105,8 +192,8 @@ local function rigFor(character: Model): Rig?
 		rig = {
 			character = character,
 			r15 = humanoid.RigType == Enum.HumanoidRigType.R15,
-			motors = {},
-			written = {},
+			joints = {},
+			grip = nil,
 			legLength = 2,
 			aim = 0,
 			sprint = 0,
@@ -115,6 +202,9 @@ local function rigFor(character: Model): Rig?
 			recoil = 0,
 			stride = 0,
 			rescanAt = 0,
+			firstSeen = os.clock(),
+			reported = false,
+			warned = false,
 		}
 		rigs[character] = rig
 		character.Destroying:Connect(function()
@@ -122,36 +212,37 @@ local function rigFor(character: Model): Rig?
 		end)
 	end
 	local r = rig :: Rig
-	if os.clock() > r.rescanAt and (next(r.motors) == nil or r.motors.rShoulder == nil) then
+	if os.clock() > r.rescanAt and (r.joints.rShoulder == nil or r.joints.lShoulder == nil) then
 		scan(r)
 	end
 	return r
 end
 
 --[[
-	Blends a joint toward pose `d` (a CFrame in the joint's parent-part frame)
-	by weight `w`. The starting point is what the Animator wrote this frame, or
-	the rest pose if no track drives this joint.
+	Poses a joint toward `d` (a CFrame in the joint's parent-part frame) by
+	weight `w`, on top of whatever the Animator plays. The joint's offset
+	(C0 / Attachment0) is changed rather than its Transform, which the
+	Animator rewrites every frame; at weight 0 the rest offset is restored.
 ]]
-local function pose(rig: Rig, key: string, d: CFrame, w: number)
-	local m = rig.motors[key]
-	if not m or not m.Parent then
+local function poseJoint(j: Joint?, d: CFrame, w: number)
+	if not j or not j.inst.Parent then
 		return
 	end
-	local current = m.Transform
-	local base = if rig.written[m] == current then CFrame.identity else current
 	if w <= 0.001 then
-		if rig.written[m] then
-			m.Transform = base
-			rig.written[m] = nil
+		if j.active then
+			setOffset(j, j.original)
+			j.active = false
 		end
 		return
 	end
-	local rc = m.C0.Rotation
-	local target = rc:Inverse() * d * rc
-	local final = if w >= 0.999 then target else base:Lerp(target, w)
-	m.Transform = final
-	rig.written[m] = final
+	local target = j.rc:Inverse() * d * j.rc
+	local x = if w >= 0.999 then target else CFrame.identity:Lerp(target, w)
+	setOffset(j, j.original * x)
+	j.active = true
+end
+
+local function pose(rig: Rig, key: string, d: CFrame, w: number)
+	poseJoint(rig.joints[key], d, w)
 end
 
 local function rx(a: number): CFrame
@@ -178,20 +269,22 @@ local function animate(rig: Rig, st: State, dt: number)
 	-- Arms and gun.
 	local bump = if st.reload >= 0 then math.sin(math.pi * math.clamp(st.reload, 0, 1)) else 0
 	local raise = 1 - rig.sprint * 0.65
-	local pitchR = 0.6 + (HALF_PI - 0.6) * raise + rig.recoil * 0.3 - bump * 0.55
-	local pitchL = 0.6 + (1.42 - 0.6) * raise - bump * 1.05
+	local pitchR = 0.6 + (HALF_PI + 0.05 - 0.6) * raise + rig.recoil * 0.45 - bump * 0.8
+	local pitchL = 0.6 + (1.45 - 0.6) * raise - bump * 1.1
 	local armW = rig.aim * (1 - rig.downed)
-	pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 0.9, 0), armW)
+	pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 1.1, 0), armW)
 	pose(rig, "lShoulder", CFrame.Angles(0, -0.55, 0) * rx(pitchL), armW)
-	pose(rig, "rElbow", rx(rig.recoil * 0.2), armW)
+	pose(rig, "rElbow", rx(rig.recoil * 0.25), armW)
 	pose(rig, "lElbow", rx(0.35 + bump * 0.7), armW)
+	-- The gun's grip (our own Motor6D; rebuilt on every weapon switch).
 	local gun = rig.character:FindFirstChild("Gun")
 	local body = gun and gun:FindFirstChild("Body")
 	local grip = body and body:FindFirstChild("GunGrip")
-	if grip and grip:IsA("Motor6D") then
-		-- Turn the gun to run along the raised arm, and kick it back on recoil.
-		grip.Transform = CFrame.new(0, rig.recoil * 0.3, 0) * rx(-HALF_PI * armW)
+	if grip and (not rig.grip or rig.grip.inst ~= grip) then
+		rig.grip = wrap(grip)
 	end
+	-- Turn the gun to run along the raised arm, and kick it back on recoil.
+	poseJoint(rig.grip, CFrame.new(0, rig.recoil * 0.35, 0) * rx(-HALF_PI), armW)
 
 	-- Legs and torso.
 	if rig.r15 then
@@ -211,7 +304,9 @@ local function animate(rig: Rig, st: State, dt: number)
 		pose(rig, "lKnee", rx(kneeA - math.max(0, math.sin(rig.stride)) * lift * c), legW)
 		pose(rig, "rAnkle", rx(alpha * c), c)
 		pose(rig, "lAnkle", rx(alpha * c), c)
-		pose(rig, "waist", rx(-0.35), c * (1 - rig.downed))
+		-- Lean in while crouched; the upper body kicks back a little on each shot.
+		local waistW = if (c > 0.01 or rig.recoil > 0.02) and rig.downed < 0.5 then 1 else 0
+		pose(rig, "waist", rx(-0.35 * c + 0.15 * rig.recoil), waistW)
 	end
 
 	-- Whole body: roll tumble, or lying down while downed.
@@ -280,7 +375,7 @@ function CharacterAnimator.start()
 		end
 	end)
 
-	RunService.Stepped:Connect(function(_, dt)
+	RunService.RenderStepped:Connect(function(dt)
 		dt = math.min(dt, 0.1)
 		for _, player in Players:GetPlayers() do
 			local character = player.Character
