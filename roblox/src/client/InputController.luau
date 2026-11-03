@@ -169,7 +169,14 @@ local function bindActions()
 		end
 		return Enum.ContextActionResult.Sink
 	end
-	ContextActionService:BindActionAtPriority("DeadfallRoll", roll, false, 3000, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+	ContextActionService:BindActionAtPriority(
+		"DeadfallRoll",
+		roll,
+		false,
+		3000,
+		Enum.KeyCode.Space,
+		Enum.KeyCode.ButtonA
+	)
 	ContextActionService:BindAction("DeadfallReload", function(_, state)
 		if state == Enum.UserInputState.Begin then
 			InputController.onReload:fire()

@@ -370,7 +370,15 @@ end
 	Applies damage with i-frames, armor, perks and knockback. Lethal damage
 	downs the player (Second Wind can save them once per wave).
 ]]
-function PlayerService.damage(self, ps: PState, amount: number, srcX: number, srcZ: number, knock: number, source: string)
+function PlayerService.damage(
+	self,
+	ps: PState,
+	amount: number,
+	srcX: number,
+	srcZ: number,
+	knock: number,
+	source: string
+)
 	local W = self.W
 	if ps.downed or not ps.hasBody or amount <= 0 then
 		return

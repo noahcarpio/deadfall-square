@@ -49,7 +49,11 @@ local function leaderboardList(parent: Instance): (Frame, () -> ())
 			return
 		end
 		if #result.entries == 0 then
-			Builder.label("No scores yet. Be the first survivor on the board!", 14, { TextColor3 = T.muted, Parent = box })
+			Builder.label(
+				"No scores yet. Be the first survivor on the board!",
+				14,
+				{ TextColor3 = T.muted, Parent = box }
+			)
 			return
 		end
 		for i, e in result.entries do
@@ -77,13 +81,23 @@ function Screens.lobby(gui: ScreenGui)
 	})
 	create("UISizeConstraint", { MinSize = Vector2.new(300, 300), Parent = left })
 	Builder.list(10).Parent = left
-	Builder.label("A LOW-POLY CO-OP SURVIVAL HORROR", 14, { Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left })
+	Builder.label(
+		"A LOW-POLY CO-OP SURVIVAL HORROR",
+		14,
+		{ Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left }
+	)
 	Builder.label("DEADFALL", 96, { Font = T.head, LayoutOrder = 2, Parent = left })
 	Builder.label("SQUARE", 56, { Font = T.head, TextColor3 = T.danger, LayoutOrder = 3, Parent = left })
-	Builder.label("Hold the town square together. Survive the night.", 16, { TextColor3 = T.muted, LayoutOrder = 4, Parent = left })
+	Builder.label(
+		"Hold the town square together. Survive the night.",
+		16,
+		{ TextColor3 = T.muted, LayoutOrder = 4, Parent = left }
+	)
 	local status = Builder.label("", 16, { LayoutOrder = 5, TextColor3 = T.text, Parent = left })
-	local readyButton = Builder.button("READY", "primary", nil, { LayoutOrder = 6, Size = UDim2.new(0, 300, 0, 50), Parent = left })
-	local howButton = Builder.button("HOW TO PLAY", nil, nil, { LayoutOrder = 7, Size = UDim2.new(0, 300, 0, 44), Parent = left })
+	local readyButton =
+		Builder.button("READY", "primary", nil, { LayoutOrder = 6, Size = UDim2.new(0, 300, 0, 50), Parent = left })
+	local howButton =
+		Builder.button("HOW TO PLAY", nil, nil, { LayoutOrder = 7, Size = UDim2.new(0, 300, 0, 44), Parent = left })
 
 	local right = Builder.panel({
 		AnchorPoint = Vector2.new(1, 0),
@@ -230,7 +244,11 @@ function Screens.perks(gui: ScreenGui)
 				LayoutOrder = 1,
 				Parent = cardButton,
 			})
-			Builder.label(def.name, 24, { Font = T.head, TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 2, Parent = cardButton })
+			Builder.label(
+				def.name,
+				24,
+				{ Font = T.head, TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 2, Parent = cardButton }
+			)
 			local desc = Builder.label(def.description, 15, {
 				TextXAlignment = Enum.TextXAlignment.Center,
 				TextWrapped = true,
@@ -315,7 +333,11 @@ function Screens.gameOver(gui: ScreenGui)
 		local f = Builder.panel({ LayoutOrder = order, Parent = stats })
 		Builder.padding(8).Parent = f
 		Builder.label(value, 26, { Font = T.head, TextColor3 = if highlight then T.gold else T.text, Parent = f })
-		Builder.label(label:upper(), 11, { Font = T.bold, TextColor3 = T.muted, Position = UDim2.fromOffset(0, 30), Parent = f })
+		Builder.label(
+			label:upper(),
+			11,
+			{ Font = T.bold, TextColor3 = T.muted, Position = UDim2.fromOffset(0, 30), Parent = f }
+		)
 	end
 
 	function self.show(data)
@@ -351,7 +373,11 @@ function Screens.gameOver(gui: ScreenGui)
 		if #data.team > 1 then
 			Builder.label("TEAM", 16, { Font = T.head, TextColor3 = T.accent, LayoutOrder = 10, Parent = side })
 			for i, m in data.team do
-				Builder.label(`{m.name}: {m.score} pts · {m.kills} kills · {m.revives} revives`, 14, { LayoutOrder = 10 + i, Parent = side })
+				Builder.label(
+					`{m.name}: {m.score} pts · {m.kills} kills · {m.revives} revives`,
+					14,
+					{ LayoutOrder = 10 + i, Parent = side }
+				)
 			end
 		end
 		root.Visible = true

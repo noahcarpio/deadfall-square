@@ -166,7 +166,10 @@ function ShopUI.new(gui: ScreenGui, onPlace: (string) -> ())
 	end
 
 	local function rowWith(f: Frame, order: number, labelText: string, button: TextButton)
-		local r = create("Frame", { BackgroundTransparency = 1, LayoutOrder = order, Size = UDim2.new(1, 0, 0, 30), Parent = f })
+		local r = create(
+			"Frame",
+			{ BackgroundTransparency = 1, LayoutOrder = order, Size = UDim2.new(1, 0, 0, 30), Parent = f }
+		)
 		Builder.label(labelText, 13, { Size = UDim2.new(0.45, 0, 1, 0), Parent = r })
 		button.Position = UDim2.fromScale(0.45, 0)
 		button.Size = UDim2.new(0.55, 0, 1, 0)
@@ -205,15 +208,25 @@ function ShopUI.new(gui: ScreenGui, onPlace: (string) -> ())
 					for k, kind in { "damage", "fireRate", "magazine" } do
 						local action = { kind = "weaponUpgrade", weapon = id, upgrade = kind }
 						local offer = ShopRules.getOffer(c, action)
-						rowWith(f, k, `{UPGRADE_LABELS[kind]} {offer.tier}/{offer.maxTier}`, buyButton(c, offer, "UP", function()
-							buy(action)
-						end))
+						rowWith(
+							f,
+							k,
+							`{UPGRADE_LABELS[kind]} {offer.tier}/{offer.maxTier}`,
+							buyButton(c, offer, "UP", function()
+								buy(action)
+							end)
+						)
 					end
 					if def.reserveMax ~= math.huge then
 						local action = { kind = "ammo", weapon = id }
-						rowWith(f, 5, `Ammo {w.reserve}/{def.reserveMax}`, buyButton(c, ShopRules.getOffer(c, action), "FILL", function()
-							buy(action)
-						end))
+						rowWith(
+							f,
+							5,
+							`Ammo {w.reserve}/{def.reserveMax}`,
+							buyButton(c, ShopRules.getOffer(c, action), "FILL", function()
+								buy(action)
+							end)
+						)
 					end
 				end
 			end

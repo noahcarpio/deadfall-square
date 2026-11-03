@@ -208,7 +208,16 @@ local function generate(): Layout
 			box(width - 0.1, 0.5, depth, TRIM, "Concrete", 0, height + 0.25, 0)
 			box(width - 0.7, 0.2, depth - 0.6, "#4a4542", "Slate", 0, height + 0.55, 0)
 			if rng:chance(0.6) then
-				box(1.4, 0.9, 1.0, "#9a9ea3", "Metal", rng:range(-width / 3, width / 3), height + 0.95, rng:range(-depth / 4, depth / 4))
+				box(
+					1.4,
+					0.9,
+					1.0,
+					"#9a9ea3",
+					"Metal",
+					rng:range(-width / 3, width / 3),
+					height + 0.95,
+					rng:range(-depth / 4, depth / 4)
+				)
 			end
 			box(width - 0.05, 0.25, 0.25, TRIM, "Concrete", 0, 3, front + 0.1)
 			box(width - 0.05, 0.6, 0.2, "#2f2c2a", "Concrete", 0, 0.3, front + 0.05)
@@ -218,7 +227,17 @@ local function generate(): Layout
 			if rng:chance(0.55) then
 				local stripe = rng:pick({ "#7e2b2b", "#2b5a7e", "#2f6b3d", "#8a6d2b" })
 				local aw = math.min(width - 1, rng:range(3, 6))
-				box(aw, 0.12, 1.4, stripe, "Fabric", rng:range(-(width - aw) / 2, (width - aw) / 2), 2.85, front + 0.7, 0.35)
+				box(
+					aw,
+					0.12,
+					1.4,
+					stripe,
+					"Fabric",
+					rng:range(-(width - aw) / 2, (width - aw) / 2),
+					2.85,
+					front + 0.7,
+					0.35
+				)
 			end
 			local shopW = math.min(width - 3.5, 3.2)
 			if shopW > 1.2 then
@@ -242,7 +261,20 @@ local function generate(): Layout
 						box(1.3, 1.7, 0.1, TRIM, "Concrete", wx, wy, front + 0.02)
 						box(1.4, 0.12, 0.3, TRIM, "Concrete", wx, wy - 0.9, front + 0.12)
 						if rng:chance(0.3) then
-							box(1.05, 1.45, 0.06, rng:pick({ "#ffd28a", "#ffc070", "#ffe3b0" }), "Neon", wx, wy, front + 0.08, 0, 0, 0, true)
+							box(
+								1.05,
+								1.45,
+								0.06,
+								rng:pick({ "#ffd28a", "#ffc070", "#ffe3b0" }),
+								"Neon",
+								wx,
+								wy,
+								front + 0.08,
+								0,
+								0,
+								0,
+								true
+							)
 						else
 							box(1.05, 1.45, 0.06, "#1b2530", "Glass", wx, wy, front + 0.08)
 						end
@@ -298,7 +330,16 @@ local function generate(): Layout
 			local planks = math.floor(len / 0.35 + 0.5)
 			for i = 0, planks - 1 do
 				local x = -len / 2 + (i + 0.5) * (len / planks)
-				box(len / planks - 0.04, 3 + rng:range(-0.3, 0.3), 0.15, if i % 2 == 1 then WOOD else DARK_WOOD, "WoodPlanks", x, 1.5, 0)
+				box(
+					len / planks - 0.04,
+					3 + rng:range(-0.3, 0.3),
+					0.15,
+					if i % 2 == 1 then WOOD else DARK_WOOD,
+					"WoodPlanks",
+					x,
+					1.5,
+					0
+				)
 			end
 		end)
 	end
@@ -421,7 +462,18 @@ local function generate(): Layout
 					local a = -0.9 + (i / 5) * 1.8
 					local bx = math.sin(a) * 3 + (row % 2) * 0.12
 					local bz = -math.cos(a) * 3 + 2.4
-					box(1.0, 0.36, 0.6, if row % 2 == 1 then "#8c7c5c" else "#7d6e50", "Fabric", bx, 0.18 + row * 0.27, bz, 0, -a)
+					box(
+						1.0,
+						0.36,
+						0.6,
+						if row % 2 == 1 then "#8c7c5c" else "#7d6e50",
+						"Fabric",
+						bx,
+						0.18 + row * 0.27,
+						bz,
+						0,
+						-a
+					)
 				end
 			end
 		end)
@@ -474,7 +526,9 @@ local function generate(): Layout
 	colCircle(0, 0, 3.6, 0.75)
 	colCircle(0, 0, 1.1, 4)
 
-	for _, p in { { -9, -9 }, { 9, -9 }, { -9, 9 }, { 9, 9 }, { -26, -30 }, { 26, -30 }, { -30, 24 }, { 30, 30 }, { 0, -30 } } do
+	for _, p in
+		{ { -9, -9 }, { 9, -9 }, { -9, 9 }, { 9, 9 }, { -26, -30 }, { 26, -30 }, { -30, 24 }, { 30, 30 }, { 0, -30 } }
+	do
 		lamp(p[1], p[2])
 	end
 	for i = 0, 3 do
@@ -546,7 +600,18 @@ local function generate(): Layout
 		local z = rng:range(A + 3, H - 2)
 		if math.abs(x + 18) >= 4 and math.abs(x - 12) >= 4 then
 			local r = rng:range(0.8, 1.6)
-			box(r * 2, r * 0.6, r * 1.6, rng:pick({ "#6d6862", "#5b5550", "#7a736b" }), "Slate", x, r * 0.25, z, 0, rng:range(0, 3))
+			box(
+				r * 2,
+				r * 0.6,
+				r * 1.6,
+				rng:pick({ "#6d6862", "#5b5550", "#7a736b" }),
+				"Slate",
+				x,
+				r * 0.25,
+				z,
+				0,
+				rng:range(0, 3)
+			)
 			colCircle(x, z, r * 0.9, 0.7)
 		end
 	end

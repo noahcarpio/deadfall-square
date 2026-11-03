@@ -34,7 +34,13 @@ function ZombieSim.new(W)
 		free = {},
 		byId = {},
 		aliveCount = 0,
-		hash = SpatialHash.new(-Constants.WORLD_HALF, -Constants.WORLD_HALF, Constants.WORLD_HALF, Constants.WORLD_HALF, 2),
+		hash = SpatialHash.new(
+			-Constants.WORLD_HALF,
+			-Constants.WORLD_HALF,
+			Constants.WORLD_HALF,
+			Constants.WORLD_HALF,
+			2
+		),
 		near = {},
 		snapshotTimer = 0,
 		records = {},

@@ -84,7 +84,15 @@ function Collision.insert(self: Collision, c: Collider): Collider
 	return c
 end
 
-function Collision.addBox(self: Collision, minX: number, minZ: number, maxX: number, maxZ: number, height: number, owner: any?): Collider
+function Collision.addBox(
+	self: Collision,
+	minX: number,
+	minZ: number,
+	maxX: number,
+	maxZ: number,
+	height: number,
+	owner: any?
+): Collider
 	return self:insert({
 		kind = "box",
 		minX = minX,

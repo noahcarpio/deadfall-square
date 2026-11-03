@@ -117,7 +117,10 @@ function Builder.button(text: string, kind: string?, onClick: (() -> ())?, props
 		TextSize = 24,
 		AutoButtonColor = true,
 		TextColor3 = if primary then Color3.fromRGB(11, 26, 18) else T.text,
-		BackgroundColor3 = if primary then T.accent elseif kind == "danger" then Color3.fromRGB(70, 24, 20) else Color3.fromRGB(32, 38, 46),
+		BackgroundColor3 = if primary
+			then T.accent
+			elseif kind == "danger" then Color3.fromRGB(70, 24, 20)
+			else Color3.fromRGB(32, 38, 46),
 		BackgroundTransparency = 0,
 		Size = UDim2.new(1, 0, 0, 46),
 		BorderSizePixel = 0,

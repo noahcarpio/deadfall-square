@@ -187,7 +187,8 @@ function Hud.start(gui: ScreenGui)
 		Parent = playerGui,
 	})
 	Builder.padding(10).Parent = scoreBox
-	local scoreLabel = Builder.label("0", 28, { Font = T.head, TextXAlignment = Enum.TextXAlignment.Right, Parent = scoreBox })
+	local scoreLabel =
+		Builder.label("0", 28, { Font = T.head, TextXAlignment = Enum.TextXAlignment.Right, Parent = scoreBox })
 	local coinsLabel = Builder.label("0", 22, {
 		Font = T.head,
 		TextColor3 = T.gold,
@@ -396,7 +397,14 @@ function Hud.start(gui: ScreenGui)
 	remotes.Notify.OnClientEvent:Connect(function(text: string, tone: string, x: number?, z: number?)
 		if tone == "coin" or tone == "pickup" then
 			if x and z then
-				Fx.floatText(text, x, if tone == "coin" then 2.4 else 2.6, z, if tone == "coin" then T.gold else Color3.fromRGB(154, 216, 255), if tone == "coin" then 18 else 22)
+				Fx.floatText(
+					text,
+					x,
+					if tone == "coin" then 2.4 else 2.6,
+					z,
+					if tone == "coin" then T.gold else Color3.fromRGB(154, 216, 255),
+					if tone == "coin" then 18 else 22
+				)
 			end
 			Audio.play(if tone == "coin" then "coin" else "pickup")
 			return
@@ -411,7 +419,12 @@ function Hud.start(gui: ScreenGui)
 			if data.boss then
 				showBanner(`WAVE {data.wave}`, "BOSS INCOMING — watch for red warnings!", T.boss, 3)
 			else
-				showBanner(`WAVE {data.wave}`, if data.wave == 1 then "Survive the horde" else "They keep coming…", Color3.fromRGB(255, 217, 207), 2.4)
+				showBanner(
+					`WAVE {data.wave}`,
+					if data.wave == 1 then "Survive the horde" else "They keep coming…",
+					Color3.fromRGB(255, 217, 207),
+					2.4
+				)
 			end
 			Audio.play("waveStart")
 		elseif fxKind == "waveClear" then
@@ -445,7 +458,9 @@ function Hud.start(gui: ScreenGui)
 		armorFill.Size = UDim2.fromScale(math.clamp(armor / math.max(1, maxArmor), 0, 1), 1)
 		armorLabel.Text = `{armor} / {maxArmor}`
 		staminaFill.Size = UDim2.fromScale(math.clamp(Context.stamina / Context.stats.maxStamina, 0, 1), 1)
-		staminaFill.BackgroundColor3 = if Context.exhausted then Color3.fromRGB(106, 100, 64) else Color3.fromRGB(242, 220, 74)
+		staminaFill.BackgroundColor3 = if Context.exhausted
+			then Color3.fromRGB(106, 100, 64)
+			else Color3.fromRGB(242, 220, 74)
 
 		-- Wave status.
 		local gs = Context.gameState
@@ -474,7 +489,9 @@ function Hud.start(gui: ScreenGui)
 		scoreLabel.Text = string.format("%d", p:GetAttribute("Score") or 0)
 		coinsLabel.Text = `● {p:GetAttribute("Coins") or 0}`
 		local combo = p:GetAttribute("Combo") or 0
-		comboLabel.Text = if combo >= 2 then `x{string.format("%.1f", p:GetAttribute("ComboMult") or 1)}  ({combo})` else ""
+		comboLabel.Text = if combo >= 2
+			then `x{string.format("%.1f", p:GetAttribute("ComboMult") or 1)}  ({combo})`
+			else ""
 		comboFill.Size = UDim2.fromScale(math.clamp(p:GetAttribute("ComboT") or 0, 0, 1), 1)
 
 		-- Weapon.
@@ -488,12 +505,21 @@ function Hud.start(gui: ScreenGui)
 		local now = os.clock()
 		reloadBar.Visible = arsenal:isReloading(now)
 		if reloadBar.Visible then
-			reloadFill.Size = UDim2.fromScale(math.clamp(1 - (arsenal.reloadEnd - now) / math.max(0.01, arsenal.reloadDuration), 0, 1), 1)
+			reloadFill.Size = UDim2.fromScale(
+				math.clamp(1 - (arsenal.reloadEnd - now) / math.max(0.01, arsenal.reloadDuration), 0, 1),
+				1
+			)
 		end
 		for id, l in slotLabels do
 			local owned = arsenal:owns(id)
-			l.BackgroundColor3 = if id == arsenal.current then T.accent elseif owned then Color3.fromRGB(46, 54, 62) else Color3.fromRGB(24, 28, 32)
-			l.TextColor3 = if id == arsenal.current then Color3.fromRGB(11, 26, 18) elseif owned then T.text else Color3.fromRGB(70, 74, 80)
+			l.BackgroundColor3 = if id == arsenal.current
+				then T.accent
+				elseif owned then Color3.fromRGB(46, 54, 62)
+				else Color3.fromRGB(24, 28, 32)
+			l.TextColor3 = if id == arsenal.current
+				then Color3.fromRGB(11, 26, 18)
+				elseif owned then T.text
+				else Color3.fromRGB(70, 74, 80)
 		end
 
 		-- Perks.
@@ -532,7 +558,11 @@ function Hud.start(gui: ScreenGui)
 				if not rowFrame then
 					rowFrame = Builder.panel({ Size = UDim2.new(1, 0, 0, 30), Parent = team })
 					Builder.padding(6).Parent = rowFrame
-					Builder.label(other.DisplayName, 13, { Name = "Name", Font = T.bold, Size = UDim2.new(1, 0, 0, 14), Parent = rowFrame })
+					Builder.label(
+						other.DisplayName,
+						13,
+						{ Name = "Name", Font = T.bold, Size = UDim2.new(1, 0, 0, 14), Parent = rowFrame }
+					)
 					local bar, fill = Builder.bar(Color3.fromRGB(230, 70, 60), 4)
 					bar.Name = "Bar"
 					fill.Name = "Fill"
@@ -545,7 +575,10 @@ function Hud.start(gui: ScreenGui)
 				nameLabel.Text = if downed then `{other.DisplayName} — DOWN` else other.DisplayName
 				nameLabel.TextColor3 = if downed then T.danger else T.text
 				local fill = (rowFrame:FindFirstChild("Bar") :: Frame):FindFirstChild("Fill") :: Frame
-				fill.Size = UDim2.fromScale(math.clamp((other:GetAttribute("HP") or 0) / (other:GetAttribute("MaxHP") or 100), 0, 1), 1)
+				fill.Size = UDim2.fromScale(
+					math.clamp((other:GetAttribute("HP") or 0) / (other:GetAttribute("MaxHP") or 100), 0, 1),
+					1
+				)
 			end
 		end
 		for other, rowFrame in teamRows do
@@ -558,7 +591,7 @@ function Hud.start(gui: ScreenGui)
 		-- Crosshair follows the mouse; ring size reflects spread.
 		local mouseMode = Context.device == "mouse" and playing and not Context.menuOpen
 		cross.Visible = mouseMode
-		UserInputService.MouseIconEnabled = not mouseMode
+		UserInputService.MouseIconEnabled = not mouseMode and Context.device ~= "gamepad"
 		if mouseMode then
 			local m = UserInputService:GetMouseLocation()
 			cross.Position = UDim2.fromOffset(m.X, m.Y)

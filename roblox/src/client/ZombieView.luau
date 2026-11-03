@@ -101,7 +101,12 @@ local function buildRig(def): Rig
 		head = newPart(v(b.head, 0.38, 0.38, 0.38), skin, nil, true),
 		armL = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false),
 		armR = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false),
-		eyes = newPart(Vector3.new(0.26, 0.06, 0.04) * sc * b.head[1], Color3.fromHex(def.colors.eyes), Enum.Material.Neon, false),
+		eyes = newPart(
+			Vector3.new(0.26, 0.06, 0.04) * sc * b.head[1],
+			Color3.fromHex(def.colors.eyes),
+			Enum.Material.Neon,
+			false
+		),
 		extra = nil :: BasePart?,
 	} :: any
 	if def.type == "exploder" then
@@ -288,14 +293,18 @@ local function pose(v: View, t: number)
 		if v.type == "exploder" then
 			local fusing = s == "fuse"
 			local k = if fusing then math.min(1, p / def.windup) else 0
-			local pulse = 1 + math.sin(t * (if fusing then 30 else 4) + v.slot) * (if fusing then 0.12 else 0.05) + k * 0.35
+			local pulse = 1
+				+ math.sin(t * (if fusing then 30 else 4) + v.slot) * (if fusing then 0.12 else 0.05)
+				+ k * 0.35
 			rig.extra.Size = Vector3.one * 0.84 * sc * pulse
 			rig.extra.Color = if fusing and math.sin(t * 40) > 0 then WHITE else rig.colors[8]
 			scratch[8] = frame * CFrame.new(0, 0.36 * b.torso[2] * sc, 0.17 * b.torso[3] * sc)
 		elseif v.type == "spitter" then
 			scratch[8] = frame * CFrame.new(0, 0.62 * b.torso[2] * sc, -0.24 * sc)
 		else
-			scratch[8] = frame * CFrame.new(0, 0.6 * b.torso[2] * sc, -0.22 * b.torso[3] * sc) * CFrame.Angles(-0.6, 0, 0)
+			scratch[8] = frame
+				* CFrame.new(0, 0.6 * b.torso[2] * sc, -0.22 * b.torso[3] * sc)
+				* CFrame.Angles(-0.6, 0, 0)
 		end
 	end
 end

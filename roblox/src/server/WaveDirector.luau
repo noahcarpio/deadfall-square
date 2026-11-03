@@ -121,7 +121,12 @@ function WaveDirector.update(self, dt: number): boolean
 				local ztype = table.remove(self.queue) :: string
 				local side = (W.rng:next() - 0.5) * 2.4
 				local back = W.rng:next() * 2.5
-				W.zombies:spawn(ztype, sp.x - sp.dirZ * side - sp.dirX * back, sp.z + sp.dirX * side - sp.dirZ * back, scaling)
+				W.zombies:spawn(
+					ztype,
+					sp.x - sp.dirZ * side - sp.dirX * back,
+					sp.z + sp.dirX * side - sp.dirZ * back,
+					scaling
+				)
 			end
 		end
 	end

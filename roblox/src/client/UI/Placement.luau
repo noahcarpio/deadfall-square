@@ -27,7 +27,12 @@ local S = Constants.STUDS
 
 local Placement = {}
 
-local collision = Collision.new(-Constants.WORLD_HALF - 4, -Constants.WORLD_HALF - 4, Constants.WORLD_HALF + 4, Constants.WORLD_HALF + 4)
+local collision = Collision.new(
+	-Constants.WORLD_HALF - 4,
+	-Constants.WORLD_HALF - 4,
+	Constants.WORLD_HALF + 4,
+	Constants.WORLD_HALF + 4
+)
 for _, c in ArenaLayout.generate().colliders do
 	collision:insert(table.clone(c) :: any)
 end
@@ -57,7 +62,12 @@ local function overlapsStructures(minX: number, minZ: number, maxX: number, maxZ
 		local blocker = m:FindFirstChild("Blocker") :: BasePart?
 		if blocker then
 			local p, size = blocker.Position / S, blocker.Size / S
-			if p.X - size.X / 2 < maxX and p.X + size.X / 2 > minX and p.Z - size.Z / 2 < maxZ and p.Z + size.Z / 2 > minZ then
+			if
+				p.X - size.X / 2 < maxX
+				and p.X + size.X / 2 > minX
+				and p.Z - size.Z / 2 < maxZ
+				and p.Z + size.Z / 2 > minZ
+			then
 				return true
 			end
 		end
@@ -145,7 +155,8 @@ function Placement.new(gui: ScreenGui, onDone: () -> ())
 		Audio.play("uiClick")
 	end
 	Builder.button("ROTATE", nil, rotate, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
-	local placeButton = Builder.button("PLACE", "primary", confirm, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
+	local placeButton =
+		Builder.button("PLACE", "primary", confirm, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
 	Builder.button("CANCEL", "danger", finish, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
 
 	local function updateGhost(x: number, z: number)

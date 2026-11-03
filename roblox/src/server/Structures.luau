@@ -178,7 +178,12 @@ end
 
 local function buildBarricade(model: Model, cf: CFrame)
 	for _, x in { -1.3, 0, 1.3 } do
-		part({ Size = Vector3.new(0.18, 1.2, 0.18) * S, CFrame = cf * CFrame.new(x * S, 0.6 * S, 0), Color = Color3.fromHex("#4f3a26"), Material = Enum.Material.Wood }).Parent =
+		part({
+			Size = Vector3.new(0.18, 1.2, 0.18) * S,
+			CFrame = cf * CFrame.new(x * S, 0.6 * S, 0),
+			Color = Color3.fromHex("#4f3a26"),
+			Material = Enum.Material.Wood,
+		}).Parent =
 			model
 	end
 	for i = 0, 2 do
@@ -202,7 +207,12 @@ local function buildBarricade(model: Model, cf: CFrame)
 end
 
 local function buildTurret(model: Model, cf: CFrame): (BasePart, BasePart, BasePart)
-	part({ Size = Vector3.new(1.5, 0.12, 1.5) * S, CFrame = cf * CFrame.new(0, 0.06 * S, 0), Color = Color3.fromHex("#3a3d42"), Material = Enum.Material.Metal }).Parent =
+	part({
+		Size = Vector3.new(1.5, 0.12, 1.5) * S,
+		CFrame = cf * CFrame.new(0, 0.06 * S, 0),
+		Color = Color3.fromHex("#3a3d42"),
+		Material = Enum.Material.Metal,
+	}).Parent =
 		model
 	local column = part({
 		Shape = Enum.PartType.Cylinder,
@@ -350,7 +360,8 @@ function Structures.findTarget(self, s)
 			if d2 < bestD then
 				local d = math.sqrt(d2)
 				local ox, oz = s.x + dx / d * 1.15, s.z + dz / d * 1.15
-				local _, hit = W.collision:raycast(ox, oz, dx / d, dz / d, math.max(0, d - 1.15), Constants.BULLET_HEIGHT)
+				local _, hit =
+					W.collision:raycast(ox, oz, dx / d, dz / d, math.max(0, d - 1.15), Constants.BULLET_HEIGHT)
 				if not hit then
 					best, bestD = z, d2
 				end

@@ -107,7 +107,14 @@ function NavGrid.rebuild(self: NavGrid, colliders: { any }, inflate: number, isS
 end
 
 -- Grid line of sight, sampled every quarter cell.
-function NavGrid.lineOfSight(self: NavGrid, ax: number, az: number, bx: number, bz: number, structuresBlock: boolean): boolean
+function NavGrid.lineOfSight(
+	self: NavGrid,
+	ax: number,
+	az: number,
+	bx: number,
+	bz: number,
+	structuresBlock: boolean
+): boolean
 	local dx = bx - ax
 	local dz = bz - az
 	local steps = math.ceil(math.sqrt(dx * dx + dz * dz) / 0.25)

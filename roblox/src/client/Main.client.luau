@@ -127,14 +127,21 @@ RunService.RenderStepped:Connect(function()
 	if phase == "intermission" and pendingPerks and not perks.open and not placement.active then
 		shop.hide()
 		perks.show(pendingPerks)
-	elseif phase == "intermission" and not pendingPerks and not perks.open and not shop.open and not placement.active then
+	elseif
+		phase == "intermission"
+		and not pendingPerks
+		and not perks.open
+		and not shop.open
+		and not placement.active
+	then
 		shop.show(Context.gameState:GetAttribute("Wave") or 0)
 	end
 	if phase == "gameover" and gameOverData and not gameOver.open then
 		gameOver.show(gameOverData)
 	end
 	if gameOver.open then
-		local left = math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
+		local left =
+			math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
 		gameOver.update(left)
 	end
 

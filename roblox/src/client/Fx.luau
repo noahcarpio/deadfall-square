@@ -38,7 +38,13 @@ emitterHost.Size = Vector3.one
 emitterHost.Position = Vector3.zero
 emitterHost.Parent = folder
 
-local function makeEmitter(color: ColorSequence, size: NumberSequence, speed: NumberRange, lifetime: NumberRange, light: number?): (Attachment, ParticleEmitter)
+local function makeEmitter(
+	color: ColorSequence,
+	size: NumberSequence,
+	speed: NumberRange,
+	lifetime: NumberRange,
+	light: number?
+): (Attachment, ParticleEmitter)
 	local att = Instance.new("Attachment")
 	att.Parent = emitterHost
 	local e = Instance.new("ParticleEmitter")
@@ -140,7 +146,14 @@ local function fadeAndRemove(p: BasePart, duration: number, props: { [string]: a
 end
 
 -- Flat disc on the ground (a short vertical cylinder).
-local function disc(x: number, z: number, radius: number, color: Color3, transparency: number, material: Enum.Material?): BasePart
+local function disc(
+	x: number,
+	z: number,
+	radius: number,
+	color: Color3,
+	transparency: number,
+	material: Enum.Material?
+): BasePart
 	return part({
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.12, radius * 2 * S, radius * 2 * S),
@@ -170,7 +183,12 @@ function Fx.tracer(x0: number, y0: number, z0: number, x1: number, z1: number, c
 end
 
 function Fx.muzzle(position: Vector3, color: Color3, big: boolean)
-	local p = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * (if big then 1.6 else 0.9), Position = position, Color = color })
+	local p = part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * (if big then 1.6 else 0.9),
+		Position = position,
+		Color = color,
+	})
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Range = if big then 22 else 14
@@ -226,7 +244,9 @@ function Fx.explosion(x: number, z: number, radius: number)
 	end)
 	local character = Context.character()
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local d = if root then (Vector3.new(x * S, 0, z * S) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude / S else 99
+	local d = if root
+		then (Vector3.new(x * S, 0, z * S) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude / S
+		else 99
 	Context.shake(math.max(0.1, 0.7 - d / 30))
 	Audio.play("explosion", x, z)
 end
@@ -354,7 +374,8 @@ local function shockwave(x: number, z: number, delay: number, speed: number, max
 			for i, s in segs do
 				local a = (i / SEGMENTS) * math.pi * 2
 				s.Size = Vector3.new(seg + 0.2, 2.4 * (1 - r / maxRadius * 0.6), 0.6)
-				s.CFrame = CFrame.new((x + math.cos(a) * r) * S, 1.2, (z + math.sin(a) * r) * S) * CFrame.Angles(0, -a + math.pi / 2, 0)
+				s.CFrame = CFrame.new((x + math.cos(a) * r) * S, 1.2, (z + math.sin(a) * r) * S)
+					* CFrame.Angles(0, -a + math.pi / 2, 0)
 				s.Transparency = alpha
 			end
 			if math.random() < 0.5 then
@@ -393,9 +414,11 @@ local function telegraph(id: number, shape: string, data)
 				local len = data.length * S
 				local w = data.width * S
 				outer.Size = Vector3.new(w, 0.1, len)
-				outer.CFrame = CFrame.lookAt(Vector3.new(x, 0.15, z) + dir * len / 2, Vector3.new(x, 0.15, z) + dir * len)
+				outer.CFrame =
+					CFrame.lookAt(Vector3.new(x, 0.15, z) + dir * len / 2, Vector3.new(x, 0.15, z) + dir * len)
 				inner.Size = Vector3.new(w, 0.12, math.max(0.1, len * k))
-				inner.CFrame = CFrame.lookAt(Vector3.new(x, 0.16, z) + dir * len * k / 2, Vector3.new(x, 0.16, z) + dir * len)
+				inner.CFrame =
+					CFrame.lookAt(Vector3.new(x, 0.16, z) + dir * len * k / 2, Vector3.new(x, 0.16, z) + dir * len)
 			else
 				local d = data.radius * 2 * S
 				outer.Size = Vector3.new(0.1, d, d)
@@ -471,7 +494,14 @@ function Fx.start()
 			-- a=x, b=z, c=scale, d=damage, e=crit
 			Fx.goo(a, 1.1 * c, b, if e then 6 else 3)
 			if Context.settings.damageNumbers then
-				Fx.floatText(tostring(d), a, 1.9 * c, b, if e then Color3.fromRGB(255, 178, 58) else Color3.new(1, 1, 1), if e then 30 else 22)
+				Fx.floatText(
+					tostring(d),
+					a,
+					1.9 * c,
+					b,
+					if e then Color3.fromRGB(255, 178, 58) else Color3.new(1, 1, 1),
+					if e then 30 else 22
+				)
 			end
 			Audio.play("hit", a, b, 0.6)
 		elseif kind == "death" then

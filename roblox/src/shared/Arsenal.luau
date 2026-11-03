@@ -30,7 +30,8 @@ export type Arsenal = typeof(setmetatable(
 ))
 
 function Arsenal.new(): Arsenal
-	local self = setmetatable({ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0 }, Arsenal)
+	local self =
+		setmetatable({ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0 }, Arsenal)
 	self:give("pistol")
 	return self
 end
@@ -72,7 +73,12 @@ function Arsenal.give(self: Arsenal, id: string): "new" | "ammo"
 		return "ammo"
 	end
 	local def = Weapons.defs[id]
-	self.owned[id] = { id = id, mag = def.magSize, reserve = def.startReserve, upgrades = { damage = 0, fireRate = 0, magazine = 0 } }
+	self.owned[id] = {
+		id = id,
+		mag = def.magSize,
+		reserve = def.startReserve,
+		upgrades = { damage = 0, fireRate = 0, magazine = 0 },
+	}
 	return "new"
 end
 
@@ -172,7 +178,12 @@ end
 	early, absorbing network jitter on the server. Returns "fired", "empty"
 	(reload started or dry fire) or "blocked" (cooling down / reloading).
 ]]
-function Arsenal.tryFire(self: Arsenal, now: number, tolerance: number, reloadSpeed: number): "fired" | "empty" | "blocked"
+function Arsenal.tryFire(
+	self: Arsenal,
+	now: number,
+	tolerance: number,
+	reloadSpeed: number
+): "fired" | "empty" | "blocked"
 	self:finishReload(now)
 	if self:isReloading(now) then
 		return "blocked"
@@ -217,7 +228,12 @@ function Arsenal.serialize(self: Arsenal): { [string]: any }
 			upgrades = table.clone(w.upgrades),
 		}
 	end
-	return { current = self.current, weapons = weapons, reloadEnd = self.reloadEnd, reloadDuration = self.reloadDuration }
+	return {
+		current = self.current,
+		weapons = weapons,
+		reloadEnd = self.reloadEnd,
+		reloadDuration = self.reloadDuration,
+	}
 end
 
 function Arsenal.applySerialized(self: Arsenal, data: { [string]: any })

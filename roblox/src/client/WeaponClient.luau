@@ -26,7 +26,12 @@ local S = Constants.STUDS
 local WeaponClient = {}
 
 -- Arena obstacles for local tracer prediction (structures aren't included).
-local collision = Collision.new(-Constants.WORLD_HALF - 4, -Constants.WORLD_HALF - 4, Constants.WORLD_HALF + 4, Constants.WORLD_HALF + 4)
+local collision = Collision.new(
+	-Constants.WORLD_HALF - 4,
+	-Constants.WORLD_HALF - 4,
+	Constants.WORLD_HALF + 4,
+	Constants.WORLD_HALF + 4
+)
 for _, c in ArenaLayout.generate().colliders do
 	collision:insert(table.clone(c) :: any)
 end

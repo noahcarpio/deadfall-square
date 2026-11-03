@@ -34,7 +34,10 @@ end
 
 function Hazards.shockwave(self, x: number, z: number, damage: number, delay: number)
 	table.insert(self.waves, { x = x, z = z, radius = 0.5, delay = delay, damage = damage, hit = {} })
-	self.W.fx("shockwave", { x = x, z = z, delay = delay, speed = BOSS.slamRingSpeed, maxRadius = BOSS.slamRingMaxRadius })
+	self.W.fx(
+		"shockwave",
+		{ x = x, z = z, delay = delay, speed = BOSS.slamRingSpeed, maxRadius = BOSS.slamRingMaxRadius }
+	)
 end
 
 function Hazards.update(self, dt: number)

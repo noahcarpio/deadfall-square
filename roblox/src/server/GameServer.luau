@@ -63,7 +63,12 @@ function GameServer.start()
 		targets = {},
 	} :: any
 
-	local collision = Collision.new(-Constants.WORLD_HALF - 4, -Constants.WORLD_HALF - 4, Constants.WORLD_HALF + 4, Constants.WORLD_HALF + 4)
+	local collision = Collision.new(
+		-Constants.WORLD_HALF - 4,
+		-Constants.WORLD_HALF - 4,
+		Constants.WORLD_HALF + 4,
+		Constants.WORLD_HALF + 4
+	)
 	for _, c in arena.layout.colliders do
 		collision:insert(table.clone(c) :: any)
 	end
@@ -186,7 +191,10 @@ function GameServer.start()
 			for _, n in ps.kills do
 				kills += n
 			end
-			table.insert(team, { name = ps.player.DisplayName, score = ps.economy.score, kills = kills, revives = ps.revives })
+			table.insert(
+				team,
+				{ name = ps.player.DisplayName, score = ps.economy.score, kills = kills, revives = ps.revives }
+			)
 		end
 		table.sort(team, function(a, b)
 			return a.score > b.score
@@ -369,7 +377,9 @@ function GameServer.start()
 		Lighting.Ambient = Color3.fromRGB(70, 70, 70):Lerp(Color3.fromRGB(14, 16, 26), n)
 		atmosphere.Density = 0.3 + n * 0.22
 		atmosphere.Haze = 1 + n
-		atmosphere.Color = if n < 0.45 then DAY_FOG:Lerp(DUSK_FOG, n / 0.45) else DUSK_FOG:Lerp(NIGHT_FOG, (n - 0.45) / 0.55)
+		atmosphere.Color = if n < 0.45
+			then DAY_FOG:Lerp(DUSK_FOG, n / 0.45)
+			else DUSK_FOG:Lerp(NIGHT_FOG, (n - 0.45) / 0.55)
 		ArenaBuilder.setNight(arena, n)
 		stateFolder:SetAttribute("Night", n)
 	end

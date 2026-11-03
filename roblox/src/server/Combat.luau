@@ -46,7 +46,11 @@ function Combat.damageZombie(self, z, amount: number, opts): boolean
 		if attacker.perks:has("vampire") and not attacker.downed then
 			W.players:heal(attacker, dealt * 0.03 * attacker.perks:level("vampire"))
 		end
-		if opts.allowIncendiary and attacker.perks:has("incendiary") and W.rng:chance(0.25 * attacker.perks:level("incendiary")) then
+		if
+			opts.allowIncendiary
+			and attacker.perks:has("incendiary")
+			and W.rng:chance(0.25 * attacker.perks:level("incendiary"))
+		then
 			self:ignite(z, 9, 2.5)
 		end
 	end
@@ -71,7 +75,11 @@ function Combat.applyBurn(self, z, dt: number)
 	if z.burnAccum >= 4 or (z.burnTime <= 0 and z.burnAccum > 0) then
 		local amount = z.burnAccum
 		z.burnAccum = 0
-		self:damageZombie(z, amount, { dirX = 0, dirZ = 0, knock = 0, source = "burn", crit = false, attacker = z.lastAttacker })
+		self:damageZombie(
+			z,
+			amount,
+			{ dirX = 0, dirZ = 0, knock = 0, source = "burn", crit = false, attacker = z.lastAttacker }
+		)
 	end
 end
 
@@ -101,8 +109,20 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 	end
 
 	if z.type == "exploder" then
-		self:queueExplosion(z.x, z.z, EXPLODER.blastRadius, EXPLODER.zombieDamage, z.damage, EXPLODER.structureDamage, "exploder", attacker)
-	elseif attacker and source ~= "perkBlast" and attacker.perks:has("explosiveKills")
+		self:queueExplosion(
+			z.x,
+			z.z,
+			EXPLODER.blastRadius,
+			EXPLODER.zombieDamage,
+			z.damage,
+			EXPLODER.structureDamage,
+			"exploder",
+			attacker
+		)
+	elseif
+		attacker
+		and source ~= "perkBlast"
+		and attacker.perks:has("explosiveKills")
 		and W.rng:chance(0.2 * attacker.perks:level("explosiveKills"))
 	then
 		self:queueExplosion(z.x, z.z, 2.6, 45 * (1 + W.waves.wave * 0.05), 0, 0, "perkBlast", attacker)
@@ -118,7 +138,11 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 		W.fx("explosion", { x = z.x, z = z.z, radius = 5 })
 		for i = 0, 5 do
 			local a = i / 6 * math.pi * 2
-			W.pickups:spawn(if i == 0 then "weapon" elseif i % 2 == 1 then "health" else "ammo", z.x + math.cos(a) * 2, z.z + math.sin(a) * 2)
+			W.pickups:spawn(
+				if i == 0 then "weapon" elseif i % 2 == 1 then "health" else "ammo",
+				z.x + math.cos(a) * 2,
+				z.z + math.sin(a) * 2
+			)
 		end
 		W.waves.boss = nil
 		W.notifyAll("BOSS DEFEATED", "good")

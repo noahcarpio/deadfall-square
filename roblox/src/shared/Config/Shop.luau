@@ -4,10 +4,38 @@
 local Weapons = if script then require(script.Parent.Weapons) else require("./Weapons")
 
 local PLAYER_UPGRADES = {
-	maxHealth = { id = "maxHealth", name = "Vitality", description = "+20 max health", maxTier = 5, baseCost = 110, growth = 0.55 },
-	armor = { id = "armor", name = "Kevlar Plating", description = "+25 max armor and refills armor", maxTier = 4, baseCost = 130, growth = 0.5 },
-	speed = { id = "speed", name = "Running Shoes", description = "+6% movement speed", maxTier = 4, baseCost = 140, growth = 0.6 },
-	stamina = { id = "stamina", name = "Endurance", description = "+25% stamina and regen", maxTier = 3, baseCost = 90, growth = 0.6 },
+	maxHealth = {
+		id = "maxHealth",
+		name = "Vitality",
+		description = "+20 max health",
+		maxTier = 5,
+		baseCost = 110,
+		growth = 0.55,
+	},
+	armor = {
+		id = "armor",
+		name = "Kevlar Plating",
+		description = "+25 max armor and refills armor",
+		maxTier = 4,
+		baseCost = 130,
+		growth = 0.5,
+	},
+	speed = {
+		id = "speed",
+		name = "Running Shoes",
+		description = "+6% movement speed",
+		maxTier = 4,
+		baseCost = 140,
+		growth = 0.6,
+	},
+	stamina = {
+		id = "stamina",
+		name = "Endurance",
+		description = "+25% stamina and regen",
+		maxTier = 3,
+		baseCost = 90,
+		growth = 0.6,
+	},
 }
 
 local UPGRADE_ORDER = { "maxHealth", "armor", "speed", "stamina" }

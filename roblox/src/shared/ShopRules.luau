@@ -75,7 +75,13 @@ local function getOffer(ctx: Context, a: Action): Offer
 		end
 		local missing = 1 - w.reserve / def.reserveMax
 		local c = Shop.consumables
-		return offer(math.max(c.ammoMinPrice, math.floor(def.price * c.ammoPriceFactor * missing + 0.5)), true, "", 0, 0)
+		return offer(
+			math.max(c.ammoMinPrice, math.floor(def.price * c.ammoPriceFactor * missing + 0.5)),
+			true,
+			"",
+			0,
+			0
+		)
 	elseif a.kind == "playerUpgrade" then
 		local id = a.id :: string
 		local def = Shop.playerUpgrades[id]

@@ -34,7 +34,8 @@ function CameraController.start()
 		if not root then
 			orbit += dt * 0.05
 			local r = 34 * S
-			camera.CFrame = CFrame.lookAt(Vector3.new(math.sin(orbit) * r, 20 * S, math.cos(orbit) * r), Vector3.new(0, 3, 0))
+			camera.CFrame =
+				CFrame.lookAt(Vector3.new(math.sin(orbit) * r, 20 * S, math.cos(orbit) * r), Vector3.new(0, 3, 0))
 			return
 		end
 

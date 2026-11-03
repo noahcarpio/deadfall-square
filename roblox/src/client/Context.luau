@@ -45,14 +45,17 @@ for _, name in Net.FUNCTIONS do
 	remotes[name] = remotesFolder:WaitForChild(name)
 end
 
-local base = PlayerStats.compute({ maxHealth = 0, armor = 0, speed = 0, stamina = 0 }, {
-	level = function()
-		return 0
-	end,
-	has = function()
-		return false
-	end,
-} :: any)
+local base = PlayerStats.compute(
+	{ maxHealth = 0, armor = 0, speed = 0, stamina = 0 },
+	{
+		level = function()
+			return 0
+		end,
+		has = function()
+			return false
+		end,
+	} :: any
+)
 
 local Context = {
 	player = Players.LocalPlayer,

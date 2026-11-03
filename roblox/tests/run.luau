@@ -374,7 +374,8 @@ end)
 test("Snapshot packing round-trips and fits an unreliable packet", function()
 	local records = {}
 	for i = 1, Net.MAX_PER_PACKET do
-		records[i] = { id = i * 7, x = -33.21 + i, z = 41.5 - i, facing = (i * 0.37) % 6.28, state = 2, hp = 0.5, flags = 3 }
+		records[i] =
+			{ id = i * 7, x = -33.21 + i, z = 41.5 - i, facing = (i * 0.37) % 6.28, state = 2, hp = 0.5, flags = 3 }
 	end
 	local b = Net.pack(records, 1, #records, 1234.5)
 	expect(buffer.len(b) <= 900, `packet is {buffer.len(b)} bytes`)
