@@ -394,18 +394,18 @@ local function generate(): Layout
 		local glass = if burnt then "#1a1817" else "#24323d"
 		prop(name, x, 0, z, ry, function()
 			withFrame(x, z, ry, function()
-			local tilt = rng:range(-0.04, 0.04)
-			box(1.9, 0.75, 4.3, body, "Metal", 0, 0.7, 0, 0, 0, tilt)
-			box(1.7, 0.65, 2.2, body, "Metal", 0, 1.38, -0.2, 0, 0, tilt)
-			box(1.72, 0.5, 2.0, glass, "Glass", 0, 1.38, -0.2, 0, 0, tilt)
-			box(1.92, 0.12, 4.32, "#1f1f1f", "SmoothPlastic", 0, 0.38, 0)
-			box(0.35, 0.15, 0.05, if burnt then "#2a2725" else "#f4e7b0", "Neon", 0.6, 0.85, 2.16)
-			box(0.35, 0.15, 0.05, if burnt then "#2a2725" else "#f4e7b0", "Neon", -0.6, 0.85, 2.16)
-			box(0.35, 0.15, 0.05, "#6b1d1d", "SmoothPlastic", 0.6, 0.85, -2.16)
-			box(0.35, 0.15, 0.05, "#6b1d1d", "SmoothPlastic", -0.6, 0.85, -2.16)
-			for _, w in { { -0.95, 1.4 }, { 0.95, 1.4 }, { -0.95, -1.4 }, { 0.95, -1.4 } } do
-				box(0.28, 0.76, 0.76, "#161616", "Rubber", w[1], 0.38, w[2])
-			end
+				local tilt = rng:range(-0.04, 0.04)
+				box(1.9, 0.75, 4.3, body, "Metal", 0, 0.7, 0, 0, 0, tilt)
+				box(1.7, 0.65, 2.2, body, "Metal", 0, 1.38, -0.2, 0, 0, tilt)
+				box(1.72, 0.5, 2.0, glass, "Glass", 0, 1.38, -0.2, 0, 0, tilt)
+				box(1.92, 0.12, 4.32, "#1f1f1f", "SmoothPlastic", 0, 0.38, 0)
+				box(0.35, 0.15, 0.05, if burnt then "#2a2725" else "#f4e7b0", "Neon", 0.6, 0.85, 2.16)
+				box(0.35, 0.15, 0.05, if burnt then "#2a2725" else "#f4e7b0", "Neon", -0.6, 0.85, 2.16)
+				box(0.35, 0.15, 0.05, "#6b1d1d", "SmoothPlastic", 0.6, 0.85, -2.16)
+				box(0.35, 0.15, 0.05, "#6b1d1d", "SmoothPlastic", -0.6, 0.85, -2.16)
+				for _, w in { { -0.95, 1.4 }, { 0.95, 1.4 }, { -0.95, -1.4 }, { 0.95, -1.4 } } do
+					box(0.28, 0.76, 0.76, "#161616", "Rubber", w[1], 0.38, w[2])
+				end
 			end)
 		end)
 		local along = math.abs(math.sin(ry)) > 0.5
@@ -535,7 +535,12 @@ local function generate(): Layout
 		colBox(x - hw, z - hd, x + hw, z + hd, 1.5)
 	end
 
-	local BARREL_MESHES = { ["#a33a2a"] = "Barrel_red", ["#c49a2a"] = "Barrel_yellow", ["#2a6aa3"] = "Barrel_blue", ["#4a7a3a"] = "Barrel_green" }
+	local BARREL_MESHES = {
+		["#a33a2a"] = "Barrel_red",
+		["#c49a2a"] = "Barrel_yellow",
+		["#2a6aa3"] = "Barrel_blue",
+		["#4a7a3a"] = "Barrel_green",
+	}
 
 	local function barrel(x: number, z: number, color: string)
 		prop(BARREL_MESHES[color] or "Barrel_red", x, 0, z, 0, function()

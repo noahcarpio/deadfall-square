@@ -71,7 +71,13 @@ folder.Parent = Workspace
 local WHITE = Color3.new(1, 1, 1)
 
 -- Uses the imported mesh `meshName` when available, otherwise a plain block.
-local function newPart(size: Vector3, color: Color3, material: Enum.Material?, shadow: boolean?, meshName: string?): BasePart
+local function newPart(
+	size: Vector3,
+	color: Color3,
+	material: Enum.Material?,
+	shadow: boolean?,
+	meshName: string?
+): BasePart
 	local mesh = if meshName then MeshLibrary.clone(meshName, size) else nil
 	local p: BasePart = mesh or Instance.new("Part")
 	p.Anchored = true
