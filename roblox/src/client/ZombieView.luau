@@ -128,7 +128,8 @@ local function buildRig(def): Rig
 		sac.Shape = Enum.PartType.Ball
 		rig.extra = sac
 	elseif def.type == "boss" then
-		rig.extra = newPart(Vector3.new(0.5, 0.9, 0.5) * sc, Color3.fromHex("#d8cfb4"), Visuals.enum(Enum.Material.Slate), true)
+		rig.extra =
+			newPart(Vector3.new(0.5, 0.9, 0.5) * sc, Color3.fromHex("#d8cfb4"), Visuals.enum(Enum.Material.Slate), true)
 	end
 	rig.parts = { rig.legL, rig.legR, rig.torso, rig.head, rig.armL, rig.armR, rig.eyes }
 	if rig.extra then
