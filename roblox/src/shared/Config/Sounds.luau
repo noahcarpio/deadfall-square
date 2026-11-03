@@ -31,6 +31,7 @@ return {
 	pickup = s(0.5),
 	coin = s(0.3),
 	roll = s(0.4),
+	melee = s(0.5),
 	spit = s(0.5),
 	bossRoar = s(0.9),
 	waveStart = s(0.7),

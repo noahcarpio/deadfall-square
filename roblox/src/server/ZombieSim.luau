@@ -714,7 +714,8 @@ local function think(W, z, dt: number)
 		return
 	end
 	if z.state == "stunned" and z.type ~= "boss" then
-		if z.stateTime > 0.6 then
+		if z.stateTime > (z.stunTime or 0.6) then
+			z.stunTime = nil
 			setState(z, "chase")
 		end
 		return

@@ -44,6 +44,8 @@ export type PState = {
 		guns: { [string]: Gear.Item },
 	},
 	nextUid: number,
+	abilityReady: { [number]: number },
+	meleeStep: number,
 	crouching: boolean,
 	noiseTimer: number,
 	noiseX: number,
@@ -111,6 +113,8 @@ local function freshRunState(ps: PState)
 		gadgets = { Gear.common("chargeStrike", uid()), false, false },
 		guns = {},
 	}
+	ps.abilityReady = {}
+	ps.meleeStep = 0
 	ps.stats = PlayerStats.compute(ps.tiers, ps.perks, Gear.bonus(ps.gear.armor))
 	-- Everyone starts with a few rags and a bandage.
 	ps.inventory = Inventory.new(ps.stats.carryCapacity)
@@ -279,6 +283,7 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	ps.crouching = false
 	character:SetAttribute("Crouching", false)
 	self:updateGunModel(ps)
+	self:updateMeleeModel(ps)
 	self:applyMovement(ps)
 	self:syncAll(ps)
 end
@@ -337,6 +342,75 @@ function PlayerService.updateGunModel(_self, ps: PState)
 	model.Parent = character
 	ps.gun = model
 	character:SetAttribute("Weapon", def.id)
+end
+
+-- Melee weapon shapes in metres, built along -Z from the grip: { size, centre z, colour, material }.
+local MELEE_SHAPES = {
+	machete = {
+		{ Vector3.new(0.07, 0.08, 0.26), -0.05, Color3.fromRGB(58, 40, 28), Enum.Material.Wood },
+		{ Vector3.new(0.03, 0.12, 0.62), -0.48, Color3.fromRGB(170, 174, 178), Enum.Material.Metal },
+	},
+	fireaxe = {
+		{ Vector3.new(0.06, 0.06, 0.95), -0.38, Color3.fromRGB(122, 86, 52), Enum.Material.Wood },
+		{ Vector3.new(0.05, 0.3, 0.2), -0.78, Color3.fromRGB(178, 40, 34), Enum.Material.Metal },
+	},
+	sledge = {
+		{ Vector3.new(0.07, 0.07, 1.0), -0.42, Color3.fromRGB(96, 72, 48), Enum.Material.Wood },
+		{ Vector3.new(0.22, 0.22, 0.36), -0.92, Color3.fromRGB(74, 78, 84), Enum.Material.Metal },
+	},
+}
+
+-- Rebuilds the melee weapon held in the right hand (hidden by clients except while swinging).
+function PlayerService.updateMeleeModel(_self, ps: PState)
+	local character = ps.player.Character
+	if not character then
+		return
+	end
+	local old = character:FindFirstChild("MeleeWeapon")
+	if old then
+		old:Destroy()
+	end
+	local item = ps.gear.melee
+	local hand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
+	if not item or not hand or not hand:IsA("BasePart") then
+		return
+	end
+	local shape = MELEE_SHAPES[item.id] or MELEE_SHAPES.machete
+	local model = Instance.new("Model")
+	model.Name = "MeleeWeapon"
+	local root: BasePart? = nil
+	for i, p in shape do
+		local part = Instance.new("Part")
+		part.Name = if i == 1 then "Handle" else "Head"
+		part.Size = p[1] * S
+		part.Color = p[3]
+		part.Material = p[4]
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.Massless = true
+		part.CastShadow = false
+		part.CFrame = hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, p[2] * S)
+		part.Parent = model
+		if root then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = part
+			weld.Parent = part
+		else
+			root = part
+		end
+	end
+	local handle = root :: BasePart
+	local grip = Instance.new("Motor6D")
+	grip.Name = "MeleeGrip"
+	grip.Part0 = hand
+	grip.Part1 = handle
+	grip.C0 = CFrame.new(0, -hand.Size.Y / 2, 0)
+	grip.C1 = CFrame.new(0, 0, -shape[1][2] * S)
+	grip.Parent = handle
+	model.PrimaryPart = handle
+	model.Parent = character
 end
 
 -- Movement allowed only when standing; the client reads these for sprinting.
@@ -528,6 +602,7 @@ function PlayerService.equipGear(self, ps: PState, uid: number, slot: number?): 
 	if item.kind == "melee" then
 		old = g.melee
 		g.melee = item
+		self:updateMeleeModel(ps)
 	elseif item.kind == "armor" then
 		old = g.armor
 		g.armor = item
@@ -692,6 +767,7 @@ function PlayerService.resetAll(self)
 		self:setCrouch(ps, false)
 		self:applyMovement(ps)
 		self:updateGunModel(ps)
+		self:updateMeleeModel(ps)
 		self:syncAll(ps)
 		local root = ps.root
 		if root and root.Parent then

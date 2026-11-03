@@ -6,12 +6,15 @@
 	server, which resolves the actual hits.
 ]]
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ArenaLayout = require(Shared.ArenaLayout)
 local Collision = require(Shared.Collision)
 local Constants = require(Shared.Config.Constants)
 local PlayerStats = require(Shared.PlayerStats)
+local Gear = require(Shared.Gear)
+local MeleeMath = require(Shared.MeleeMath)
 local Weapons = require(Shared.Config.Weapons)
 local MathUtil = require(Shared.Util.MathUtil)
 
@@ -97,6 +100,54 @@ function WeaponClient.start()
 		Context.signals.statsChanged:fire()
 	end)
 
+	-- Melee: predicted locally (timing, combo, animation); the server resolves hits.
+	local nextMelee = 0
+	local lastMelee = -10
+	local meleeStep = 0
+	InputController.onMelee:connect(function()
+		local item = Context.gear.melee
+		local def = item and Gear.defs[item.id].melee
+		if not def or Context.downed() or Context.rolling or Context.phase() == "lobby" then
+			return
+		end
+		local now = os.clock()
+		if now < nextMelee then
+			return
+		end
+		nextMelee = now + MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
+		meleeStep = MeleeMath.comboStep(meleeStep, now - lastMelee)
+		lastMelee = now
+		Context.swingAt = now
+		Context.swingStep = meleeStep
+		remotes.Melee:FireServer(Context.aimX, Context.aimZ)
+		Audio.play("melee")
+		Context.shake(if meleeStep == 3 then 0.25 else 0.08)
+	end)
+
+	-- Gadgets: cooldowns come from the server (AbilitySync); Charge Strike dashes at once.
+	InputController.onAbility:connect(function(slot: number)
+		local item = Context.gear.gadgets and Context.gear.gadgets[slot]
+		if not item or Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
+			return
+		end
+		if Workspace:GetServerTimeNow() < (Context.abilityReady[slot] or 0) then
+			Audio.play("uiDeny")
+			return
+		end
+		-- Optimistic cooldown until the server confirms.
+		Context.abilityReady[slot] = Workspace:GetServerTimeNow() + Gear.cooldownOf(item)
+		remotes.UseAbility:FireServer(slot, Context.aimX, Context.aimZ, Context.aimDistance)
+		if item.id == "chargeStrike" then
+			Context.signals.dash:fire(Context.aimX, Context.aimZ, 6)
+		end
+	end)
+	remotes.AbilitySync.OnClientEvent:Connect(function(slot: number, readyAt: number, effect: string?, data)
+		Context.abilityReady[slot] = readyAt
+		if effect == "adrenal" and type(data) == "table" then
+			Context.adrenalUntil = os.clock() + (data.seconds or 6)
+		end
+	end)
+
 	InputController.onReload:connect(function()
 		if Context.downed() or Context.menuOpen then
 			return
@@ -140,7 +191,15 @@ function WeaponClient.start()
 		if arsenal.reloadEnd > 0 and arsenal:finishReload(os.clock()) then
 			Context.signals.arsenalChanged:fire()
 		end
-		if not root or not Context.firing or Context.rolling or Context.downed() or Context.phase() == "lobby" then
+		local swinging = os.clock() - Context.swingAt < MeleeMath.SWING_TIME
+		if
+			not root
+			or not Context.firing
+			or swinging
+			or Context.rolling
+			or Context.downed()
+			or Context.phase() == "lobby"
+		then
 			return
 		end
 		local result = arsenal:tryFire(os.clock(), 0, Context.stats.reloadSpeed)

@@ -10,6 +10,8 @@
 	  crouch   - knees bent and torso leaning in, with a slow sneaking stride
 	  roll     - a forward tumble during the dodge roll
 	  downed   - lying on the ground until revived
+	  swing    - melee: forehand, backhand and an overhead finisher (the melee
+	             weapon shows only while swinging; the gun hides meanwhile)
 
 	Every client animates every character from replicated state (character
 	attributes set by the server, the Shot remote for others' recoil), so
@@ -28,6 +30,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
+local MeleeMath = require(Shared.MeleeMath)
 local PlayerStats = require(Shared.PlayerStats)
 local MathUtil = require(Shared.Util.MathUtil)
 
@@ -75,6 +78,8 @@ type Rig = {
 	r15: boolean,
 	joints: { [string]: Joint },
 	grip: Joint?,
+	meleeGrip: Joint?,
+	swingShown: boolean?,
 	legLength: number,
 	aim: number,
 	sprint: number,
@@ -257,8 +262,34 @@ type State = {
 	sprinting: boolean,
 	reload: number, -- 0..1 progress, or -1
 	roll: number, -- 0..1 progress, or -1
+	swing: number, -- 0..1 melee swing progress, or -1
+	swingStep: number, -- combo step 1..3
 	speed: number, -- studs/s
 }
+
+-- Shows the melee weapon only while swinging, and hides the gun meanwhile (local view only).
+local function setSwingVisibility(rig: Rig, swinging: boolean)
+	if rig.swingShown == swinging then
+		return
+	end
+	rig.swingShown = swinging
+	local melee = rig.character:FindFirstChild("MeleeWeapon")
+	if melee then
+		for _, p in melee:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.LocalTransparencyModifier = if swinging then 0 else 1
+			end
+		end
+	end
+	local gun = rig.character:FindFirstChild("Gun")
+	if gun then
+		for _, p in gun:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.LocalTransparencyModifier = if swinging then 1 else 0
+			end
+		end
+	end
+end
 
 local function animate(rig: Rig, st: State, dt: number)
 	rig.aim = damp(rig.aim, if st.hasGun and not st.downed then 1 else 0, 14, dt)
@@ -273,10 +304,50 @@ local function animate(rig: Rig, st: State, dt: number)
 	local pitchR = 0.6 + (HALF_PI + 0.05 - 0.6) * raise + rig.recoil * 0.45 - bump * 0.8
 	local pitchL = 0.6 + (1.45 - 0.6) * raise - bump * 1.1
 	local armW = rig.aim * (1 - rig.downed)
-	pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 1.1, 0), armW)
-	pose(rig, "lShoulder", CFrame.Angles(0, -0.55, 0) * rx(pitchL), armW)
-	pose(rig, "rElbow", rx(rig.recoil * 0.25), armW)
-	pose(rig, "lElbow", rx(0.35 + bump * 0.7), armW)
+	local swinging = st.swing >= 0 and st.swing < 1 and not st.downed
+	-- Weapons can be rebuilt by the server (switching, equipping); re-apply visibility then.
+	local melee = rig.character:FindFirstChild("MeleeWeapon")
+	if melee and melee:GetAttribute("Seen") ~= true then
+		melee:SetAttribute("Seen", true)
+		rig.swingShown = nil
+	end
+	local gunModel = rig.character:FindFirstChild("Gun")
+	if gunModel and gunModel:GetAttribute("Seen") ~= true then
+		gunModel:SetAttribute("Seen", true)
+		rig.swingShown = nil
+	end
+	setSwingVisibility(rig, swinging)
+	if swinging then
+		-- Ease out: fast start, settling at the end of the arc.
+		local e = 1 - (1 - st.swing) ^ 3
+		local yaw, pitch, waistYaw, waistPitch
+		if st.swingStep == 3 then
+			yaw, pitch = 0.1, 2.9 + (0.7 - 2.9) * e -- overhead smash
+			waistYaw, waistPitch = 0, -0.3 * e
+		elseif st.swingStep == 2 then
+			yaw, pitch = -1.1 + 2.3 * e, 1.25 -- backhand
+			waistYaw, waistPitch = yaw * 0.45, 0
+		else
+			yaw, pitch = 1.3 - 2.4 * e, 1.35 -- forehand
+			waistYaw, waistPitch = yaw * 0.45, 0
+		end
+		pose(rig, "rShoulder", CFrame.Angles(0, yaw, 0) * rx(pitch), 1)
+		pose(rig, "lShoulder", CFrame.Angles(0, -0.3, 0) * rx(0.45), 1)
+		pose(rig, "rElbow", rx(0.15), 1)
+		pose(rig, "lElbow", rx(0.6), 1)
+		pose(rig, "waist", CFrame.Angles(0, waistYaw, 0) * rx(waistPitch), 1)
+		local mgrip = melee and melee:FindFirstChild("MeleeGrip", true)
+		if mgrip and (not rig.meleeGrip or rig.meleeGrip.inst ~= mgrip) then
+			rig.meleeGrip = wrap(mgrip)
+		end
+		-- Blade along the arm.
+		poseJoint(rig.meleeGrip, rx(-HALF_PI), 1)
+	else
+		pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 1.1, 0), armW)
+		pose(rig, "lShoulder", CFrame.Angles(0, -0.55, 0) * rx(pitchL), armW)
+		pose(rig, "rElbow", rx(rig.recoil * 0.25), armW)
+		pose(rig, "lElbow", rx(0.35 + bump * 0.7), armW)
+	end
 	-- The gun's grip (our own Motor6D; rebuilt on every weapon switch).
 	local gun = rig.character:FindFirstChild("Gun")
 	local body = gun and gun:FindFirstChild("Body")
@@ -306,8 +377,10 @@ local function animate(rig: Rig, st: State, dt: number)
 		pose(rig, "rAnkle", rx(alpha * c), c)
 		pose(rig, "lAnkle", rx(alpha * c), c)
 		-- Lean in while crouched; the upper body kicks back a little on each shot.
-		local waistW = if (c > 0.01 or rig.recoil > 0.02) and rig.downed < 0.5 then 1 else 0
-		pose(rig, "waist", rx(-0.35 * c + 0.15 * rig.recoil), waistW)
+		if not swinging then
+			local waistW = if (c > 0.01 or rig.recoil > 0.02) and rig.downed < 0.5 then 1 else 0
+			pose(rig, "waist", rx(-0.35 * c + 0.15 * rig.recoil), waistW)
+		end
 	end
 
 	-- Whole body: roll tumble, or lying down while downed.
@@ -330,6 +403,8 @@ local function stateFor(player: Player, character: Model): State
 		sprinting = false,
 		reload = -1,
 		roll = -1,
+		swing = -1,
+		swingStep = 1,
 		speed = speed,
 	}
 	if player == Context.player then
@@ -342,6 +417,11 @@ local function stateFor(player: Player, character: Model): State
 		if Context.rolling then
 			st.roll = (os.clock() - Context.rollStart) / ROLL_TIME
 		end
+		local since = os.clock() - Context.swingAt
+		if since < MeleeMath.SWING_TIME then
+			st.swing = since / MeleeMath.SWING_TIME
+			st.swingStep = Context.swingStep
+		end
 	else
 		local now = Workspace:GetServerTimeNow()
 		st.crouching = character:GetAttribute("Crouching") == true
@@ -350,6 +430,11 @@ local function stateFor(player: Player, character: Model): State
 		local reloadTime = character:GetAttribute("ReloadTime")
 		if type(reloadEnd) == "number" and type(reloadTime) == "number" and reloadTime > 0 and now < reloadEnd then
 			st.reload = 1 - (reloadEnd - now) / reloadTime
+		end
+		local swingAt = character:GetAttribute("SwingAt")
+		if type(swingAt) == "number" and now - swingAt < MeleeMath.SWING_TIME then
+			st.swing = (now - swingAt) / MeleeMath.SWING_TIME
+			st.swingStep = character:GetAttribute("SwingStep") or 1
 		end
 		local rollAt = character:GetAttribute("RollAt")
 		if type(rollAt) == "number" and now - rollAt < ROLL_TIME then

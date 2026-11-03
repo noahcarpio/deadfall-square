@@ -35,7 +35,7 @@ end
 function Structures.countFor(self, ps, stype: string): number
 	local n = 0
 	for _, s in self.list do
-		if s.owner == ps and s.type == stype then
+		if s.owner == ps and s.type == stype and not s.temporary then
 			n += 1
 		end
 	end
@@ -137,7 +137,15 @@ function Structures.keepsPathsOpen(self, minX: number, minZ: number, maxX: numbe
 	return true
 end
 
-function Structures.canPlace(self, ps, stype: string, rotated: boolean, x: number, z: number): (boolean, string?)
+function Structures.canPlace(
+	self,
+	ps,
+	stype: string,
+	rotated: boolean,
+	x: number,
+	z: number,
+	ignoreLimit: boolean?
+): (boolean, string?)
 	local W = self.W
 	local def = Shop.structures[stype]
 	if not def then
@@ -156,7 +164,7 @@ function Structures.canPlace(self, ps, stype: string, rotated: boolean, x: numbe
 			return false, "A player is standing there"
 		end
 	end
-	if self:countFor(ps, stype) >= def.maxCount then
+	if not ignoreLimit and self:countFor(ps, stype) >= def.maxCount then
 		return false, "Limit reached"
 	end
 	if not self:keepsPathsOpen(x - hw, z - hd, x + hw, z + hd) then
@@ -400,6 +408,14 @@ end
 
 function Structures.update(self, dt: number)
 	local W = self.W
+	-- Temporary structures (the Scrap Drone gadget) expire.
+	local now = os.clock()
+	for _, s in table.clone(self.list) do
+		if s.expires and now >= s.expires then
+			W.fx("structureBreak", { x = s.x, z = s.z })
+			self:remove(s, true)
+		end
+	end
 	for _, s in self.list do
 		if s.type == "turret" and s.head then
 			s.cooldown -= dt

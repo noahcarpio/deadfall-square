@@ -27,6 +27,11 @@ local Inventory = require("../src/shared/Inventory")
 local Items = require("../src/shared/Config/Items")
 local Loot = require("../src/shared/Loot")
 local Shop = require("../src/shared/Config/Shop")
+local Floors = require("../src/shared/Config/Floors")
+local FloorPlan = require("../src/shared/FloorPlan")
+local Gear = require("../src/shared/Gear")
+local RewardRules = require("../src/shared/RewardRules")
+local MeleeMath = require("../src/shared/MeleeMath")
 
 local passed, failed = 0, 0
 local current = ""
@@ -558,6 +563,176 @@ test("Grace-period stations and loot spots are placed and reachable", function()
 	for _, spot in layout.loot do
 		expect(Loot.tables[spot.kind] ~= nil, `unknown loot kind {spot.kind}`)
 	end
+end)
+
+test("The climb has 25 floors, bosses every fifth and a warm-up first floor", function()
+	local a = FloorPlan.build(Rng.new(5))
+	local b = FloorPlan.build(Rng.new(5))
+	eq(#a, Floors.FLOORS)
+	for i, f in a do
+		eq(f.floor, i)
+		eq(f.boss, i % 5 == 0 or i == Floors.FLOORS, `floor {i} boss flag`)
+		eq(f.objective == "boss", f.boss)
+		expect(Floors.objectives[f.objective] ~= nil and Floors.modifiers[f.modifier] ~= nil)
+		eq(b[i].objective, f.objective, "same seed, same climb")
+		eq(b[i].modifier, f.modifier)
+		if f.boss then
+			eq(f.modifier, "none")
+		end
+	end
+	eq(a[1].objective, "clear")
+	eq(a[1].modifier, "none")
+	-- Over many climbs every objective shows up.
+	local seen = {}
+	for seed = 1, 20 do
+		for _, f in FloorPlan.build(Rng.new(seed)) do
+			seen[f.objective] = true
+		end
+	end
+	for _, id in { "clear", "holdout", "defend", "elite", "boss" } do
+		expect(seen[id], `objective {id} never rolled`)
+	end
+end)
+
+test("Gear rolls are valid, deterministic and get rarer higher up", function()
+	for seed = 1, 30 do
+		local item = Gear.roll(Rng.new(seed), 10, seed)
+		local again = Gear.roll(Rng.new(seed), 10, seed)
+		eq(item.id, again.id)
+		eq(item.rarity, again.rarity)
+		local d = Gear.defs[item.id]
+		expect(d ~= nil and d.kind == item.kind)
+		eq(#item.traits, Gear.rarities[item.rarity].traits)
+		for _, t in item.traits do
+			expect(table.find(Gear.traits[t].kinds, item.kind) ~= nil, `trait {t} on {item.kind}`)
+		end
+		expect(#Gear.describe(item) >= 2)
+	end
+	local function uniques(floor: number): number
+		local n = 0
+		for seed = 1, 300 do
+			if Gear.roll(Rng.new(seed), floor, 1).rarity == "unique" then
+				n += 1
+			end
+		end
+		return n
+	end
+	expect(uniques(24) > uniques(1), "uniques should be more common near the top")
+	eq(Gear.roll(Rng.new(3), 1, 1, nil, "rare").rarity ~= "common", true)
+	eq(Gear.roll(Rng.new(3), 1, 1, "melee").kind, "melee")
+	-- Armor bonuses feed player stats.
+	local vest = Gear.common("riotvest", 1)
+	local b = Gear.bonus(vest)
+	expect(b.defense > 0.2 and b.speed < 0)
+	local p = PerkState.new()
+	local tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0 }
+	local plain = PlayerStats.compute(tiers, p)
+	local armored = PlayerStats.compute(tiers, p, b)
+	expect(armored.damageTaken < plain.damageTaken and armored.speed < plain.speed)
+end)
+
+test("Reward cards: three per floor, rare+ gear on boss floors", function()
+	local uid = 0
+	local function nextUid()
+		uid += 1
+		return uid
+	end
+	for seed = 1, 40 do
+		local cards = RewardRules.roll(Rng.new(seed), 7, false, { "vampire", "piercing" }, nextUid)
+		eq(#cards, 3)
+		local kinds = {}
+		for _, c in cards do
+			if c.kind ~= "gear" then
+				expect(not kinds[c.kind], "duplicate non-gear card")
+			end
+			kinds[c.kind] = true
+			local text = RewardRules.describe(c)
+			expect(text.title ~= "" and #text.lines >= 1)
+		end
+		local boss = RewardRules.roll(Rng.new(seed), 10, true, {}, nextUid)
+		eq(boss[1].kind, "gear")
+		expect((boss[1].item :: any).rarity ~= "common")
+	end
+end)
+
+test("Melee arcs, combos and timing", function()
+	-- Straight ahead within range: hit. Behind: miss. Too far: miss.
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(110), 0, 1.8, 0.4), true)
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(110), 0, -1.8, 0.4), false)
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(110), 0, 3, 0.4), false)
+	-- Just outside the cone, but a wide zombie still overlaps it.
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(90), 1.4, 1.2, 0.1), false)
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(90), 1.4, 1.2, 0.6), true)
+	-- Touching is always a hit.
+	eq(MeleeMath.inArc(0, 0, 0, 1, 2, math.rad(30), -0.3, -0.1, 0.4), true)
+	eq(MeleeMath.comboStep(0, 0), 1)
+	eq(MeleeMath.comboStep(1, 0.5), 2)
+	eq(MeleeMath.comboStep(2, 0.5), 3)
+	eq(MeleeMath.comboStep(3, 0.5), 1)
+	eq(MeleeMath.comboStep(1, 2), 1)
+	expect(MeleeMath.interval(2, true) < MeleeMath.interval(2, false))
+end)
+
+test("Gun gear survives a sync and powers the gun; gear workbench actions", function()
+	local a = Arsenal.new()
+	a:attune("shotgun", { uid = 9, rarity = "rare", power = 1.4, traits = { "rapid" } })
+	expect(a:owns("shotgun"))
+	local copy = Arsenal.new()
+	copy:applySerialized(a:serialize())
+	local w = copy:get("shotgun") :: any
+	eq(w.gear.power, 1.4)
+	eq(copy:powerOf("shotgun"), 1.4)
+	expect(copy:rateBonus(w) > 1.1)
+
+	local ctx: any = shopContext(10000)
+	local stash = { Gear.common("fireaxe", 1) }
+	stash[1].rarity = "rare"
+	stash[1].traits = { "heavy" }
+	ctx.gear = {
+		find = function(id)
+			for _, it in stash do
+				if it.uid == id then
+					return it
+				end
+			end
+			return nil
+		end,
+		stashFull = function()
+			return #stash >= Gear.STASH_SIZE
+		end,
+		give = function(item)
+			table.insert(stash, item)
+			return true
+		end,
+		remove = function(id)
+			for i, it in stash do
+				if it.uid == id then
+					table.remove(stash, i)
+					return true
+				end
+			end
+			return false
+		end,
+		newUid = function()
+			return 100 + #stash
+		end,
+		rng = Rng.new(1),
+	}
+	ctx.inventory:add("scrap", 20)
+	ctx.inventory:add("parts", 20)
+	ctx.inventory:add("gunpowder", 5)
+	eq(ShopRules.purchase(ctx, { kind = "reinforce", uid = 1 }), true)
+	eq(stash[1].power, 1.1)
+	eq(ShopRules.purchase(ctx, { kind = "reroll", uid = 1 }), true)
+	expect(stash[1].traits[1] ~= "heavy", "re-roll changes the trait")
+	eq(ShopRules.purchase(ctx, { kind = "buyGear", id = "jacket" }), true)
+	eq(#stash, 2)
+	local scrapBefore = ctx.inventory:count("scrap")
+	eq(ShopRules.purchase(ctx, { kind = "salvage", uid = 1 }), true)
+	eq(#stash, 1)
+	expect(ctx.inventory:count("scrap") > scrapBefore)
+	eq(ShopRules.STATION.buyGear, "merchant")
+	eq(ShopRules.STATION.salvage, "workbench")
 end)
 
 test("Every mesh the game asks for was generated, and props own their fallback pieces", function()

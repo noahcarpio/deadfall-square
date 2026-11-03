@@ -1,6 +1,7 @@
 --[[
-	Pipe bombs: thrown toward the aim point (stopping short of obstacles),
-	they land, beep loudly to lure every zombie in earshot, then explode.
+	Thrown lures, landing at the aim point (stopping short of obstacles):
+	  pipebomb - beeps loudly to lure every zombie in earshot, then explodes
+	  flare    - burns for a while, luring zombies and setting nearby ones alight
 ]]
 local Workspace = game:GetService("Workspace")
 
@@ -11,6 +12,7 @@ local Items = require(Shared.Config.Items)
 local S = Constants.STUDS
 local BOMB = Items.PIPEBOMB
 local THROW_SPEED = 14
+local FLARE = { seconds = 7, noise = 26, burnRadius = 2.6, burnDps = 14 }
 
 local Throwables = {}
 Throwables.__index = Throwables
@@ -31,8 +33,8 @@ function Throwables.clear(self)
 	table.clear(self.list)
 end
 
--- Throws a pipe bomb from the player toward (dirX, dirZ). Returns true if thrown.
-function Throwables.throw(self, ps, dirX: number, dirZ: number, distance: number): boolean
+-- Throws a pipe bomb (or a flare) from the player toward (dirX, dirZ). Returns true if thrown.
+function Throwables.throw(self, ps, dirX: number, dirZ: number, distance: number, kind: string?): boolean
 	local W = self.W
 	local len = math.sqrt(dirX * dirX + dirZ * dirZ)
 	if len < 1e-3 or len ~= len then
@@ -54,8 +56,42 @@ function Throwables.throw(self, ps, dirX: number, dirZ: number, distance: number
 	local x1, z1 = ps.x + dirX * reach, ps.z + dirZ * reach
 	local flight = reach / THROW_SPEED + 0.2
 	W.fx("grenade", { x0 = ps.x, z0 = ps.z, x1 = x1, z1 = z1, duration = flight, silent = true })
-	table.insert(self.list, { x = x1, z = z1, t = 0, flight = flight, beep = 0, part = nil, owner = ps })
+	table.insert(self.list, {
+		kind = kind or "pipebomb",
+		x = x1,
+		z = z1,
+		t = 0,
+		flight = flight,
+		beep = 0,
+		part = nil,
+		light = nil,
+		owner = ps,
+	})
 	return true
+end
+
+local function makeFlare(x: number, z: number): (BasePart, PointLight)
+	local body = Instance.new("Part")
+	body.Name = "Flare"
+	body.Size = Vector3.new(0.1, 0.1, 0.35) * S
+	body.Color = Color3.fromRGB(255, 80, 60)
+	body.Material = Enum.Material.Neon
+	body.Anchored = true
+	body.CanCollide = false
+	body.CanQuery = false
+	body.CanTouch = false
+	body.CFrame = CFrame.new(x * S, 0.05 * S, z * S) * CFrame.Angles(0, math.random() * math.pi, 0)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 90, 60)
+	light.Range = 22
+	light.Brightness = 5
+	light.Parent = body
+	local fire = Instance.new("Fire")
+	fire.Size = 2
+	fire.Heat = 6
+	fire.Color = Color3.fromRGB(255, 120, 60)
+	fire.Parent = body
+	return body, light
 end
 
 local function makeBomb(x: number, z: number): (BasePart, PointLight)
@@ -83,6 +119,32 @@ function Throwables.update(self, dt: number)
 	for i = #self.list, 1, -1 do
 		local b = self.list[i]
 		b.t += dt
+		if b.kind == "flare" then
+			if b.t >= b.flight then
+				if not b.part then
+					b.part, b.light = makeFlare(b.x, b.z)
+					b.part.Parent = self.folder
+				end
+				b.beep -= dt
+				if b.beep <= 0 then
+					b.beep = 0.5
+					W.noise(b.x, b.z, FLARE.noise)
+					local near = {}
+					local n = W.zombies:queryRadius(b.x, b.z, FLARE.burnRadius, near)
+					for k = 1, n do
+						W.combat:ignite(near[k], FLARE.burnDps, 2.5)
+						near[k].lastAttacker = b.owner
+					end
+				end
+			end
+			if b.t >= b.flight + FLARE.seconds then
+				table.remove(self.list, i)
+				if b.part then
+					b.part:Destroy()
+				end
+			end
+			continue
+		end
 		if b.t >= b.flight then
 			if not b.part then
 				b.part, b.light = makeBomb(b.x, b.z)

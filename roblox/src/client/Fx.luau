@@ -482,6 +482,8 @@ function Fx.start()
 		elseif kind == "roar" then
 			Context.shake(if data.enrage then 0.6 else 0.25)
 			Audio.play("bossRoar", data.x, data.z)
+		elseif kind == "heal" then
+			Fx.dust(data.x, data.z, 10)
 		elseif kind == "build" or kind == "structureBreak" then
 			Fx.dust(data.x, data.z, if kind == "build" then 12 else 20)
 		elseif kind == "structureHit" then

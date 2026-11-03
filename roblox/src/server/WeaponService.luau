@@ -12,6 +12,8 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Weapons = require(Shared.Config.Weapons)
 local MathUtil = require(Shared.Util.MathUtil)
+local Gear = require(Shared.Gear)
+local MeleeMath = require(Shared.MeleeMath)
 
 local MAX_FLAMES = 300
 
@@ -68,6 +70,7 @@ function WeaponService.hitscan(self, p): (boolean, number, number)
 				crit = crit,
 				attacker = p.attacker,
 				allowIncendiary = p.allowIncendiary,
+				gear = p.gear,
 			})
 			any = true
 			remaining -= 1
@@ -154,7 +157,8 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 		W.noise(ps.x, ps.z, def.noise)
 	end
 	local w = ps.arsenal:currentState()
-	local damage = Weapons.damageOf(def, w.upgrades)
+	local damage = Weapons.damageOf(def, w.upgrades) * ps.arsenal:powerOf(def.id)
+	local gunGear = ps.gear.guns[def.id]
 	local list = self:checkDirs(def, dirs)
 	if #list == 0 then
 		return
@@ -180,6 +184,7 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 				falloff = if def.id == "shotgun" then 0.35 else 1,
 				critChance = Weapons.CRIT_CHANCE,
 				allowIncendiary = true,
+				gear = gunGear,
 			})
 			if hit then
 				ps.shotsHit += 1
@@ -201,6 +206,7 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 					maxLife = life,
 					damage = damage,
 					attacker = ps,
+					gear = gunGear,
 				})
 			end
 		end
@@ -224,6 +230,79 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 		})
 		W.fx("grenade", { x0 = ox, z0 = oz, x1 = x1, z1 = z1, duration = duration })
 	end
+end
+
+--[[
+	One melee swing toward (aimX, aimZ): everything in the weapon's cone takes
+	damage. Swings chain into a three-hit combo whose last hit is a heavy
+	finisher. Nearly silent, so it pairs well with sneaking.
+]]
+function WeaponService.onMelee(self, ps, aimX: any, aimZ: any)
+	local W = self.W
+	local item = ps.gear.melee
+	if ps.downed or not ps.hasBody or not item or type(aimX) ~= "number" or type(aimZ) ~= "number" then
+		return
+	end
+	local len = math.sqrt(aimX * aimX + aimZ * aimZ)
+	if len < 1e-3 or len ~= len then
+		return
+	end
+	local dx, dz = aimX / len, aimZ / len
+	local def = Gear.defs[item.id].melee
+	if not def then
+		return
+	end
+	local now = os.clock()
+	local gap = MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
+	if now < (ps.nextMelee or 0) - 0.08 then
+		return
+	end
+	ps.nextMelee = now + gap
+	ps.meleeStep = MeleeMath.comboStep(ps.meleeStep or 0, now - (ps.lastMelee or 0))
+	ps.lastMelee = now
+	local finisher = ps.meleeStep == 3
+	local f = MeleeMath.FINISHER
+	local damage = def.damage * item.power * (if finisher then f.damage else 1)
+	local knock = def.knock * (if finisher then f.knock else 1)
+	local arc = def.arc * (if finisher then f.arc else 1)
+
+	local character = ps.player.Character
+	if character then
+		character:SetAttribute("SwingAt", Workspace:GetServerTimeNow())
+		character:SetAttribute("SwingStep", ps.meleeStep)
+	end
+	W.noise(ps.x, ps.z, MeleeMath.NOISE)
+
+	local near = self.near
+	local n = W.zombies:queryRadius(ps.x, ps.z, def.range + 1.5, near)
+	local victims = {}
+	for i = 1, n do
+		local z = near[i]
+		if MeleeMath.inArc(ps.x, ps.z, dx, dz, def.range, arc, z.x, z.z, z.radius) then
+			table.insert(victims, z)
+		end
+	end
+	for _, z in victims do
+		local vx, vz = z.x - ps.x, z.z - ps.z
+		local d = math.max(math.sqrt(vx * vx + vz * vz), 1e-3)
+		local died = W.combat:damageZombie(z, damage, {
+			dirX = vx / d,
+			dirZ = vz / d,
+			knock = knock,
+			source = "melee",
+			crit = false,
+			attacker = ps,
+			gear = item,
+		})
+		if not died and (def.stagger or finisher) and z.type ~= "boss" and not z.dying then
+			z.stunTime = if def.stagger then 0.9 else 0.5
+			W.zombies.setState(z, "stunned")
+		end
+	end
+	if #victims > 0 then
+		ps.shotsHit += 1
+	end
+	ps.shotsFired += 1
 end
 
 function WeaponService.onReload(self, ps)
@@ -292,6 +371,7 @@ function WeaponService.update(self, dt: number)
 						source = "flamer",
 						crit = false,
 						attacker = f.attacker,
+						gear = f.gear,
 					})
 					W.combat:ignite(z, f.damage * 1.4, 2.5)
 				end

@@ -83,6 +83,13 @@ local Context = {
 	sprinting = false,
 	rolling = false,
 	rollStart = 0,
+	-- Melee swing in progress (os.clock) and its combo step, for animation.
+	swingAt = -10,
+	swingStep = 1,
+	-- Gadget slots: when each is ready again (server time).
+	abilityReady = { 0, 0, 0 },
+	-- Adrenal Shot speed boost (os.clock end time).
+	adrenalUntil = 0,
 	exhausted = false,
 	device = "mouse" :: "mouse" | "touch" | "gamepad",
 	-- True while a full-screen UI (merchant/workbench, perk, lobby, game over) is open.
@@ -102,6 +109,7 @@ local Context = {
 		inventoryChanged = signal(),
 		crouchChanged = signal(),
 		gearChanged = signal(),
+		dash = signal(), -- (dirX, dirZ, distance) Charge Strike
 		fired = signal(), -- (weaponId) our own shot, for the recoil animation
 	},
 	signal = signal,

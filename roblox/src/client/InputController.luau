@@ -29,7 +29,29 @@ local InputController = {
 	onCrouch = Context.signal(), -- toggle
 	onUseItem = Context.signal(), -- (itemId)
 	onToggleBag = Context.signal(),
+	onMelee = Context.signal(),
+	onAbility = Context.signal(), -- (slot 1..3)
 }
+
+-- Gamepad: LB held turns X / Y / B into gadget slots 1 / 2 / 3; a lone LB tap cycles weapons.
+local lbDown = false
+local lbCombo = false
+local function gadgetCombo(input: InputObject): boolean
+	if not lbDown then
+		return false
+	end
+	local slot = if input.KeyCode == Enum.KeyCode.ButtonX
+		then 1
+		elseif input.KeyCode == Enum.KeyCode.ButtonY then 2
+		elseif input.KeyCode == Enum.KeyCode.ButtonB then 3
+		else nil
+	if slot then
+		lbCombo = true
+		InputController.onAbility:fire(slot)
+		return true
+	end
+	return false
+end
 
 local mouseDown = false
 local gamepadAim = Vector2.zero
@@ -182,6 +204,21 @@ local function buildMobileControls(): ScreenGui
 	button("BAG", function()
 		InputController.onToggleBag:fire()
 	end, column2)
+	local column3 = create("Frame", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -156, 0.36, 0),
+		Size = UDim2.fromOffset(64, 4 * 72),
+		Parent = gui,
+	}, { Builder.list(8) })
+	button("SLASH", function()
+		InputController.onMelee:fire()
+	end, column3)
+	for slot = 1, 3 do
+		button(`G{slot}`, function()
+			InputController.onAbility:fire(slot)
+		end, column3)
+	end
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	return gui
 end
@@ -203,25 +240,57 @@ local function bindActions()
 		Enum.KeyCode.Space,
 		Enum.KeyCode.ButtonA
 	)
-	ContextActionService:BindAction("DeadfallReload", function(_, state)
-		if state == Enum.UserInputState.Begin then
+	ContextActionService:BindAction("DeadfallReload", function(_, state, input)
+		if state == Enum.UserInputState.Begin and not gadgetCombo(input) then
 			InputController.onReload:fire()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.R, Enum.KeyCode.ButtonX)
 	ContextActionService:BindAction("DeadfallNext", function(_, state, input)
 		if state == Enum.UserInputState.Begin then
-			local dir = if input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.ButtonL1 then -1 else 1
+			local dir = if input.KeyCode == Enum.KeyCode.Q then -1 else 1
 			InputController.onSwitch:fire(nil, dir)
 		end
 		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.ButtonR1, Enum.KeyCode.ButtonL1)
-	ContextActionService:BindAction("DeadfallCrouch", function(_, state)
+	end, false, Enum.KeyCode.Q, Enum.KeyCode.E)
+	ContextActionService:BindAction("DeadfallLB", function(_, state)
 		if state == Enum.UserInputState.Begin then
+			lbDown = true
+			lbCombo = false
+		elseif state == Enum.UserInputState.End then
+			lbDown = false
+			if not lbCombo then
+				InputController.onSwitch:fire(nil, 1)
+			end
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.ButtonL1)
+	ContextActionService:BindAction("DeadfallCrouch", function(_, state, input)
+		if state == Enum.UserInputState.Begin and not gadgetCombo(input) then
 			InputController.onCrouch:fire()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
+	-- Y is the prompt button; only take it while LB is held.
+	ContextActionService:BindActionAtPriority("DeadfallGadgetY", function(_, state, input)
+		if state == Enum.UserInputState.Begin and gadgetCombo(input) then
+			return Enum.ContextActionResult.Sink
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, 3000, Enum.KeyCode.ButtonY)
+	ContextActionService:BindAction("DeadfallMelee", function(_, state)
+		if state == Enum.UserInputState.Begin and not Context.menuOpen and not Context.placing then
+			InputController.onMelee:fire()
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonR1)
+	ContextActionService:BindAction("DeadfallGadget", function(_, state, input)
+		if state == Enum.UserInputState.Begin then
+			local slot = if input.KeyCode == Enum.KeyCode.Z then 1 elseif input.KeyCode == Enum.KeyCode.X then 2 else 3
+			InputController.onAbility:fire(slot)
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.V)
 	ContextActionService:BindAction("DeadfallItem", function(_, state, input)
 		if state == Enum.UserInputState.Begin then
 			local k = input.KeyCode

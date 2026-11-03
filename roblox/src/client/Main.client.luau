@@ -22,6 +22,7 @@ local WeaponClient = require(script.Parent.WeaponClient)
 local ZombieView = require(script.Parent.ZombieView)
 local Builder = require(script.Parent.UI.Builder)
 local Hud = require(script.Parent.UI.Hud)
+local AbilityBar = require(script.Parent.UI.AbilityBar)
 local InventoryUI = require(script.Parent.UI.InventoryUI)
 local Placement = require(script.Parent.UI.Placement)
 local Screens = require(script.Parent.UI.Screens)
@@ -58,6 +59,7 @@ WeaponClient.start()
 local hudGui = Builder.screen("DeadfallHUD", 1)
 hudGui.Parent = playerGui
 Hud.start(hudGui)
+AbilityBar.start(hudGui)
 
 -- Items: bandage heals at once; a pipe bomb is thrown toward the aim point.
 local function useItem(id: string)

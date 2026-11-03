@@ -71,27 +71,45 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 | Sprint | Shift | L3 / LT | RUN toggle |
 | Dodge roll | Space | A | ROLL |
 | Reload | R | X | RELOAD |
-| Switch weapon | 1–7, wheel, Q / E | LB / RB | SWAP |
+| Switch weapon | 1–7, wheel, Q / E | LB (tap) | SWAP |
+| Melee swing (3-hit combo) | Right click | RB | SLASH |
+| Gadgets 1 / 2 / 3 | Z / X / V | Hold LB + X / Y / B | G1 / G2 / G3 |
 | Crouch (quiet, harder to see) | C / Ctrl | B | SNEAK toggle |
 | Use: search, trade, craft, ring bell, revive | F (hold to search / revive) | Y | Tap (and hold) the prompt |
 | Bandage / pipe bomb | B / G (thrown at the cursor) | D-pad up / down | HEAL / BOMB |
-| Bag (items, drop) | I | D-pad right | BAG |
+| Bag (items, gear, equip) | I | D-pad right | BAG |
 | Leave the merchant / workbench | Esc or LEAVE | B | LEAVE |
 | Placement: rotate / cancel / pan | R or right-click / Esc / WASD | — / B / — | ROTATE / CANCEL / drag |
 
 ## What's in it
 
+- **Tower climb (25 floors):** each wave is a floor with an objective and maybe a modifier (`Config/Floors.luau`, rolled per run by `FloorPlan.luau`).
+  - **Objectives:** *clear* every zombie; *hold out* until a timer runs out; *defend the bell* (it has health, zombies go for it, and if it breaks the floor gives no reward); *elite hunt* (a glowing elite leads an endless horde until it dies).
+  - **Bosses:** every 5th floor is a boss floor, and floor 25 is the final boss. Clearing it wins the run.
+  - **Modifiers:** *Thick Fog*, *Blood Moon* (faster zombies, more coins), *Swarm*, *Armored* and *Calm*.
+- **Rewards:** after every floor each player picks 1 of 3 cards (`RewardRules.luau`): a piece of gear, a perk, coins, a supply crate or a full patch-up. Boss floors guarantee rare-or-better gear.
+- **Gear with rarity** (`Gear.luau`):
+  - **Rarities and power:** Common, Rare (1 trait) and Unique (2 traits). Power grows with the floor the gear was found on.
+  - **Kinds:** guns (gear attunes to that gun), melee (Machete, Fire Axe, Sledgehammer), armor (Leather Jacket, Riot Vest, Hazmat Suit) and three gadget slots.
+  - **Traits:** Serrated (bleed), Hollow-Point (crits), Rapid, Heavy, Leeching, Volatile, Chilling, Padded, Light, Lucky, Scavenger, Quick Recharge, Amplified.
+  - **Where it comes from:** elites, bosses and the odd zombie drop gear with a coloured beam, and the merchant sells common pieces.
+  - **Using it:** equip from the bag (I → GEAR). The stash holds 10. At the workbench, salvage gear into materials, reinforce it (+power) or re-roll a trait.
+- **Melee and gadgets:**
+  - **Melee:** right click / RB swings the equipped melee weapon in a 3-hit combo whose last hit is a heavy, staggering finisher. It is almost silent, so it pairs well with sneaking.
+  - **Gadgets** on Z / X / V (cooldowns on the HUD): Charge Strike (dash and smash), Med Burst (heal the team nearby), Shock Beacon (stun), Scrap Drone (15 s turret), Flare (lure and burn) and Adrenal Shot (+30% speed and fire rate).
+  - **Starting kit:** a Machete and Charge Strike.
+
 - **Arena:** the same town square as the browser version — buildings with lit windows and alleys, a low south fence, cars, a crashed bus, crates, fences, sandbags, barriers, dumpsters, barrels, trees, benches, a fountain and street lamps that switch on at night.
-- **Zombies:** Walker, Runner, Brute (knock-back slam), Spitter (acid globs and puddles), Exploder (fuse and chain explosions), and the **Abomination** boss every 5 waves (telegraphed charge that stuns it on walls, shockwave slam you can roll through, runner summons, enrage at half health).
+- **Zombies:** Walker, Runner, Brute (knock-back slam), Spitter (acid globs and puddles), Exploder (fuse and chain explosions), and the **Abomination** boss every 5 floors (telegraphed charge that stuns it on walls, shockwave slam you can roll through, runner summons, enrage at half health).
 - **Weapons:** pistol (infinite ammo), shotgun, SMG, assault rifle, sniper (piercing), flamethrower (burning), grenade launcher, with per-weapon damage, fire-rate and magazine upgrades.
 - **Co-op rules:** shared waves that scale with player count; personal coins, score, upgrades and perks; teammates can revive downed players; the run ends when everyone is down; the boss's coin reward is shared.
 - **Stealth and noise:** zombies wander, investigate what they hear and only hunt once they see you, get hurt or bump into you. Each gun has its own noise radius (a sniper shot carries 40 m, a flamethrower 10 m). Sprinting is loud, walking is quiet, and crouching is almost silent and roughly halves how far away zombies can see you. Sight is shorter at night. A HIDDEN / SPOTTED eye on the HUD tells you when you've been seen. New arrivals head into the plaza, and zombies that hear nothing for a while drift toward the survivors, so waves still end. Tuning lives in `Config/Stealth.luau`.
 - **Scavenging:** cars, the bus, crate stacks, dumpsters and trash piles hold scrap, planks, rags, electronics, gunpowder, ammo, coins and bandages. Hold F to search. Loot is shared, and whatever doesn't fit stays for a teammate. Containers refill at the start of a run and some refill at every grace period. Searching makes a little noise. The bag has a weight limit (10 kg, +5 per Bigger Backpack).
-- **Grace period (30 s):** no menus pop up. Walk to the **merchant** (coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next wave early once everyone is ready. Every third wave you also pick 1 of 3 perks.
+- **Grace period (30 s, after the reward pick):** no menus pop up. Walk to the **merchant** (coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next floor early once everyone is ready.
 - **Items:** bandages heal 35. Pipe bombs are thrown at the cursor, beep for 4 seconds to lure every zombie in earshot, then explode.
-- **Character animation:** Roblox's default walk/run/idle animations, plus procedural poses everyone sees: gun raised to aim (lowered while sprinting), recoil on each shot, a reload motion, crouch-walking, a tumble on the dodge roll, and lying down while downed. R15 avatars get the full set; R6 gets the arm poses, roll and downed pose.
+- **Character animation:** Roblox's default walk/run/idle animations, plus procedural poses everyone sees: gun raised to aim (lowered while sprinting), recoil on each shot, a reload motion, crouch-walking, melee swings (forehand, backhand, overhead finisher), a tumble on the dodge roll, and lying down while downed. R15 avatars get the full set; R6 gets the arm poses, roll and downed pose.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.
-- **UI:** lobby with ready-up, how-to-play and the global top-10, HUD (health, armor, stamina, bag and materials, hidden/spotted, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), merchant and workbench panels, bag panel, perk cards, game-over stats (waves survived, kills by type, accuracy, time, best combo, coins, damage, revives).
+- **UI:** lobby with ready-up, how-to-play and the global top-10, HUD (health, armor, stamina, bag and materials, hidden/spotted, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant and workbench panels, bag and gear panel, reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
 
 ## Architecture
 

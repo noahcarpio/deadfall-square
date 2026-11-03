@@ -137,13 +137,15 @@ function Screens.lobby(gui: ScreenGui)
 		table.insert(zombieLines, `<b>{ZombiesConfig.defs[t].name}</b> — {blurbs[t]}`)
 	end
 	how.Text = table.concat({
-		"<b>PC:</b> WASD move · mouse aim · hold click shoot · R reload · Shift sprint · Space roll · C crouch · F use / search · B bandage · G pipe bomb · I bag · 1–7 / wheel / Q / E switch",
-		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · A roll · X reload · B crouch · Y use / search · D-pad up bandage · down pipe bomb · right bag · LB/RB switch · L3/LT sprint",
-		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · RUN / ROLL / RELOAD / SWAP / SNEAK / HEAL / BOMB / BAG buttons, tap prompts to use",
+		"<b>PC:</b> WASD move · mouse aim · hold click shoot · right click melee · Z / X / V gadgets · R reload · Shift sprint · Space roll · C crouch · F use / search · B bandage · G pipe bomb · I bag & gear · 1–7 / wheel / Q / E switch",
+		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · RB melee · LB + X / Y / B gadgets · LB switch · A roll · X reload · B crouch · Y use / search · D-pad up bandage · down pipe bomb · right bag · L3/LT sprint",
+		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · RUN / ROLL / RELOAD / SWAP / SNEAK / HEAL / BOMB / BAG / SLASH / G1–G3 buttons, tap prompts to use",
 		"",
+		"<b>Climb.</b> 25 floors, each with a goal: clear it, hold out, defend the bell or hunt the elite. Every 5th floor has a boss. Modifiers like Thick Fog or Blood Moon change the rules.",
+		"<b>Rewards and gear.</b> After each floor pick 1 of 3 rewards. Gear comes in Common, Rare and Unique with traits; equip it from the bag (I), and salvage, reinforce or re-roll it at the workbench.",
 		"<b>Stay quiet.</b> Zombies wander until they see or hear you. Gunshots carry far, sprinting is loud, crouching is nearly silent and harder to spot. A pipe bomb's beeping lures them in before it blows.",
 		"<b>Scavenge.</b> Search cars, crates, dumpsters and trash for scrap, planks, rags, electronics and gunpowder. Your bag has a weight limit.",
-		"<b>Grace period.</b> After each wave you get 30 seconds: trade coins at the <b>merchant</b>, craft and upgrade at the <b>workbench</b>, build barricades and turrets, or ring the <b>bell</b> to start early. Every 3rd wave you pick a perk.",
+		"<b>Grace period.</b> After each floor you get 30 seconds: trade coins at the <b>merchant</b>, craft and upgrade at the <b>workbench</b>, build barricades and turrets, or ring the <b>bell</b> to start early.",
 		"If a teammate goes down, stand next to them and <b>hold F</b> to revive. The run ends when everyone is down.",
 		"",
 		table.concat(zombieLines, "\n"),

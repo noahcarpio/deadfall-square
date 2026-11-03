@@ -87,6 +87,22 @@ function CharacterController.start()
 		task.spawn(setup, Context.player.Character)
 	end
 
+	-- Charge Strike: a short, fast dash in the aim direction.
+	local dashDir = Vector3.zero
+	local dashLeft = 0
+	local DASH_SPEED = 24
+	Context.signals.dash:connect(function(dirX: number, dirZ: number, distance: number)
+		if Context.downed() then
+			return
+		end
+		local d = Vector3.new(dirX, 0, dirZ)
+		if d.Magnitude < 1e-3 then
+			return
+		end
+		dashDir = d.Unit
+		dashLeft = distance / DASH_SPEED
+	end)
+
 	InputController.onCrouch:connect(function()
 		if Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
 			return
@@ -168,6 +184,15 @@ function CharacterController.start()
 			end
 		end
 
+		if dashLeft > 0 then
+			dashLeft -= dt
+			if velocity then
+				velocity.MaxForce = if dashLeft > 0 then math.huge else 0
+				velocity.PlaneVelocity = Vector2.new(dashDir.X, dashDir.Z) * DASH_SPEED * S
+			end
+			return
+		end
+
 		if Context.rolling then
 			rollTime += dt
 			local t = math.min(1, rollTime / BASE.rollDuration)
@@ -211,6 +236,7 @@ function CharacterController.start()
 			local speed = stats.speed
 				* (if sprinting then BASE.sprintMultiplier else 1)
 				* (if boost > 0 then 1.2 else 1)
+				* (if os.clock() < Context.adrenalUntil then 1.3 else 1)
 				* (if Context.crouching then Stealth.CROUCH_SPEED else 1)
 			humanoid.WalkSpeed = speed * S
 		end
