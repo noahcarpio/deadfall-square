@@ -91,8 +91,8 @@ jobs:
           stylua src tests
           git diff > stylua.patch
           if [ -s stylua.patch ]; then
-            echo "Files need formatting: run 'stylua src tests' (patch uploaded as an artifact)."
-            git diff --stat
+            echo "Files need formatting: run 'stylua src tests'. Full patch:"
+            cat stylua.patch
             exit 1
           fi
       - uses: actions/upload-artifact@v4

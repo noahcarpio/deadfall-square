@@ -199,7 +199,7 @@ function Screens.perks(gui: ScreenGui)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Parent = row
 
-	local self = { open = false }
+	local self: any = { open = false, onChosen = nil }
 	function self.show(choices: { string })
 		for _, c in row:GetChildren() do
 			if c:IsA("TextButton") then

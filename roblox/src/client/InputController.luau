@@ -33,11 +33,14 @@ local gamepadAim = Vector2.zero
 local gamepadFire = false
 local touchAim = Vector2.zero
 local touchSprint = false
+local mobileGui: ScreenGui? = nil
 
 local function setDevice(device: "mouse" | "touch" | "gamepad")
 	if Context.device ~= device then
 		Context.device = device
-		InputController.mobileGui.Enabled = device == "touch" and not Context.menuOpen
+		if mobileGui then
+			mobileGui.Enabled = device == "touch" and not Context.menuOpen
+		end
 		UserInputService.MouseIconEnabled = device ~= "gamepad"
 	end
 end
@@ -203,7 +206,8 @@ end
 ------------------------------------------------------------------ start
 
 function InputController.start()
-	InputController.mobileGui = buildMobileControls()
+	local gui = buildMobileControls()
+	mobileGui = gui
 	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
 		Context.device = "mouse" -- force setDevice to apply
 		setDevice("touch")
@@ -252,7 +256,7 @@ function InputController.start()
 	RunService:BindToRenderStep("DeadfallInput", Enum.RenderPriority.Input.Value + 1, function()
 		local character = Context.character()
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		InputController.mobileGui.Enabled = Context.device == "touch" and not Context.menuOpen
+		gui.Enabled = Context.device == "touch" and not Context.menuOpen
 		if not root then
 			Context.firing = false
 			return

@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 local Shop = if script then require(script.Parent.Config.Shop) else require("./Config/Shop")
 
 local BASE = {

@@ -91,6 +91,7 @@ function GameServer.start()
 		flowDirty = true
 	end
 
+	local toLobby: () -> ()
 	local phase = "lobby"
 	local phaseEnd = 0
 	local runStart = 0
@@ -111,7 +112,7 @@ function GameServer.start()
 	end
 	W.onPlayerLeft = function(_ps)
 		if W.players and W.players:count() == 0 and phase ~= "lobby" then
-			GameServer.toLobby()
+			toLobby()
 		end
 	end
 
@@ -128,7 +129,7 @@ function GameServer.start()
 
 	------------------------------------------------------------ phases
 
-	function GameServer.toLobby()
+	toLobby = function()
 		W.zombies:clear()
 		W.hazards:clear()
 		W.pickups:clear()
@@ -432,7 +433,7 @@ function GameServer.start()
 			end
 		elseif phase == "gameover" then
 			if now >= phaseEnd then
-				GameServer.toLobby()
+				toLobby()
 			end
 		end
 

@@ -86,7 +86,9 @@ end
 local controls = nil
 task.spawn(function()
 	local ok, module = pcall(function()
-		return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+		-- PlayerModule is inserted by Roblox at runtime (not part of this project).
+		local playerModule: any = player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
+		return (require :: any)(playerModule)
 	end)
 	if ok and module then
 		controls = module:GetControls()

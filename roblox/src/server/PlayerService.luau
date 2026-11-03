@@ -235,7 +235,7 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 end
 
 -- Rebuilds the visible gun on the character's right hand for the current weapon.
-function PlayerService.updateGunModel(self, ps: PState)
+function PlayerService.updateGunModel(_self, ps: PState)
 	local character = ps.player.Character
 	if not character then
 		return
@@ -276,7 +276,7 @@ function PlayerService.updateGunModel(self, ps: PState)
 end
 
 -- Movement allowed only when standing; the client reads these for sprinting.
-function PlayerService.applyMovement(self, ps: PState)
+function PlayerService.applyMovement(_self, ps: PState)
 	local h = ps.humanoid
 	if h then
 		h.WalkSpeed = if ps.downed then 0 else ps.stats.speed * S
@@ -354,13 +354,13 @@ function PlayerService.refreshStats(self, ps: PState)
 	self:syncStats(ps)
 end
 
-function PlayerService.heal(self, ps: PState, amount: number): number
+function PlayerService.heal(_self, ps: PState, amount: number): number
 	local before = ps.hp
 	ps.hp = math.min(ps.stats.maxHealth, ps.hp + amount)
 	return ps.hp - before
 end
 
-function PlayerService.addArmor(self, ps: PState, amount: number): number
+function PlayerService.addArmor(_self, ps: PState, amount: number): number
 	local before = ps.armor
 	ps.armor = math.min(ps.stats.maxArmor, ps.armor + amount)
 	return ps.armor - before

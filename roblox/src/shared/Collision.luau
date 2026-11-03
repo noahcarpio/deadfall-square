@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 --[[
 	Obstacles on the XZ plane (metres) with a broadphase grid: circle push-out
 	for movement, ray casts for bullets and overlap tests for placement.

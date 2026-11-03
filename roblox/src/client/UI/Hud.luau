@@ -377,7 +377,10 @@ function Hud.start(gui: ScreenGui)
 		})
 		table.insert(activeToasts, t)
 		while #activeToasts > 4 do
-			table.remove(activeToasts, 1):Destroy()
+			local oldest = table.remove(activeToasts, 1)
+			if oldest then
+				oldest:Destroy()
+			end
 		end
 		task.delay(2.8, function()
 			local i = table.find(activeToasts, t)

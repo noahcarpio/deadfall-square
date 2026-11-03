@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 --[[
 	Multi-source Dijkstra flow field: every zombie samples a direction toward
 	the *nearest* living player in O(1), so one search per update serves the

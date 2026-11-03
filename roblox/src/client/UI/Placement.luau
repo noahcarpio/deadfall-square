@@ -66,7 +66,7 @@ local function overlapsStructures(minX: number, minZ: number, maxX: number, maxZ
 end
 
 function Placement.new(gui: ScreenGui, onDone: () -> ())
-	local self = { active = false }
+	local self: any = { active = false }
 	local stype = "barricade"
 	local rotated = false
 	local gx, gz = 0, 0

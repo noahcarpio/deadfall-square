@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 local Perks = if script then require(script.Parent.Config.Perks) else require("./Config/Perks")
 local RngModule = if script then require(script.Parent.Util.Rng) else require("./Util/Rng")
 

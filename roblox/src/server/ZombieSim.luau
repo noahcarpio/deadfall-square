@@ -254,7 +254,7 @@ local function move(z, factor: number)
 	out.z = z.dirZ * z.speed * factor
 end
 
-local function tryMelee(W, z, edge: number): boolean
+local function tryMelee(_W, z, edge: number): boolean
 	if z.attackCooldown > 0 then
 		return false
 	end
@@ -499,11 +499,12 @@ local function think(W, z, dt: number)
 		return
 	end
 	local edge = dist - z.radius - Constants.PLAYER_RADIUS
-	if z.type == "spitter" then
+	local ztype: string = z.type
+	if ztype == "spitter" then
 		updateSpitter(W, z, dist, edge)
-	elseif z.type == "exploder" then
+	elseif ztype == "exploder" then
 		updateExploder(W, z, edge)
-	elseif z.type == "boss" then
+	elseif ztype == "boss" then
 		updateBoss(W, z, dt, dist, edge)
 	else
 		updateWalker(W, z, edge)

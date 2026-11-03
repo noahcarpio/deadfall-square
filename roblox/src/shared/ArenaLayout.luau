@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 --[[
 	Deterministic description of the abandoned town square (in metres), ported
 	from the browser version's arena generator. Produces:
@@ -107,7 +109,7 @@ local function generate(): Layout
 		add("Cylinder", d, h, d, color, material, x, y, z)
 	end
 
-	local function colBox(minX, minZ, maxX, maxZ, height)
+	local function colBox(minX: number, minZ: number, maxX: number, maxZ: number, height: number)
 		table.insert(colliders, {
 			kind = "box",
 			minX = minX,
@@ -121,7 +123,7 @@ local function generate(): Layout
 		})
 	end
 
-	local function colCircle(x, z, r, height)
+	local function colCircle(x: number, z: number, r: number, height: number)
 		table.insert(colliders, {
 			kind = "circle",
 			minX = x - r,
@@ -526,15 +528,16 @@ local function generate(): Layout
 	barrier(-17, -1, math.pi / 2)
 	dumpster(33, -16, math.pi / 2)
 	dumpster(-33, 19, math.pi / 2)
-	for _, b in {
-		{ 31, 4, "#a33a2a" },
-		{ -31, -14, "#c49a2a" },
-		{ 7, -33, "#2a6aa3" },
-		{ -13, 32, "#a33a2a" },
-		{ 22, -32, "#c49a2a" },
-		{ -24, 30, "#4a7a3a" },
-	} do
-		barrel(b[1] :: number, b[2] :: number, b[3] :: string)
+	local barrels: { { x: number, z: number, color: string } } = {
+		{ x = 31, z = 4, color = "#a33a2a" },
+		{ x = -31, z = -14, color = "#c49a2a" },
+		{ x = 7, z = -33, color = "#2a6aa3" },
+		{ x = -13, z = 32, color = "#a33a2a" },
+		{ x = 22, z = -32, color = "#c49a2a" },
+		{ x = -24, z = 30, color = "#4a7a3a" },
+	}
+	for _, b in barrels do
+		barrel(b.x, b.z, b.color)
 	end
 
 	-- Rubble in the south lot (low, so the camera sees over it).

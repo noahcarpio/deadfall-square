@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 --[[
 	A player's weapons: ownership, ammo, reloading and fire-rate gating.
 	Time-based (callers pass the current time) so the same module runs on the

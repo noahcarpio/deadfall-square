@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 local Waves = if script then require(script.Parent.Config.Waves) else require("./Config/Waves")
 local Zombies = if script then require(script.Parent.Config.Zombies) else require("./Config/Zombies")
 

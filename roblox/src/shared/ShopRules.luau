@@ -1,4 +1,6 @@
 --!strict
+-- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
+--# selene: allow(incorrect_standard_library_use)
 --[[
 	Shop prices, availability and purchases. Pure logic over a context so the
 	server can validate every purchase (clients only display offers).
