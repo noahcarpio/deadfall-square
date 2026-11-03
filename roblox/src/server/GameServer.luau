@@ -30,6 +30,7 @@ local Net = require(Shared.Net)
 local Rng = require(Shared.Util.Rng)
 local ShopRules = require(Shared.ShopRules)
 local Shop = require(Shared.Config.Shop)
+local Visuals = require(Shared.Config.Visuals)
 
 local ArenaBuilder = require(script.Parent.ArenaBuilder)
 local Combat = require(script.Parent.Combat)
@@ -469,6 +470,24 @@ function GameServer.start()
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
 	atmosphere.Parent = Lighting
+	-- Colour grading, glow and sun rays (Config/Visuals), blended by time of day.
+	local function effect(className: string): any
+		local e = Lighting:FindFirstChildOfClass(className) or Instance.new(className)
+		e.Parent = Lighting
+		return e
+	end
+	local grade = effect("ColorCorrectionEffect")
+	local bloom = effect("BloomEffect")
+	local sunRays = effect("SunRaysEffect")
+	bloom.Size = Visuals.BLOOM.size
+	sunRays.Spread = Visuals.SUN_RAYS.spread
+	Lighting.ShadowSoftness = Visuals.LIGHTING.shadowSoftness
+	Lighting.EnvironmentDiffuseScale = Visuals.LIGHTING.environmentDiffuse
+	Lighting.EnvironmentSpecularScale = Visuals.LIGHTING.environmentSpecular
+	local function lerp(pair: { number }, n: number): number
+		return pair[1] + (pair[2] - pair[1]) * n
+	end
+
 	local DAY_FOG = Color3.fromRGB(167, 178, 184)
 	local DUSK_FOG = Color3.fromRGB(122, 92, 90)
 	local NIGHT_FOG = Color3.fromRGB(13, 18, 32)
@@ -484,6 +503,14 @@ function GameServer.start()
 		atmosphere.Color = if n < 0.45
 			then DAY_FOG:Lerp(DUSK_FOG, n / 0.45)
 			else DUSK_FOG:Lerp(NIGHT_FOG, (n - 0.45) / 0.55)
+		local g = Visuals.GRADE
+		grade.TintColor = g.dayTint:Lerp(g.nightTint, n)
+		grade.Contrast = lerp(g.contrast, n)
+		grade.Saturation = lerp(g.saturation, n)
+		grade.Brightness = lerp(g.brightness, n)
+		bloom.Intensity = lerp(Visuals.BLOOM.intensity, n)
+		bloom.Threshold = lerp(Visuals.BLOOM.threshold, n)
+		sunRays.Intensity = Visuals.SUN_RAYS.intensity * math.max(0, 1 - n * 2)
 		ArenaBuilder.setNight(arena, n)
 		stateFolder:SetAttribute("Night", n)
 	end

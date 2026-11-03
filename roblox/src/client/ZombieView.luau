@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
+local Visuals = require(Shared.Config.Visuals)
 local ZombiesConfig = require(Shared.Config.Zombies)
 local MeshLibrary = require(Shared.MeshLibrary)
 local Net = require(Shared.Net)
@@ -106,7 +107,7 @@ local function buildRig(def): Rig
 	local rig = {
 		legL = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false, "ZombieLeg"),
 		legR = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false, "ZombieLeg"),
-		torso = newPart(v(b.torso, 0.6, 0.76, 0.36), shirt, Enum.Material.Fabric, true, "ZombieTorso"),
+		torso = newPart(v(b.torso, 0.6, 0.76, 0.36), shirt, Visuals.enum(Enum.Material.Fabric), true, "ZombieTorso"),
 		head = newPart(v(b.head, 0.38, 0.38, 0.38), skin, nil, true, "ZombieHead"),
 		armL = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false, "ZombieArm"),
 		armR = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false, "ZombieArm"),
@@ -127,7 +128,7 @@ local function buildRig(def): Rig
 		sac.Shape = Enum.PartType.Ball
 		rig.extra = sac
 	elseif def.type == "boss" then
-		rig.extra = newPart(Vector3.new(0.5, 0.9, 0.5) * sc, Color3.fromHex("#d8cfb4"), Enum.Material.Slate, true)
+		rig.extra = newPart(Vector3.new(0.5, 0.9, 0.5) * sc, Color3.fromHex("#d8cfb4"), Visuals.enum(Enum.Material.Slate), true)
 	end
 	rig.parts = { rig.legL, rig.legR, rig.torso, rig.head, rig.armL, rig.armR, rig.eyes }
 	if rig.extra then

@@ -191,6 +191,10 @@ local function generate(): Layout
 	-- Cobblestone plaza with a stone rim.
 	cyl(28.9, 0.08, "#8f8a83", "Slate", 0, 0.04, 0)
 	cyl(28, 0.1, "#77706a", "Cobblestone", 0, 0.05, 0)
+	-- Paving rings, so the plaza reads as stone without a grainy texture.
+	cyl(21, 0.11, "#857d74", "Cobblestone", 0, 0.055, 0)
+	cyl(19.6, 0.12, "#6f6862", "Cobblestone", 0, 0.06, 0)
+	cyl(12.5, 0.13, "#8a827a", "Cobblestone", 0, 0.065, 0)
 	-- Faded lane markings: dashed loop around the plaza.
 	for i = -10, 10 do
 		local t = i * 2.2
@@ -250,6 +254,13 @@ local function generate(): Layout
 			end
 			box(width - 0.05, 0.25, 0.25, TRIM, "Concrete", 0, 3, front + 0.1)
 			box(width - 0.05, 0.6, 0.2, "#2f2c2a", "Concrete", 0, 0.3, front + 0.05)
+			-- Corner pilasters and floor bands: detail from shape, not texture.
+			for _, px in { -width / 2 + 0.2, width / 2 - 0.2 } do
+				box(0.4, height, 0.3, TRIM, "Concrete", px, height / 2, front + 0.08)
+			end
+			for f = 2, height // 3 - 1 do
+				box(width - 0.05, 0.15, 0.18, TRIM, "Concrete", 0, f * 3, front + 0.09)
+			end
 			local doorX = rng:range(-width / 2 + 1.5, width / 2 - 1.5)
 			box(1.3, 2.3, 0.15, "#2a211b", "Wood", doorX, 1.15, front + 0.05)
 			box(1.6, 0.2, 0.25, TRIM, "Concrete", doorX, 2.4, front + 0.1)

@@ -9,6 +9,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ArenaLayout = require(Shared.ArenaLayout)
 local Constants = require(Shared.Config.Constants)
 local MeshLibrary = require(Shared.MeshLibrary)
+local Visuals = require(Shared.Config.Visuals)
 
 local S = Constants.STUDS
 
@@ -81,7 +82,17 @@ local function placePropMesh(prop: ArenaLayout.Prop, parts: { ArenaLayout.Piece 
 	return true
 end
 
-local function makePart(piece: ArenaLayout.Piece): BasePart
+-- Deterministic small brightness variation per piece (clean look only).
+local function jitter(color: Color3, index: number, material: string): Color3
+	if not Visuals.CLEAN_MATERIALS or material == "Neon" or material == "Glass" then
+		return color
+	end
+	local h = ((index * 2654435761) % 1000) / 1000
+	local k = (h - 0.5) * 2 * Visuals.COLOR_JITTER
+	return if k > 0 then color:Lerp(Color3.new(1, 1, 1), k) else color:Lerp(Color3.new(0, 0, 0), -k)
+end
+
+local function makePart(piece: ArenaLayout.Piece, index: number): BasePart
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
@@ -89,8 +100,8 @@ local function makePart(piece: ArenaLayout.Piece): BasePart
 	p.CanTouch = false
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Color = Color3.fromHex(piece.color)
-	p.Material = MATERIALS[piece.material] or Enum.Material.SmoothPlastic
+	p.Color = jitter(Color3.fromHex(piece.color), index, piece.material)
+	p.Material = MATERIALS[Visuals.material(piece.material)] or Enum.Material.SmoothPlastic
 	local sx, sy, sz = piece.size[1] * S, piece.size[2] * S, piece.size[3] * S
 	local base = pieceCFrame(piece)
 	if piece.shape == "Cylinder" then
@@ -142,7 +153,7 @@ function ArenaBuilder.build(): Arena
 		if piece.prop and meshed[piece.prop] then
 			continue
 		end
-		local p = makePart(piece)
+		local p = makePart(piece, i)
 		if piece.glow then
 			table.insert(glowParts, p)
 		end

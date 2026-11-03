@@ -38,6 +38,29 @@ The game builds everything from plain Parts out of the box. `assets/` holds a se
 
 The meshes come from a script, `tools/make_meshes.py`. It uses only Python's standard library and needs no Blender. Change it, run `python3 tools/make_meshes.py` to regenerate the files and `Config/MeshSizes.luau`, then `python3 tools/preview_meshes.py` (needs NumPy and Pillow) to redraw the preview. After that, re-import the meshes. CI fails if the committed files don't match the script.
 
+## Art style and using AI for models
+
+**The look:** stylized low-poly, smooth surfaces, detail from colour and shape rather than texture, muted post-apocalyptic palette (rust, olive, slate, cream) with warm lamps and neon. Everything has to read from a high top-down camera.
+
+- `src/shared/Config/Visuals.luau` holds the art direction:
+  - **Clean materials:** Roblox's grainy materials (concrete, slate, fabric, cobblestone...) are swapped for smooth ones.
+  - **Colour variation:** a small per-part brightness variation keeps big flat surfaces from looking plastic.
+  - **Day/night grading:** colour correction, bloom and sun rays blend with the day-night cycle.
+  - **Old look:** set `CLEAN_MATERIALS = false` to get the original textured look back for comparison.
+- The generated meshes have chamfered edges and smoothed normals: bevels and round parts shade softly, square corners stay crisp.
+
+**Getting good models out of AI 3D tools** (for example Roblox Studio's built-in 3D generation, Meshy, Tripo or Rodin):
+
+1. **Use one style prompt for every model,** e.g. *"stylized low-poly game asset, chunky simple shapes, flat colours, no baked lighting or shadows in the texture, slightly bevelled edges, muted post-apocalyptic palette (rust, olive, slate, cream), readable from far above, plain background"*. Add the object at the end.
+2. **Go image → 3D, not text → 3D.** Generate (or sketch) a concept image in that style first, then feed it to the image-to-3D tool. It is far more consistent.
+3. **Ask for game-ready output:** low poly (under ~5k triangles per prop), one 512–1024 px texture, FBX or OBJ, real-world scale, centred.
+4. **Clean up in Blender** (free):
+   - Decimate if it's too dense, then Shade Smooth with Auto Smooth around 40°.
+   - Delete floating junk and apply scale.
+   - Export FBX.
+5. **Import with Studio's Import 3D.** Name each model like the generated ones (e.g. `Car_1`, `Gun_rifle`) and put it in `ReplicatedStorage.DeadfallMeshes`. `MeshLibrary` then uses it automatically, at the size in `Config/MeshSizes.luau`.
+6. **Make one model first and check it in game** from the real camera before doing a whole set. Reject anything with realistic textures; they never match.
+
 ## Controls
 
 | Action | PC | Controller | Mobile |

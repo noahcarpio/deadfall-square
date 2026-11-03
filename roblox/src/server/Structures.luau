@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
+local Visuals = require(Shared.Config.Visuals)
 local Stealth = require(Shared.Config.Stealth)
 local Shop = require(Shared.Config.Shop)
 local MathUtil = require(Shared.Util.MathUtil)
@@ -193,7 +194,7 @@ local function buildBarricade(model: Model, cf: CFrame)
 			Size = Vector3.new(2.95, 0.28, 0.12) * S,
 			CFrame = cf * CFrame.new(0, (0.3 + i * 0.36) * S, 0.08 * S) * CFrame.Angles(0, 0, (i - 1) * 0.03),
 			Color = Color3.fromHex(if i % 2 == 1 then "#8a6238" else "#7a5634"),
-			Material = Enum.Material.WoodPlanks,
+			Material = Visuals.enum(Enum.Material.WoodPlanks),
 		}).Parent =
 			model
 	end

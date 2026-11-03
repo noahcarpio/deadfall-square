@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
+local Visuals = require(Shared.Config.Visuals)
 local MeshLibrary = require(Shared.MeshLibrary)
 local Weapons = require(Shared.Config.Weapons)
 
@@ -93,7 +94,7 @@ local function blockModel(kind: string): BasePart
 	else
 		part.Size = Vector3.new(2.7, 1.3, 1.65)
 		part.Color = Color3.fromHex("#6a4a2a")
-		part.Material = Enum.Material.WoodPlanks
+		part.Material = Visuals.enum(Enum.Material.WoodPlanks)
 	end
 	return part
 end
