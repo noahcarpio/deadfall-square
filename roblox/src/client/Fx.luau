@@ -473,7 +473,9 @@ function Fx.start()
 			telegraph(data.id, data.shape, data)
 		elseif kind == "grenade" then
 			grenade(data.x0, data.z0, data.x1, data.z1, data.duration)
-			Audio.play("launcher", data.x0, data.z0)
+			if not data.silent then
+				Audio.play("launcher", data.x0, data.z0)
+			end
 		elseif kind == "slam" then
 			Fx.dust(data.x, data.z, if data.small then 8 else 24)
 			Context.shake(if data.small then 0.35 else 0.7)

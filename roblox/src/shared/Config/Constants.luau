@@ -16,7 +16,10 @@ return {
 	INTERP_DELAY = 0.12,
 	PLAYER_RADIUS = 0.45,
 	REVIVE_SECONDS = 3,
-	INTERMISSION_SECONDS = 35,
+	-- Grace period between waves: visit the merchant and workbench, loot, build.
+	INTERMISSION_SECONDS = 30,
+	-- Stations only serve players standing this close (m).
+	STATION_RANGE = 4.5,
 	COUNTDOWN_SECONDS = 4,
 	GAMEOVER_SECONDS = 14,
 }

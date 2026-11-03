@@ -177,6 +177,7 @@ function WeaponClient.start()
 			dirs[i] = { math.sin(a), math.cos(a) }
 		end
 		remotes.Fire:FireServer(def.id, dirs, dist)
+		Context.signals.fired:fire(def.id)
 
 		-- Immediate local feedback.
 		local gun = character and character:FindFirstChild("Gun")

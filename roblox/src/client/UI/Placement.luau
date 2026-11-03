@@ -1,9 +1,9 @@
 --[[
 	Structure placement mode: a ghost footprint follows the cursor (or a tap on
 	touch), snapped to the grid and tinted by local validity. Click/PLACE asks
-	the server to build it (the server re-validates and charges coins).
+	the server to build it (the server re-validates and takes the materials).
 	R or right-click rotates; WASD (or a touch drag) pans the camera; Esc or
-	CANCEL returns to the shop.
+	CANCEL returns to the workbench.
 ]]
 local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
@@ -14,6 +14,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ArenaLayout = require(Shared.ArenaLayout)
 local Collision = require(Shared.Collision)
 local Constants = require(Shared.Config.Constants)
+local Items = require(Shared.Config.Items)
 local Shop = require(Shared.Config.Shop)
 
 local Context = require(script.Parent.Parent.Context)
@@ -250,7 +251,12 @@ function Placement.new(gui: ScreenGui, onDone: () -> ())
 		Context.placing = true
 		Context.panOffset = Vector3.zero
 		local def = Shop.structures[stype]
-		label.Text = `Placing {def.name} — {def.cost} coins`
+		local mats = {}
+		for id, n in def.materials do
+			table.insert(mats, `{n} {Items.defs[id].name}`)
+		end
+		table.sort(mats)
+		label.Text = `Placing {def.name} — {table.concat(mats, ", ")}`
 		hint.Text = if Context.device == "touch"
 			then "Drag to pan · tap the ground to position · PLACE to build"
 			else "Click to place · R / right-click to rotate · WASD to pan · Esc to cancel"

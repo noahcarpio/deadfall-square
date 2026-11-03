@@ -8,6 +8,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Arsenal = require(Shared.Arsenal)
+local Inventory = require(Shared.Inventory)
+local Items = require(Shared.Config.Items)
 local Net = require(Shared.Net)
 local PlayerStats = require(Shared.PlayerStats)
 
@@ -46,7 +48,7 @@ for _, name in Net.FUNCTIONS do
 end
 
 local base = PlayerStats.compute(
-	{ maxHealth = 0, armor = 0, speed = 0, stamina = 0 },
+	{ maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 },
 	{
 		level = function()
 			return 0
@@ -64,7 +66,10 @@ local Context = {
 	arsenal = Arsenal.new(),
 	stats = base,
 	perks = {} :: { { id: string, level: number } },
-	tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0 },
+	tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 },
+	-- Mirror of the server's bag (InventorySync).
+	inventory = Inventory.new(Items.BASE_CAPACITY),
+	crouching = false,
 	stamina = base.maxStamina,
 	-- Aim on the ground plane (metres) and whether the trigger is held.
 	aimX = 0,
@@ -75,9 +80,10 @@ local Context = {
 	spread = 0,
 	sprinting = false,
 	rolling = false,
+	rollStart = 0,
 	exhausted = false,
 	device = "mouse" :: "mouse" | "touch" | "gamepad",
-	-- True while a full-screen UI (shop, perk, lobby, game over) is open.
+	-- True while a full-screen UI (merchant/workbench, perk, lobby, game over) is open.
 	menuOpen = false,
 	placing = false,
 	-- Camera pan while placing structures (studs).
@@ -91,9 +97,19 @@ local Context = {
 		hurt = signal(),
 		notify = signal(),
 		phaseChanged = signal(),
+		inventoryChanged = signal(),
+		crouchChanged = signal(),
+		fired = signal(), -- (weaponId) our own shot, for the recoil animation
 	},
 	signal = signal,
 }
+
+remotes.InventorySync.OnClientEvent:Connect(function(data)
+	if type(data) == "table" and type(data.items) == "table" and type(data.capacity) == "number" then
+		Context.inventory:load(data)
+		Context.signals.inventoryChanged:fire()
+	end
+end)
 
 function Context.shake(amount: number)
 	if Context.settings.screenShake then

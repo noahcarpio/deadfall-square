@@ -26,6 +26,9 @@ local InputController = {
 	onRoll = Context.signal(),
 	onReload = Context.signal(),
 	onSwitch = Context.signal(), -- (slot | nil, direction | nil)
+	onCrouch = Context.signal(), -- toggle
+	onUseItem = Context.signal(), -- (itemId)
+	onToggleBag = Context.signal(),
 }
 
 local mouseDown = false
@@ -125,7 +128,14 @@ local function buildMobileControls(): ScreenGui
 		Size = UDim2.fromOffset(64, 4 * 72),
 		Parent = gui,
 	}, { Builder.list(8) })
-	local function button(text: string, onPress: () -> ())
+	local column2 = create("Frame", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -84, 0.36, 0),
+		Size = UDim2.fromOffset(64, 4 * 72),
+		Parent = gui,
+	}, { Builder.list(8) })
+	local function button(text: string, onPress: () -> (), parent: Frame?)
 		local b = create("TextButton", {
 			Text = text,
 			Font = T.head,
@@ -135,7 +145,7 @@ local function buildMobileControls(): ScreenGui
 			BackgroundTransparency = 0.35,
 			Size = UDim2.fromOffset(64, 64),
 			AutoButtonColor = true,
-			Parent = column,
+			Parent = parent or column,
 		})
 		create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
 		Builder.stroke(Color3.new(1, 1, 1), 2, 0.6).Parent = b
@@ -156,6 +166,22 @@ local function buildMobileControls(): ScreenGui
 	button("SWAP", function()
 		InputController.onSwitch:fire(nil, 1)
 	end)
+	local crouchButton
+	crouchButton = button("SNEAK", function()
+		InputController.onCrouch:fire()
+	end, column2)
+	Context.signals.crouchChanged:connect(function()
+		crouchButton.BackgroundColor3 = if Context.crouching then T.accent else T.panel
+	end)
+	button("HEAL", function()
+		InputController.onUseItem:fire("bandage")
+	end, column2)
+	button("BOMB", function()
+		InputController.onUseItem:fire("pipebomb")
+	end, column2)
+	button("BAG", function()
+		InputController.onToggleBag:fire()
+	end, column2)
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	return gui
 end
@@ -190,6 +216,26 @@ local function bindActions()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.ButtonR1, Enum.KeyCode.ButtonL1)
+	ContextActionService:BindAction("DeadfallCrouch", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			InputController.onCrouch:fire()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
+	ContextActionService:BindAction("DeadfallItem", function(_, state, input)
+		if state == Enum.UserInputState.Begin then
+			local k = input.KeyCode
+			local id = if k == Enum.KeyCode.B or k == Enum.KeyCode.DPadUp then "bandage" else "pipebomb"
+			InputController.onUseItem:fire(id)
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.B, Enum.KeyCode.G, Enum.KeyCode.DPadUp, Enum.KeyCode.DPadDown)
+	ContextActionService:BindAction("DeadfallBag", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			InputController.onToggleBag:fire()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.I, Enum.KeyCode.DPadRight)
 	local digits = {
 		Enum.KeyCode.One,
 		Enum.KeyCode.Two,

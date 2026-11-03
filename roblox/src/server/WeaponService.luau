@@ -6,6 +6,7 @@
 	particles, grenades and turret shots.
 ]]
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
@@ -135,7 +136,11 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 		return
 	end
 	local now = os.clock()
+	local reloadBefore = ps.arsenal.reloadEnd
 	local result = ps.arsenal:tryFire(now, 0.35, ps.stats.reloadSpeed)
+	if ps.arsenal.reloadEnd ~= reloadBefore then
+		self:markReload(ps)
+	end
 	if result ~= "fired" then
 		if result == "empty" then
 			W.players:syncArsenal(ps)
@@ -143,6 +148,11 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 		return
 	end
 	local def = Weapons.defs[weaponId]
+	-- Gunfire carries: every zombie within earshot comes to look.
+	if now - (ps.lastShotNoise or 0) > 0.15 then
+		ps.lastShotNoise = now
+		W.noise(ps.x, ps.z, def.noise)
+	end
 	local w = ps.arsenal:currentState()
 	local damage = Weapons.damageOf(def, w.upgrades)
 	local list = self:checkDirs(def, dirs)
@@ -222,6 +232,17 @@ function WeaponService.onReload(self, ps)
 	end
 	if ps.arsenal:startReload(os.clock(), ps.stats.reloadSpeed) then
 		self.W.players:syncArsenal(ps)
+		self:markReload(ps)
+	end
+end
+
+-- Tells every client (for the reload animation) when this player's reload ends.
+function WeaponService.markReload(_self, ps)
+	local character = ps.player.Character
+	if character and ps.arsenal.reloadEnd > 0 then
+		local left = ps.arsenal.reloadEnd - os.clock()
+		character:SetAttribute("ReloadEnd", Workspace:GetServerTimeNow() + left)
+		character:SetAttribute("ReloadTime", ps.arsenal.reloadDuration)
 	end
 end
 

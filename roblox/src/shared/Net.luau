@@ -29,6 +29,11 @@ Net.EVENTS = {
 	"PerkOffer", -- s->c: three perk ids
 	"GameOver", -- s->c: end-of-run stats
 	"Adrenaline", -- s->c: stamina refund + speed boost after a kill
+	"Crouch", -- c->s: boolean
+	"UseItem", -- c->s: itemId, aimX, aimZ, aimDistance (bandage / pipe bomb)
+	"DiscardItem", -- c->s: itemId, count
+	"InventorySync", -- s->c: { items, capacity }
+	"OpenStation", -- s->c: station name (merchant / workbench), prompt position x, z
 }
 Net.UNRELIABLE = { "Snapshot" }
 Net.FUNCTIONS = { "Purchase", "Place", "GetLeaderboard" }

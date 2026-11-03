@@ -476,7 +476,7 @@ function Hud.start(gui: ScreenGui)
 			waveSub.Text = `{remaining} zombie{if remaining == 1 then "" else "s"} remaining`
 		elseif phase == "intermission" then
 			waveLabel.Text = `WAVE {wave} CLEARED`
-			waveSub.Text = `Next wave in {secs}s — shop open`
+			waveSub.Text = `Grace period: {secs}s — merchant & workbench open`
 		end
 		local bossId = gs:GetAttribute("BossId") or 0
 		bossFrame.Visible = bossId ~= 0 and phase == "wave"

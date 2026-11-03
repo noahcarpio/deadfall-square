@@ -31,6 +31,8 @@ local MATERIALS = {
 	Grass = Enum.Material.Grass,
 	Rubber = Enum.Material.Rubber,
 	Marble = Enum.Material.Marble,
+	Cardboard = Enum.Material.Cardboard,
+	CorrodedMetal = Enum.Material.CorrodedMetal,
 }
 
 export type Arena = {

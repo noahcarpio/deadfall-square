@@ -1,14 +1,17 @@
 --[[
 	Local character feel: sprint with stamina (and exhaustion lockout), dodge
-	roll with i-frames (the server grants the invulnerability), facing the aim
-	direction, knockback from hits and the adrenaline perk boost. Movement is
-	client-authoritative in Roblox, so these run locally.
+	roll with i-frames (the server grants the invulnerability), crouching
+	(slower and much quieter; the server is told so zombies hear and see
+	less), facing the aim direction, knockback from hits and the adrenaline
+	perk boost. Movement is client-authoritative in Roblox, so these run
+	locally.
 ]]
 local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local PlayerStats = require(Shared.PlayerStats)
+local Stealth = require(Shared.Config.Stealth)
 
 local Context = require(script.Parent.Context)
 local InputController = require(script.Parent.InputController)
@@ -17,6 +20,8 @@ local S = Constants.STUDS
 local BASE = PlayerStats.BASE
 local ROLL_SPEED_START = 14
 local ROLL_SPEED_END = 5
+-- How far the body drops while crouching (studs); CharacterAnimator bends the legs to match.
+local CROUCH_DROP = 0.6
 
 local CharacterController = {}
 
@@ -29,6 +34,21 @@ function CharacterController.start()
 	local boost = 0
 	local align: AlignOrientation? = nil
 	local velocity: LinearVelocity? = nil
+	local baseHipHeight: number? = nil
+
+	local function setCrouch(on: boolean)
+		if Context.crouching == on then
+			return
+		end
+		Context.crouching = on
+		Context.remotes.Crouch:FireServer(on)
+		Context.signals.crouchChanged:fire()
+		local character = Context.character()
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and baseHipHeight and humanoid.RigType == Enum.HumanoidRigType.R15 then
+			humanoid.HipHeight = if on then math.max(0.3, baseHipHeight - CROUCH_DROP) else baseHipHeight
+		end
+	end
 
 	local function setup(character: Model)
 		local root = character:WaitForChild("HumanoidRootPart") :: BasePart
@@ -57,11 +77,22 @@ function CharacterController.start()
 		velocity = v
 		Context.stamina = Context.stats.maxStamina
 		Context.rolling = false
+		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+		baseHipHeight = humanoid.HipHeight
+		Context.crouching = false
+		Context.signals.crouchChanged:fire()
 	end
 	Context.player.CharacterAdded:Connect(setup)
 	if Context.player.Character then
 		task.spawn(setup, Context.player.Character)
 	end
+
+	InputController.onCrouch:connect(function()
+		if Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
+			return
+		end
+		setCrouch(not Context.crouching)
+	end)
 
 	InputController.onRoll:connect(function()
 		if Context.rolling or rollCooldown > 0 or Context.downed() or Context.menuOpen then
@@ -80,6 +111,7 @@ function CharacterController.start()
 			then Vector3.new(move.X, 0, move.Z).Unit
 			else Vector3.new(Context.aimX, 0, Context.aimZ)
 		Context.rolling = true
+		Context.rollStart = os.clock()
 		rollTime = 0
 		Context.stamina -= Context.stats.rollCost
 		staminaDelay = 0.8
@@ -123,6 +155,10 @@ function CharacterController.start()
 		rollCooldown = math.max(0, rollCooldown - dt)
 		boost = math.max(0, boost - dt)
 		local downed = Context.downed()
+		local phase = Context.phase()
+		if Context.crouching and (downed or Context.rolling or phase == "lobby" or phase == "gameover") then
+			setCrouch(false)
+		end
 
 		-- Facing: aim direction (or roll direction while rolling).
 		if align then
@@ -152,6 +188,9 @@ function CharacterController.start()
 
 		local moving = humanoid.MoveDirection.Magnitude > 0.1
 		local sprinting = Context.sprinting and moving and not exhausted and not downed and Context.stamina > 0
+		if sprinting and Context.crouching then
+			setCrouch(false) -- sprinting stands you up
+		end
 		if sprinting then
 			Context.stamina = math.max(0, Context.stamina - BASE.staminaDrain * dt)
 			staminaDelay = 0.8
@@ -172,6 +211,7 @@ function CharacterController.start()
 			local speed = stats.speed
 				* (if sprinting then BASE.sprintMultiplier else 1)
 				* (if boost > 0 then 1.2 else 1)
+				* (if Context.crouching then Stealth.CROUCH_SPEED else 1)
 			humanoid.WalkSpeed = speed * S
 		end
 	end)

@@ -137,12 +137,14 @@ function Screens.lobby(gui: ScreenGui)
 		table.insert(zombieLines, `<b>{ZombiesConfig.defs[t].name}</b> — {blurbs[t]}`)
 	end
 	how.Text = table.concat({
-		"<b>PC:</b> WASD move · mouse aim · hold click shoot · R reload · Shift sprint · Space roll · 1–7 / wheel / Q / E switch",
-		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · A roll · X reload · LB/RB switch · L3/LT sprint",
-		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · RUN / ROLL / RELOAD / SWAP buttons",
+		"<b>PC:</b> WASD move · mouse aim · hold click shoot · R reload · Shift sprint · Space roll · C crouch · F use / search · B bandage · G pipe bomb · I bag · 1–7 / wheel / Q / E switch",
+		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · A roll · X reload · B crouch · Y use / search · D-pad up bandage · down pipe bomb · right bag · LB/RB switch · L3/LT sprint",
+		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · RUN / ROLL / RELOAD / SWAP / SNEAK / HEAL / BOMB / BAG buttons, tap prompts to use",
 		"",
-		"Kill quickly to build a combo multiplier. Coins buy upgrades, weapons, barricades and turrets between waves. Every 3rd wave you pick a perk.",
-		"If a teammate goes down, stand next to them and <b>hold E</b> to revive. The run ends when everyone is down.",
+		"<b>Stay quiet.</b> Zombies wander until they see or hear you. Gunshots carry far, sprinting is loud, crouching is nearly silent and harder to spot. A pipe bomb's beeping lures them in before it blows.",
+		"<b>Scavenge.</b> Search cars, crates, dumpsters and trash for scrap, planks, rags, electronics and gunpowder. Your bag has a weight limit.",
+		"<b>Grace period.</b> After each wave you get 30 seconds: trade coins at the <b>merchant</b>, craft and upgrade at the <b>workbench</b>, build barricades and turrets, or ring the <b>bell</b> to start early. Every 3rd wave you pick a perk.",
+		"If a teammate goes down, stand next to them and <b>hold F</b> to revive. The run ends when everyone is down.",
 		"",
 		table.concat(zombieLines, "\n"),
 	}, "\n")

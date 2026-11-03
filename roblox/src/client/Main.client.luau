@@ -1,9 +1,12 @@
 --[[
 	Deadfall Square client bootstrap: starts the controllers and drives which
 	screen is visible from the server's game phase
-	(lobby / countdown / wave / intermission / gameover).
+	(lobby / countdown / wave / intermission / gameover). During the
+	intermission (the grace period) nothing pops up: players walk to the
+	merchant or workbench, and the server opens that panel when they use it.
 ]]
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
@@ -11,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Context = require(script.Parent.Context)
 local Audio = require(script.Parent.Audio)
 local CameraController = require(script.Parent.CameraController)
+local CharacterAnimator = require(script.Parent.CharacterAnimator)
 local CharacterController = require(script.Parent.CharacterController)
 local Fx = require(script.Parent.Fx)
 local InputController = require(script.Parent.InputController)
@@ -18,9 +22,10 @@ local WeaponClient = require(script.Parent.WeaponClient)
 local ZombieView = require(script.Parent.ZombieView)
 local Builder = require(script.Parent.UI.Builder)
 local Hud = require(script.Parent.UI.Hud)
+local InventoryUI = require(script.Parent.UI.InventoryUI)
 local Placement = require(script.Parent.UI.Placement)
 local Screens = require(script.Parent.UI.Screens)
-local ShopUI = require(script.Parent.UI.ShopUI)
+local StationUI = require(script.Parent.UI.StationUI)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -45,6 +50,7 @@ end)
 CameraController.start()
 InputController.start()
 CharacterController.start()
+CharacterAnimator.start()
 ZombieView.start()
 Fx.start()
 WeaponClient.start()
@@ -53,20 +59,49 @@ local hudGui = Builder.screen("DeadfallHUD", 1)
 hudGui.Parent = playerGui
 Hud.start(hudGui)
 
+-- Items: bandage heals at once; a pipe bomb is thrown toward the aim point.
+local function useItem(id: string)
+	if Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
+		return
+	end
+	if Context.inventory:count(id) <= 0 then
+		Audio.play("uiDeny")
+		return
+	end
+	Context.remotes.UseItem:FireServer(id, Context.aimX, Context.aimZ, Context.aimDistance)
+	Audio.play("uiClick")
+end
+local bag = InventoryUI.new(hudGui, useItem)
+InputController.onUseItem:connect(useItem)
+InputController.onToggleBag:connect(function()
+	if Context.phase() ~= "lobby" then
+		bag.toggle()
+	end
+end)
+
 local screensGui = Builder.screen("DeadfallScreens", 10)
 screensGui.Parent = playerGui
 local lobby = Screens.lobby(screensGui)
 local perks = Screens.perks(screensGui)
 local gameOver = Screens.gameOver(screensGui)
-local shop
+local station
+local lastStation: { name: string, x: number, z: number }? = nil
 local placement = Placement.new(screensGui, function()
-	if Context.phase() == "intermission" then
-		shop.show(Context.gameState:GetAttribute("Wave") or 0)
+	-- Back to the workbench panel if the player is still standing at it.
+	if Context.phase() == "intermission" and lastStation then
+		station.show(lastStation.name, lastStation.x, lastStation.z)
 	end
 end)
-shop = ShopUI.new(screensGui, function(stype: string)
-	shop.hide()
+station = StationUI.new(screensGui, function(stype: string)
+	station.hide()
 	placement.start(stype)
+end)
+Context.remotes.OpenStation.OnClientEvent:Connect(function(name: string, x: number, z: number)
+	if Context.phase() == "intermission" and not placement.active and not perks.open then
+		lastStation = { name = name, x = x, z = z }
+		station.show(name, x, z)
+		Audio.play("uiClick")
+	end
 end)
 
 local pendingPerks: { string }? = nil
@@ -102,7 +137,7 @@ RunService.RenderStepped:Connect(function()
 		lastPhase = phase
 		Context.signals.phaseChanged:fire(phase)
 		if phase ~= "intermission" then
-			shop.hide()
+			station.hide()
 			perks.hide()
 			if placement.active then
 				placement.stop()
@@ -118,23 +153,12 @@ RunService.RenderStepped:Connect(function()
 		else
 			lobby.hide()
 		end
-		if phase == "intermission" and not pendingPerks then
-			shop.show(Context.gameState:GetAttribute("Wave") or 0)
-		end
 	end
 
-	-- Perk choice arrives with the intermission; it is shown before the shop.
+	-- A perk choice arrives with some grace periods; it is shown first.
 	if phase == "intermission" and pendingPerks and not perks.open and not placement.active then
-		shop.hide()
+		station.hide()
 		perks.show(pendingPerks)
-	elseif
-		phase == "intermission"
-		and not pendingPerks
-		and not perks.open
-		and not shop.open
-		and not placement.active
-	then
-		shop.show(Context.gameState:GetAttribute("Wave") or 0)
 	end
 	if phase == "gameover" and gameOverData and not gameOver.open then
 		gameOver.show(gameOverData)
@@ -146,8 +170,10 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	lobby.update()
-	shop.update()
-	Context.menuOpen = shop.open or perks.open or gameOver.open or phase == "lobby"
+	station.update()
+	Context.menuOpen = station.open or perks.open or gameOver.open or phase == "lobby"
+	-- World prompts (search, trade, revive) hide while a panel covers the screen.
+	ProximityPromptService.Enabled = not Context.menuOpen and not placement.active
 	if controls then
 		if Context.menuOpen or placement.active then
 			controls:Disable()

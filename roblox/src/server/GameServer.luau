@@ -4,7 +4,11 @@
 
 	  lobby --(everyone ready)--> countdown --> wave --(cleared)--> intermission
 	    ^                                        |                     |
-	    +---- gameover <--(everyone downed)------+     <--(ready/timer)+
+	    +---- gameover <--(everyone downed)------+     <--(bell/timer)-+
+
+	The intermission is a 30-second grace period: the merchant, workbench and
+	alarm bell in the plaza open, containers restock, and players walk around
+	to trade, craft, loot and build.
 
 	Shared state for the HUD is published as attributes on
 	ReplicatedStorage.GameState.
@@ -31,9 +35,12 @@ local ArenaBuilder = require(script.Parent.ArenaBuilder)
 local Combat = require(script.Parent.Combat)
 local Hazards = require(script.Parent.Hazards)
 local Leaderboard = require(script.Parent.Leaderboard)
+local LootService = require(script.Parent.LootService)
 local Pickups = require(script.Parent.Pickups)
 local PlayerService = require(script.Parent.PlayerService)
+local Stations = require(script.Parent.Stations)
 local Structures = require(script.Parent.Structures)
+local Throwables = require(script.Parent.Throwables)
 local WaveDirector = require(script.Parent.WaveDirector)
 local WeaponService = require(script.Parent.WeaponService)
 local ZombieSim = require(script.Parent.ZombieSim)
@@ -75,6 +82,11 @@ function GameServer.start()
 	W.collision = collision
 	W.nav = NavGrid.new(-Constants.WORLD_HALF, -Constants.WORLD_HALF, Constants.WORLD_HALF, Constants.WORLD_HALF)
 	W.flow = FlowField.new(W.nav)
+	-- Second field toward points of interest, for zombies investigating noises.
+	W.noiseFlow = FlowField.new(W.nav)
+	W.night = 0
+	local noiseVersion = -1
+	local noiseTimer = 0
 
 	local flowDirty = true
 	local flowTimer = 0
@@ -89,11 +101,18 @@ function GameServer.start()
 	function W.notifyAll(text: string, tone: string)
 		remotes.Notify:FireAllClients(text, tone)
 	end
+	-- A noise zombies within `radius` metres can hear.
+	function W.noise(x: number, z: number, radius: number)
+		if W.zombies and radius > 0 then
+			W.zombies:hear(x, z, radius)
+		end
+	end
 	function W.rebuildNav()
 		W.nav:rebuild(collision.colliders, NAV_INFLATE, function(c)
 			return W.structures:isStructureCollider(c)
 		end)
 		flowDirty = true
+		noiseVersion = -1
 	end
 
 	local toLobby: () -> ()
@@ -108,6 +127,10 @@ function GameServer.start()
 		phaseEnd = if duration then Workspace:GetServerTimeNow() + duration else 0
 		stateFolder:SetAttribute("Phase", p)
 		stateFolder:SetAttribute("PhaseEnd", phaseEnd)
+		if W.stations then
+			W.stations:setOpen(p == "intermission")
+			W.loot:setActive(p ~= "lobby" and p ~= "gameover")
+		end
 	end
 
 	W.onPlayerJoined = function(ps)
@@ -129,6 +152,8 @@ function GameServer.start()
 	W.weapons = WeaponService.new(W)
 	W.waves = WaveDirector.new(W)
 	W.players = PlayerService.new(W)
+	W.throwables = Throwables.new(W)
+	W.loot = LootService.new(W, arena.layout)
 	local leaderboard = Leaderboard.new()
 	W.rebuildNav()
 
@@ -143,6 +168,8 @@ function GameServer.start()
 		W.structures:clear()
 		W.waves:reset()
 		W.players:resetAll()
+		W.throwables:clear()
+		W.loot:clear()
 		setPhase("lobby")
 	end
 
@@ -155,6 +182,8 @@ function GameServer.start()
 		W.structures:clear()
 		W.waves:reset()
 		W.players:resetAll()
+		W.throwables:clear()
+		W.loot:restock(1, true)
 		runStart = os.clock()
 		setPhase("countdown", Constants.COUNTDOWN_SECONDS)
 	end
@@ -179,6 +208,7 @@ function GameServer.start()
 			end
 		end
 		W.pickups.vacuum = true
+		W.loot:restock(wave + 1, false)
 		W.fx("waveClear", { wave = wave, bonus = bonus })
 		setPhase("intermission", Constants.INTERMISSION_SECONDS)
 	end
@@ -261,6 +291,43 @@ function GameServer.start()
 		if ps and not ps.downed and now - ps.lastRoll >= 0.55 then
 			ps.lastRoll = now
 			ps.invulnUntil = math.max(ps.invulnUntil, now + 0.34)
+			if player.Character then
+				player.Character:SetAttribute("RollAt", Workspace:GetServerTimeNow())
+			end
+		end
+	end)
+	remotes.Crouch.OnServerEvent:Connect(function(player, on)
+		local ps = stateOf(player)
+		if ps and type(on) == "boolean" then
+			W.players:setCrouch(ps, on)
+		end
+	end)
+	remotes.UseItem.OnServerEvent:Connect(function(player, id, aimX, aimZ, aimDistance)
+		local ps = stateOf(player)
+		if not ps or phase == "lobby" or ps.downed or not ps.hasBody then
+			return
+		end
+		if id == "bandage" then
+			W.players:useBandage(ps)
+		elseif id == "pipebomb" then
+			if type(aimX) ~= "number" or type(aimZ) ~= "number" or type(aimDistance) ~= "number" then
+				return
+			end
+			if aimDistance ~= aimDistance or not ps.inventory:has({ pipebomb = 1 }) then
+				return
+			end
+			if W.throwables:throw(ps, aimX, aimZ, aimDistance) then
+				ps.inventory:remove("pipebomb", 1)
+				W.players:syncInventory(ps)
+			end
+		end
+	end)
+	remotes.DiscardItem.OnServerEvent:Connect(function(player, id, count)
+		local ps = stateOf(player)
+		if ps and type(id) == "string" and type(count) == "number" and count >= 1 and count == math.floor(count) then
+			if ps.inventory:remove(id, math.min(count, ps.inventory:count(id))) then
+				W.players:syncInventory(ps)
+			end
 		end
 	end)
 	remotes.Ready.OnServerEvent:Connect(function(player, value)
@@ -282,6 +349,7 @@ function GameServer.start()
 		return {
 			economy = ps.economy,
 			arsenal = ps.arsenal,
+			inventory = ps.inventory,
 			health = ps.hp,
 			maxHealth = ps.stats.maxHealth,
 			tiers = ps.tiers,
@@ -317,8 +385,13 @@ function GameServer.start()
 			id = if type(action.id) == "string" then action.id else nil,
 			structure = if type(action.structure) == "string" then action.structure else nil,
 		}
+		local station = ShopRules.STATION[clean.kind]
+		if not station or not W.stations:near(ps, station) then
+			return false
+		end
 		local ok = ShopRules.purchase(shopContext(ps) :: any, clean)
 		if ok then
+			W.players:syncInventory(ps)
 			if clean.kind == "buyWeapon" then
 				W.players:updateGunModel(ps)
 			end
@@ -349,13 +422,44 @@ function GameServer.start()
 		if not ok then
 			return false, reason
 		end
-		if not ps.economy:spend(def.cost) then
-			return false, "Not enough coins"
+		if not ShopRules.payForStructure(shopContext(ps) :: any, stype) then
+			return false, "Not enough materials"
 		end
 		W.structures:place(ps, stype, rotated, sx, sz)
+		W.players:syncInventory(ps)
 		W.players:syncAttributes()
 		return true, nil
 	end
+
+	------------------------------------------------------------ stations
+
+	local function onStation(name: string, player: Player)
+		local ps = stateOf(player)
+		if not ps or phase ~= "intermission" or not W.stations:near(ps, name) then
+			return
+		end
+		if name == "bell" then
+			ps.ready = not ps.ready
+			local ready, total = 0, 0
+			for _, other in W.players:list() do
+				total += 1
+				if other.ready then
+					ready += 1
+				end
+			end
+			W.notifyAll(
+				if ps.ready
+					then `{player.DisplayName} rang the bell ({ready}/{total} ready)`
+					else `{player.DisplayName} isn't ready ({ready}/{total})`,
+				"info"
+			)
+			W.players:syncAttributes()
+		else
+			local x, z = W.stations:position(name)
+			remotes.OpenStation:FireClient(player, name, x, z)
+		end
+	end
+	W.stations = Stations.new(W, arena.layout, onStation)
 
 	remotes.GetLeaderboard.OnServerInvoke = function(_player)
 		return leaderboard:top()
@@ -406,6 +510,24 @@ function GameServer.start()
 		end
 	end
 
+	-- Investigation field: recomputed when the set of points of interest changes.
+	local function updateNoiseFlow(dt: number)
+		noiseTimer -= dt
+		if noiseTimer > 0 then
+			return
+		end
+		noiseTimer = 0.3
+		local goals = W.zombies:liveGoals()
+		if W.zombies.goalsVersion ~= noiseVersion then
+			noiseVersion = W.zombies.goalsVersion
+			if #goals > 0 then
+				W.noiseFlow:compute(goals)
+			else
+				W.noiseFlow:compute({ { 0, 6 } })
+			end
+		end
+	end
+
 	setPhase("lobby")
 	applyNight(night)
 
@@ -418,6 +540,7 @@ function GameServer.start()
 			elseif phase == "wave" then Waves.night(math.max(1, wave))
 			else Waves.night(math.max(1, wave + 1))
 		night = MathUtil.damp(night, targetNight, 0.5, dt)
+		W.night = night
 
 		W.players:tick(dt, night)
 		W.targets = W.players:targets()
@@ -449,8 +572,11 @@ function GameServer.start()
 
 		if phase ~= "lobby" then
 			updateFlow(dt)
+			updateNoiseFlow(dt)
 			W.zombies:update(dt)
+			W.players:markSpotted(W.zombies.spotted)
 			W.weapons:update(dt)
+			W.throwables:update(dt)
 			W.combat:processExplosions()
 			W.structures:update(dt)
 			W.hazards:update(dt)

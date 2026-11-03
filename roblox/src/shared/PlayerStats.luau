@@ -2,6 +2,7 @@
 -- String requires below are the Lune (unit test) branch; Roblox uses the Instance branch.
 --# selene: allow(incorrect_standard_library_use)
 local Shop = if script then require(script.Parent.Config.Shop) else require("./Config/Shop")
+local Items = if script then require(script.Parent.Config.Items) else require("./Config/Items")
 
 local BASE = {
 	maxHealth = 100,
@@ -28,9 +29,10 @@ export type Stats = {
 	reloadSpeed: number,
 	dropChance: number,
 	magnetRadius: number,
+	carryCapacity: number,
 }
 
-export type Tiers = { maxHealth: number, armor: number, speed: number, stamina: number }
+export type Tiers = { maxHealth: number, armor: number, speed: number, stamina: number, backpack: number? }
 
 type PerkLevels = { level: (any, string) -> number, has: (any, string) -> boolean }
 
@@ -48,6 +50,7 @@ local function compute(tiers: Tiers, perks: PerkLevels): Stats
 		reloadSpeed = 1 + 0.3 * perks:level("quickHands"),
 		dropChance = 1 + 0.5 * perks:level("scavenger"),
 		magnetRadius = 2.5 + 1.5 * perks:level("scavenger"),
+		carryCapacity = Items.BASE_CAPACITY + Items.CAPACITY_PER_BACKPACK * (tiers.backpack or 0),
 	}
 end
 

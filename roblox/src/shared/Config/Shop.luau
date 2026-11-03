@@ -36,16 +36,51 @@ local PLAYER_UPGRADES = {
 		baseCost = 90,
 		growth = 0.6,
 	},
+	backpack = {
+		id = "backpack",
+		name = "Bigger Backpack",
+		description = "+5 kg carrying capacity",
+		maxTier = 3,
+		baseCost = 100,
+		growth = 0.7,
+	},
 }
 
-local UPGRADE_ORDER = { "maxHealth", "armor", "speed", "stamina" }
+local UPGRADE_ORDER = { "maxHealth", "armor", "speed", "stamina", "backpack" }
 
-local STRUCTURES = {
+-- Merchant prices (coins) for single items.
+local ITEM_PRICES: { [string]: number } = { scrap = 20, wood = 15, cloth = 12, parts = 35, gunpowder = 30, bandage = 45 }
+local ITEM_SHOP_ORDER = { "bandage", "scrap", "wood", "cloth", "parts", "gunpowder" }
+
+-- Workbench recipes that make an inventory item.
+export type Recipe = { id: string, item: string, count: number, cost: { [string]: number } }
+local RECIPES: { [string]: Recipe } = {
+	bandage = { id = "bandage", item = "bandage", count = 1, cost = { cloth = 2 } },
+	pipebomb = { id = "pipebomb", item = "pipebomb", count = 1, cost = { scrap = 2, gunpowder = 2, parts = 1 } },
+}
+local RECIPE_ORDER = { "bandage", "pipebomb" }
+
+-- Materials for hand-loading ammo (refills a share of one weapon's reserve).
+local HANDLOAD: { cost: { [string]: number }, fraction: number } = { cost = { gunpowder = 2, scrap = 1 }, fraction = 0.4 }
+
+-- One plank repairs this much structure health.
+local REPAIR_HP_PER_WOOD = 80
+
+export type StructureDef = {
+	type: string,
+	name: string,
+	description: string,
+	materials: { [string]: number },
+	maxCount: number,
+	hp: number,
+	footprint: { number },
+}
+local STRUCTURES: { [string]: StructureDef } = {
 	barricade = {
 		type = "barricade",
 		name = "Barricade",
 		description = "Spiked wooden wall. Blocks and distracts zombies.",
-		cost = 70,
+		materials = { wood = 4, scrap = 1 },
 		maxCount = 8,
 		hp = 320,
 		footprint = { 3, 1 },
@@ -54,7 +89,7 @@ local STRUCTURES = {
 		type = "turret",
 		name = "Auto-Turret",
 		description = "Shoots nearby zombies automatically.",
-		cost = 320,
+		materials = { scrap = 6, parts = 3, gunpowder = 2 },
 		maxCount = 3,
 		hp = 260,
 		footprint = { 2, 2 },
@@ -72,6 +107,15 @@ local function weaponUpgradeCost(weapon: string, kind: string, tier: number): nu
 	return math.floor(base * factor * (1 + 0.6 * tier) + 0.5)
 end
 
+-- Materials a weapon upgrade needs on top of its coin cost.
+local function weaponUpgradeMaterials(kind: string, tier: number): { [string]: number }
+	local cost: { [string]: number } = { scrap = 1 + tier }
+	if tier > 0 or kind == "fireRate" then
+		cost.parts = math.max(1, tier)
+	end
+	return cost
+end
+
 return {
 	playerUpgrades = PLAYER_UPGRADES,
 	upgradeOrder = UPGRADE_ORDER,
@@ -80,7 +124,13 @@ return {
 	structureOrder = { "barricade", "turret" },
 	turret = { range = 15, fireRate = 6, damage = 11, turnSpeed = 8 },
 	consumables = { healBase = 20, healPerHp = 0.9, ammoPriceFactor = 0.22, ammoMinPrice = 35 },
-	repairCostPerHp = 0.12,
+	repairHpPerWood = REPAIR_HP_PER_WOOD,
+	itemPrices = ITEM_PRICES,
+	itemShopOrder = ITEM_SHOP_ORDER,
+	recipes = RECIPES,
+	recipeOrder = RECIPE_ORDER,
+	handload = HANDLOAD,
 	playerUpgradeCost = playerUpgradeCost,
 	weaponUpgradeCost = weaponUpgradeCost,
+	weaponUpgradeMaterials = weaponUpgradeMaterials,
 }

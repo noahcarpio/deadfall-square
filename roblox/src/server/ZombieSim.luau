@@ -1,9 +1,14 @@
 --[[
 	Server-side zombie simulation (no Parts, no physics): pooled zombie records
-	moved by flow-field steering toward the nearest living player, crowd
-	separation through a spatial hash, obstacle push-out, and per-type AI
-	(walker, runner, brute, spitter, exploder, boss). Clients receive compact
-	snapshots and render the horde themselves.
+	moved by flow-field steering, crowd separation through a spatial hash,
+	obstacle push-out, and per-type AI (walker, runner, brute, spitter,
+	exploder, boss). Clients receive compact snapshots and render the horde
+	themselves.
+
+	Senses: zombies start out investigating (new arrivals head for the plaza),
+	wander when they lose interest, investigate noises they hear, and only hunt
+	(chase the nearest living player through the player flow field) once they
+	see a player, get hurt, or bump into someone. See Config/Stealth.
 ]]
 local Workspace = game:GetService("Workspace")
 
@@ -13,6 +18,7 @@ local ZombiesConfig = require(Shared.Config.Zombies)
 local MathUtil = require(Shared.Util.MathUtil)
 local SpatialHash = require(Shared.Util.SpatialHash)
 local Net = require(Shared.Net)
+local Stealth = require(Shared.Config.Stealth)
 
 local SPITTER = ZombiesConfig.spitter
 local BOSS = ZombiesConfig.boss
@@ -20,6 +26,12 @@ local MAX = Constants.MAX_ZOMBIES
 local TOPPLE_TIME = 0.45
 local SPAWN_TIME = 0.7
 local STUCK_LIMIT = 8
+-- Where zombies arriving from the alleys head first.
+local PLAZA_X, PLAZA_Z = 0, 6
+-- Points of interest (noises, plaza) feeding the investigation flow field.
+local MAX_GOALS = 16
+local GOAL_MERGE = 2.5
+local GOAL_LIFETIME = 12
 
 local damp = MathUtil.damp
 local angleDamp = MathUtil.angleDamp
@@ -44,6 +56,10 @@ function ZombieSim.new(W)
 		near = {},
 		snapshotTimer = 0,
 		records = {},
+		goals = {} :: { { x: number, z: number, t: number } },
+		goalsVersion = 0,
+		spotted = {} :: { [any]: boolean },
+		heard = {},
 	}, ZombieSim)
 	for id = MAX, 1, -1 do
 		table.insert(self.free, id)
@@ -57,7 +73,75 @@ function ZombieSim.clear(self)
 		self.byId[z.id] = nil
 	end
 	table.clear(self.list)
+	table.clear(self.goals)
+	self.goalsVersion += 1
 	self.aliveCount = 0
+end
+
+-- Registers (or refreshes) a point of interest for investigating zombies.
+function ZombieSim.addGoal(self, x: number, z: number)
+	local now = os.clock()
+	for _, g in self.goals do
+		if (g.x - x) ^ 2 + (g.z - z) ^ 2 < GOAL_MERGE * GOAL_MERGE then
+			g.t = now
+			return
+		end
+	end
+	table.insert(self.goals, { x = x, z = z, t = now })
+	if #self.goals > MAX_GOALS then
+		table.remove(self.goals, 1)
+	end
+	self.goalsVersion += 1
+end
+
+-- Drops stale goals; returns the live goal positions for the flow field.
+function ZombieSim.liveGoals(self): { { number } }
+	local now = os.clock()
+	for i = #self.goals, 1, -1 do
+		if now - self.goals[i].t > GOAL_LIFETIME then
+			table.remove(self.goals, i)
+			self.goalsVersion += 1
+		end
+	end
+	local out = {}
+	for _, g in self.goals do
+		table.insert(out, { g.x, g.z })
+	end
+	return out
+end
+
+local function investigate(z, x: number, zc: number)
+	z.mode = "investigate"
+	z.modeTime = 0
+	z.goalX, z.goalZ = x, zc
+end
+
+function ZombieSim.alert(z)
+	if z.mode ~= "hunt" then
+		z.mode = "hunt"
+		z.modeTime = 0
+	end
+	z.lostTime = 0
+end
+
+--[[
+	A noise of the given hearing radius at (x, z): every zombie in range that
+	isn't already hunting comes to investigate.
+]]
+function ZombieSim.hear(self, x: number, zc: number, radius: number)
+	local heard = self.heard
+	local n = self:queryRadius(x, zc, radius, heard)
+	local any = false
+	for i = 1, n do
+		local z = heard[i]
+		if z.mode ~= "hunt" and not z.dying then
+			investigate(z, x, zc)
+			any = true
+		end
+	end
+	if any then
+		self:addGoal(x, zc)
+	end
 end
 
 function ZombieSim.capacityLeft(self): number
@@ -117,8 +201,21 @@ function ZombieSim.spawn(self, ztype: string, x: number, z: number, scaling)
 		checkTimer = 2,
 		stuckTime = 0,
 		lastAttacker = nil,
+		-- Senses (see Config/Stealth).
+		mode = if ztype == "boss" then "hunt" else "investigate",
+		modeTime = 0,
+		lostTime = 0,
+		senseTimer = rng:next() * 0.25,
+		goalX = PLAZA_X + rng:range(-4, 4),
+		goalZ = PLAZA_Z + rng:range(-3, 3),
+		goalLos = false,
+		wanderTimer = 0,
+		wanderX = 0,
+		wanderZ = 1,
+		pace = 1,
 	}
 	table.insert(self.list, zombie)
+	self:addGoal(PLAZA_X, PLAZA_Z)
 	self.byId[id] = zombie
 	self.aliveCount += 1
 	self.W.remotes.ZombieSpawn:FireAllClients(id, ztype, x, z)
@@ -256,8 +353,8 @@ local function faceTarget(z): number
 end
 
 local function move(z, factor: number)
-	out.x = z.dirX * z.speed * factor
-	out.z = z.dirZ * z.speed * factor
+	out.x = z.dirX * z.speed * factor * z.pace
+	out.z = z.dirZ * z.speed * factor * z.pace
 end
 
 local function tryMelee(_W, z, edge: number): boolean
@@ -485,10 +582,120 @@ local function updateBoss(W, z, dt, dist, edge)
 	end
 end
 
+-- Sight checks (staggered): seeing a player starts or refreshes a hunt.
+local function sense(W, z, dt: number)
+	z.modeTime += dt
+	if z.mode == "hunt" then
+		z.lostTime += dt
+	end
+	z.senseTimer -= dt
+	if z.senseTimer > 0 then
+		return
+	end
+	z.senseTimer = 0.25
+	local night = W.night or 0
+	local sight = Stealth.SIGHT_DAY + (Stealth.SIGHT_NIGHT - Stealth.SIGHT_DAY) * night
+	local fx, fz = math.sin(z.facing), math.cos(z.facing)
+	local seen = nil
+	for _, ps in W.targets do
+		local dx, dz = ps.x - z.x, ps.z - z.z
+		local d = math.sqrt(dx * dx + dz * dz)
+		local range = sight * (if ps.crouching then Stealth.CROUCH_SIGHT else 1)
+		if d < Stealth.TOUCH_RANGE then
+			seen = ps
+			break
+		end
+		if
+			d < range
+			and (dx * fx + dz * fz) / math.max(d, 1e-3) > Stealth.SIGHT_CONE
+			and W.nav:lineOfSight(z.x, z.z, ps.x, ps.z, false)
+		then
+			seen = ps
+			break
+		end
+	end
+	if seen then
+		ZombieSim.alert(z)
+		z.goalX, z.goalZ = seen.x, seen.z
+		W.zombies.spotted[seen] = true
+	elseif z.mode == "hunt" and z.type ~= "boss" and z.lostTime > Stealth.LOSE_TRACK then
+		-- Lost them: search where they were last seen.
+		investigate(z, z.goalX, z.goalZ)
+	end
+	if z.mode == "investigate" then
+		z.goalLos = W.nav:lineOfSight(z.x, z.z, z.goalX, z.goalZ, true)
+	end
+end
+
+local function startWander(W, z)
+	z.mode = "wander"
+	z.modeTime = 0
+	z.wanderTimer = 0
+	local a = W.rng:range(0, math.pi * 2)
+	z.wanderX, z.wanderZ = math.sin(a), math.cos(a)
+end
+
+-- Movement direction outside a hunt (investigating or wandering).
+local function roam(W, z, dt: number)
+	local wx, wz = z.dirX, z.dirZ
+	if z.mode == "investigate" then
+		z.pace = Stealth.INVESTIGATE_SPEED
+		local dx, dz = z.goalX - z.x, z.goalZ - z.z
+		local d = math.sqrt(dx * dx + dz * dz)
+		local flowDist = if W.noiseFlow then W.noiseFlow:distanceAt(z.x, z.z) else math.huge
+		if d < 1.5 or flowDist < 1.2 or z.modeTime > 25 then
+			startWander(W, z)
+			return
+		end
+		local fx, fz = nil, nil
+		if not z.goalLos and W.noiseFlow then
+			fx, fz = W.noiseFlow:sample(z.x, z.z)
+		end
+		if fx and fz then
+			wx, wz = fx, fz
+		else
+			wx, wz = dx / d, dz / d
+		end
+	else
+		z.pace = Stealth.WANDER_SPEED
+		z.wanderTimer -= dt
+		if z.wanderTimer <= 0 then
+			z.wanderTimer = W.rng:range(2, 4.5)
+			local a = W.rng:range(0, math.pi * 2)
+			z.wanderX, z.wanderZ = math.sin(a), math.cos(a)
+		end
+		wx, wz = z.wanderX, z.wanderZ
+		-- Restless: eventually drift toward roughly where a player is.
+		if z.modeTime > Stealth.HUNCH_AFTER then
+			local t = nearestTarget(W, z)
+			if t then
+				local spread = Stealth.HUNCH_SPREAD
+				investigate(z, t.x + W.rng:range(-spread, spread), t.z + W.rng:range(-spread, spread))
+				W.zombies:addGoal(z.goalX, z.goalZ)
+			else
+				z.modeTime = 0
+			end
+		end
+	end
+	z.dirX = damp(z.dirX, wx, 6, dt)
+	z.dirZ = damp(z.dirZ, wz, 6, dt)
+	local len = math.max(math.sqrt(z.dirX * z.dirX + z.dirZ * z.dirZ), 1e-6)
+	z.dirX /= len
+	z.dirZ /= len
+end
+
 local function think(W, z, dt: number)
 	out.x, out.z, out.face = 0, 0, nil
-	z.target = nearestTarget(W, z)
-	local dist = steer(W, z, dt)
+	sense(W, z, dt)
+	local hunting = z.mode == "hunt"
+	z.target = if hunting then nearestTarget(W, z) else nil
+	local dist = math.huge
+	if z.target then
+		z.pace = 1
+		dist = steer(W, z, dt)
+	else
+		roam(W, z, dt)
+	end
 	if z.state == "spawning" then
 		move(z, 0.6)
 		return
@@ -499,13 +706,17 @@ local function think(W, z, dt: number)
 		end
 		return
 	end
-	if not z.target then
-		-- Nobody to chase (everyone down): wander slowly.
-		move(z, 0.3)
-		return
-	end
 	local edge = dist - z.radius - Constants.PLAYER_RADIUS
 	local ztype: string = z.type
+	if not z.target then
+		-- Not hunting: walk, and claw at structures in the way.
+		if ztype == "exploder" then
+			updateExploder(W, z, edge)
+		else
+			updateWalker(W, z, edge)
+		end
+		return
+	end
 	if ztype == "spitter" then
 		updateSpitter(W, z, dist, edge)
 	elseif ztype == "exploder" then
@@ -566,6 +777,7 @@ end
 
 function ZombieSim.update(self, dt: number)
 	local W = self.W
+	table.clear(self.spotted)
 	self:rebuildHash()
 	local ids = self.near
 	local removals = {}

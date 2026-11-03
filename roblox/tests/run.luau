@@ -23,6 +23,10 @@ local Weapons = require("../src/shared/Config/Weapons")
 local Net = require("../src/shared/Net")
 local ArenaLayout = require("../src/shared/ArenaLayout")
 local MeshSizes = require("../src/shared/Config/MeshSizes")
+local Inventory = require("../src/shared/Inventory")
+local Items = require("../src/shared/Config/Items")
+local Loot = require("../src/shared/Loot")
+local Shop = require("../src/shared/Config/Shop")
 
 local passed, failed = 0, 0
 local current = ""
@@ -273,13 +277,14 @@ test("Armor absorbs 70% and stats follow upgrades and perks", function()
 	expect(up.speed > base.speed and up.damageTaken < 1 and up.reloadSpeed > 1)
 end)
 
-local function shopContext(coins: number)
+local function shopContext(coins: number, capacity: number?)
 	local economy = Economy.new()
 	economy:addCoins(coins)
-	local tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0 }
+	local tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 }
 	local ctx = {
 		economy = economy,
 		arsenal = Arsenal.new(),
+		inventory = Inventory.new(capacity or 1000),
 		health = 40,
 		maxHealth = 100,
 		tiers = tiers,
@@ -309,7 +314,12 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local rich = shopContext(100000)
 	local up = { kind = "weaponUpgrade", weapon = "pistol", upgrade = "magazine" }
 	local first = ShopRules.getOffer(rich, up).cost
+	-- Weapon upgrades also need materials.
+	eq(ShopRules.purchase(rich, up), false)
+	rich.inventory:add("scrap", 20)
+	rich.inventory:add("parts", 20)
 	eq(ShopRules.purchase(rich, up), true)
+	eq(rich.inventory:count("scrap"), 19)
 	expect(ShopRules.getOffer(rich, up).cost > first)
 	eq(rich.arsenal:currentState().mag, 15)
 	ShopRules.purchase(rich, up)
@@ -412,6 +422,141 @@ test("Arena layout has spawns, lamps, colliders and a clear player spawn", funct
 	flow:compute({ { s[1], s[3] } })
 	for _, sp in layout.spawns do
 		expect(flow:distanceAt(sp.x, sp.z) < math.huge, `spawn {sp.x},{sp.z} unreachable`)
+	end
+end)
+
+test("Inventory respects its weight limit and takes costs atomically", function()
+	local inv = Inventory.new(2)
+	eq(inv:add("wood", 5), 2) -- 0.8 kg each
+	eq(inv:count("wood"), 2)
+	eq(inv:fits("cloth", 10), 2) -- 0.4 kg left at 0.2 kg each
+	eq(inv:add("cloth", 10), 2)
+	expect(near(inv:weight(), 2))
+	eq(inv:add("cloth", 1), 0)
+	eq(inv:take({ wood = 1, cloth = 3 }), false)
+	eq(inv:count("cloth"), 2, "a failed take changes nothing")
+	eq(inv:take({ wood = 1, cloth = 2 }), true)
+	eq(inv:count("cloth"), 0)
+	eq(inv.items.cloth, nil)
+	eq(inv:remove("wood", 2), false)
+	eq(inv:add("nonsense", 1), 0)
+	local copy = Inventory.new(1)
+	copy:load(inv:serialize())
+	eq(copy:count("wood"), 1)
+	eq(copy.capacity, 2)
+end)
+
+test("Loot rolls are deterministic and only produce known items", function()
+	for kind, t in Loot.tables do
+		for id in t.entries do
+			expect(id == "coins" or id == "ammo" or Items.defs[id] ~= nil, `{kind} drops unknown {id}`)
+		end
+		local a = Loot.roll(Rng.new(7), kind, 1)
+		local b = Loot.roll(Rng.new(7), kind, 1)
+		local total = 0
+		for id, n in a do
+			eq(b[id], n, "same seed, same loot")
+			expect(n >= 1)
+			total += 1
+		end
+		expect(total >= 1, `{kind} rolled nothing`)
+	end
+	-- Later waves roll more often.
+	local early, late = 0, 0
+	for seed = 1, 40 do
+		for _, n in Loot.roll(Rng.new(seed), "crate", 1) do
+			early += n
+		end
+		for _, n in Loot.roll(Rng.new(seed), "crate", 16) do
+			late += n
+		end
+	end
+	expect(late > early)
+end)
+
+test("Workbench crafting, hand-loading, structures and repairs use materials", function()
+	local ctx = shopContext(0)
+	-- Every action kind belongs to a station.
+	for _, kind in { "buyWeapon", "ammo", "playerUpgrade", "heal", "buyItem" } do
+		eq(ShopRules.STATION[kind], "merchant")
+	end
+	for _, kind in { "weaponUpgrade", "craft", "handload", "repair", "structure" } do
+		eq(ShopRules.STATION[kind], "workbench")
+	end
+	eq(ShopRules.purchase(ctx, { kind = "craft", id = "bandage" }), false)
+	ctx.inventory:add("cloth", 3)
+	eq(ShopRules.purchase(ctx, { kind = "craft", id = "bandage" }), true)
+	eq(ctx.inventory:count("cloth"), 1)
+	eq(ctx.inventory:count("bandage"), 1)
+	eq(ShopRules.purchase(ctx, { kind = "craft", id = "nonsense" }), false)
+
+	-- Hand-loaded ammo for a weapon that isn't full.
+	ctx.arsenal:give("shotgun")
+	local w = ctx.arsenal:get("shotgun")
+	w.reserve = 0
+	ctx.inventory:add("gunpowder", 2)
+	ctx.inventory:add("scrap", 1)
+	eq(ShopRules.purchase(ctx, { kind = "handload", weapon = "shotgun" }), true)
+	eq(w.reserve, math.floor(48 * Shop.handload.fraction + 0.5))
+	eq(ShopRules.getOffer(ctx, { kind = "handload", weapon = "pistol" }).available, false)
+
+	-- Structures are paid in materials when placed.
+	eq(ShopRules.purchase(ctx, { kind = "structure", structure = "barricade" }), false)
+	eq(ShopRules.payForStructure(ctx, "barricade"), false)
+	ctx.inventory:add("wood", 4)
+	ctx.inventory:add("scrap", 1)
+	eq(ShopRules.payForStructure(ctx, "barricade"), true)
+	eq(ctx.inventory:count("wood"), 0)
+
+	-- Repairs cost one plank per REPAIR_HP_PER_WOOD missing.
+	ctx.structuresMissingHp = Shop.repairHpPerWood * 2 + 1
+	local repair = ShopRules.getOffer(ctx, { kind = "repair" })
+	eq((repair.items :: any).wood, 3)
+
+	-- The merchant sells supplies only while they fit in the bag.
+	local small = shopContext(1000, 0.5)
+	eq(ShopRules.purchase(small, { kind = "buyItem", id = "scrap" }), true)
+	eq(ShopRules.getOffer(small, { kind = "buyItem", id = "scrap" }).reason, "BAG FULL")
+	eq(small.economy.coins, 1000 - Shop.itemPrices.scrap)
+end)
+
+test("Backpack upgrades raise carrying capacity", function()
+	local p = PerkState.new()
+	local base = PlayerStats.compute({ maxHealth = 0, armor = 0, speed = 0, stamina = 0 }, p)
+	eq(base.carryCapacity, Items.BASE_CAPACITY)
+	local packed = PlayerStats.compute({ maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 2 }, p)
+	eq(packed.carryCapacity, Items.BASE_CAPACITY + 2 * Items.CAPACITY_PER_BACKPACK)
+end)
+
+test("Grace-period stations and loot spots are placed and reachable", function()
+	local layout = ArenaLayout.generate()
+	local names = {}
+	for _, st in layout.stations do
+		names[st.name] = st
+	end
+	expect(names.merchant ~= nil and names.workbench ~= nil and names.bell ~= nil)
+	local col = Collision.new(-48, -48, 48, 48)
+	for _, c in layout.colliders do
+		col:insert(table.clone(c) :: any)
+	end
+	local grid = NavGrid.new(-48, -48, 48, 48)
+	grid:rebuild(col.colliders, 0.45, function()
+		return false
+	end)
+	local flow = FlowField.new(grid)
+	local s = layout.playerSpawn
+	flow:compute({ { s[1], s[3] } })
+	for _, st in layout.stations do
+		eq(col:overlapsCircle(st.px, st.pz, 0.3), false, `{st.name} prompt is inside an obstacle`)
+		-- A little further out from the station must be walkable from the player spawn.
+		local dx, dz = st.px - st.x, st.pz - st.z
+		local len = math.sqrt(dx * dx + dz * dz)
+		local ox, oz = st.px + dx / len, st.pz + dz / len
+		expect(flow:distanceAt(ox, oz) < math.huge, `{st.name} is unreachable`)
+	end
+	expect(#layout.loot >= 20, "too few loot spots")
+	for _, spot in layout.loot do
+		expect(Loot.tables[spot.kind] ~= nil, `unknown loot kind {spot.kind}`)
 	end
 end)
 

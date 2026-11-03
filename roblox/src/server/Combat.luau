@@ -5,6 +5,7 @@
 ]]
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ZombiesConfig = require(Shared.Config.Zombies)
+local Stealth = require(Shared.Config.Stealth)
 
 local EXPLODER = ZombiesConfig.exploder
 local BRUTE = ZombiesConfig.brute
@@ -41,6 +42,7 @@ function Combat.damageZombie(self, z, amount: number, opts): boolean
 	z.kx += opts.dirX * opts.knock / z.def.mass
 	z.kz += opts.dirZ * opts.knock / z.def.mass
 	z.lastAttacker = attacker
+	W.zombies.alert(z)
 	if attacker then
 		attacker.damageDealt += dealt
 		if attacker.perks:has("vampire") and not attacker.downed then
@@ -231,6 +233,7 @@ function Combat.explosion(self, x, zc, radius, zombieDamage, playerDamage, struc
 		W.structures:damageInRadius(x, zc, radius, structureDamage)
 	end
 	W.fx("explosion", { x = x, z = zc, radius = radius })
+	W.noise(x, zc, Stealth.NOISE.explosion)
 	return hits
 end
 

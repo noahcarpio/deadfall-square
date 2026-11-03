@@ -1,8 +1,10 @@
 --[[
 	Server-side state for every player: vitals (health/armor, downed & revive),
 	position in simulation metres, arsenal, coins/score, perks, upgrades and
-	run statistics. Exposes values to clients through Player attributes and
-	sync remotes; the server is authoritative for all of it.
+	run statistics, the inventory bag and stealth state (crouching, footstep
+	noise, whether a zombie can see them). Exposes values to clients through
+	Player attributes and sync remotes; the server is authoritative for all
+	of it.
 ]]
 local Players = game:GetService("Players")
 
@@ -11,6 +13,9 @@ local Constants = require(Shared.Config.Constants)
 local Weapons = require(Shared.Config.Weapons)
 local Zombies = require(Shared.Config.Zombies)
 local Arsenal = require(Shared.Arsenal)
+local Inventory = require(Shared.Inventory)
+local Items = require(Shared.Config.Items)
+local Stealth = require(Shared.Config.Stealth)
 local MeshLibrary = require(Shared.MeshLibrary)
 local Economy = require(Shared.Economy)
 local PerkState = require(Shared.PerkState)
@@ -27,7 +32,14 @@ export type PState = {
 	arsenal: any,
 	economy: any,
 	perks: any,
-	tiers: { maxHealth: number, armor: number, speed: number, stamina: number },
+	tiers: { maxHealth: number, armor: number, speed: number, stamina: number, backpack: number },
+	inventory: Inventory.Inventory,
+	crouching: boolean,
+	noiseTimer: number,
+	noiseX: number,
+	noiseZ: number,
+	spottedUntil: number,
+	lastShotNoise: number,
 	stats: PlayerStats.Stats,
 	hp: number,
 	armor: number,
@@ -75,8 +87,13 @@ local function freshRunState(ps: PState)
 	ps.arsenal = Arsenal.new()
 	ps.economy = Economy.new()
 	ps.perks = PerkState.new()
-	ps.tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0 }
+	ps.tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 }
 	ps.stats = PlayerStats.compute(ps.tiers, ps.perks)
+	-- Everyone starts with a few rags and a bandage.
+	ps.inventory = Inventory.new(ps.stats.carryCapacity)
+	ps.inventory:add("cloth", 2)
+	ps.inventory:add("bandage", 1)
+	ps.spottedUntil = 0
 	ps.hp = ps.stats.maxHealth
 	ps.armor = 0
 	ps.downed = false
@@ -108,6 +125,11 @@ function PlayerService.add(self, player: Player)
 		vz = 0,
 		hasBody = false,
 		ready = false,
+		crouching = false,
+		noiseTimer = 0,
+		noiseX = 0,
+		noiseZ = 8,
+		lastShotNoise = 0,
 		lastHurtNotify = 0,
 		connections = {},
 	} :: any
@@ -217,7 +239,8 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	prompt.HoldDuration = Constants.REVIVE_SECONDS
 	prompt.MaxActivationDistance = 10
 	prompt.RequiresLineOfSight = false
-	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 	prompt.Enabled = ps.downed
 	prompt.Parent = root
 	prompt.Triggered:Connect(function(by: Player)
@@ -230,6 +253,8 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	end)
 	ps.prompt = prompt
 
+	ps.crouching = false
+	character:SetAttribute("Crouching", false)
 	self:updateGunModel(ps)
 	self:applyMovement(ps)
 	self:syncAll(ps)
@@ -276,10 +301,15 @@ function PlayerService.updateGunModel(_self, ps: PState)
 	tip.Name = "Muzzle"
 	tip.Position = Vector3.new(0, 0.1, -length / 2)
 	tip.Parent = body
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = hand
-	weld.Part1 = body
-	weld.Parent = body
+	-- A Motor6D (not a weld) so clients can turn the gun to line up with the
+	-- arm when CharacterAnimator raises it to aim.
+	local grip = Instance.new("Motor6D")
+	grip.Name = "GunGrip"
+	grip.Part0 = hand
+	grip.Part1 = body
+	grip.C0 = CFrame.new(0, -hand.Size.Y / 2, 0)
+	grip.C1 = CFrame.new(0, 0, length / 2 - 0.3)
+	grip.Parent = body
 	model.PrimaryPart = body
 	model.Parent = character
 	ps.gun = model
@@ -290,7 +320,8 @@ end
 function PlayerService.applyMovement(_self, ps: PState)
 	local h = ps.humanoid
 	if h then
-		h.WalkSpeed = if ps.downed then 0 else ps.stats.speed * S
+		h.WalkSpeed = if ps.downed then 0
+			else ps.stats.speed * S * (if ps.crouching then Stealth.CROUCH_SPEED else 1)
 	end
 	if ps.prompt then
 		ps.prompt.Enabled = ps.downed
@@ -309,6 +340,7 @@ function PlayerService.tick(self, dt: number, night: number)
 			ps.vz = (nz - ps.z) / math.max(dt, 1e-3)
 			ps.x, ps.z = nx, nz
 			ps.hasBody = true
+			self:footsteps(ps, dt)
 			if ps.flashlight then
 				ps.flashlight.Brightness = if night > 0.35 and not ps.downed then 1.5 + night * 2.5 else 0
 			end
@@ -333,7 +365,68 @@ function PlayerService.syncAttributes(self)
 		p:SetAttribute("ComboMult", ps.economy:multiplier())
 		p:SetAttribute("ComboT", ps.economy:comboRemaining())
 		p:SetAttribute("Ready", ps.ready)
+		p:SetAttribute("Spotted", os.clock() < ps.spottedUntil)
 	end
+end
+
+-- Footstep noise from how fast the player actually moved over the last interval.
+function PlayerService.footsteps(self, ps: PState, dt: number)
+	ps.noiseTimer -= dt
+	if ps.noiseTimer > 0 then
+		return
+	end
+	local interval = 0.4
+	ps.noiseTimer = interval
+	local moved = math.sqrt((ps.x - ps.noiseX) ^ 2 + (ps.z - ps.noiseZ) ^ 2) / interval
+	ps.noiseX, ps.noiseZ = ps.x, ps.z
+	if ps.downed or moved < 0.6 or moved > 40 then
+		return -- standing still, or a teleport
+	end
+	local radius = if ps.crouching
+		then Stealth.NOISE.crouch
+		elseif moved > ps.stats.speed * 1.2 then Stealth.NOISE.sprint
+		else Stealth.NOISE.walk
+	self.W.noise(ps.x, ps.z, radius)
+end
+
+-- Marks players a zombie saw this tick (for the HUD's "spotted" eye).
+function PlayerService.markSpotted(self, spotted: { [any]: boolean })
+	local now = os.clock()
+	for ps in spotted do
+		if self.states[ps.player] == ps then
+			ps.spottedUntil = now + 1
+		end
+	end
+end
+
+function PlayerService.setCrouch(self, ps: PState, on: boolean)
+	if ps.downed then
+		on = false
+	end
+	if ps.crouching == on then
+		return
+	end
+	ps.crouching = on
+	local character = ps.player.Character
+	if character then
+		character:SetAttribute("Crouching", on)
+	end
+	self:applyMovement(ps)
+end
+
+function PlayerService.syncInventory(self, ps: PState)
+	self.W.remotes.InventorySync:FireClient(ps.player, ps.inventory:serialize())
+end
+
+-- Uses a bandage. Returns true if one was used.
+function PlayerService.useBandage(self, ps: PState): boolean
+	if ps.downed or ps.hp >= ps.stats.maxHealth or not ps.inventory:remove("bandage", 1) then
+		return false
+	end
+	self:heal(ps, Items.BANDAGE_HEAL)
+	self:syncInventory(ps)
+	self.W.notify(ps.player, `+{Items.BANDAGE_HEAL} health`, "good")
+	return true
 end
 
 function PlayerService.syncArsenal(self, ps: PState)
@@ -352,6 +445,7 @@ end
 function PlayerService.syncAll(self, ps: PState)
 	self:syncArsenal(ps)
 	self:syncStats(ps)
+	self:syncInventory(ps)
 end
 
 -- Recomputes stats after upgrades/perks; extra max health is granted immediately.
@@ -360,6 +454,8 @@ function PlayerService.refreshStats(self, ps: PState)
 	ps.stats = PlayerStats.compute(ps.tiers, ps.perks)
 	ps.hp = math.min(ps.stats.maxHealth, ps.hp + math.max(0, ps.stats.maxHealth - old.maxHealth))
 	ps.armor = math.min(ps.stats.maxArmor, ps.armor)
+	ps.inventory.capacity = ps.stats.carryCapacity
+	self:syncInventory(ps)
 	ps.economy.coinMultiplier = 1 + 0.25 * ps.perks:level("greed")
 	self:applyMovement(ps)
 	self:syncStats(ps)
@@ -426,8 +522,9 @@ function PlayerService.damage(
 		end
 		ps.hp = 0
 		ps.downed = true
+		self:setCrouch(ps, false)
 		self:applyMovement(ps)
-		W.notifyAll(`{ps.player.DisplayName} is down! Hold E next to them to revive.`, "bad")
+		W.notifyAll(`{ps.player.DisplayName} is down! Hold F next to them to revive.`, "bad")
 	end
 end
 
@@ -447,6 +544,7 @@ function PlayerService.resetAll(self)
 	for _, ps in self.states do
 		freshRunState(ps)
 		ps.ready = false
+		self:setCrouch(ps, false)
 		self:applyMovement(ps)
 		self:updateGunModel(ps)
 		self:syncAll(ps)

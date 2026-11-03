@@ -8,6 +8,8 @@
 	  * colliders - gameplay obstacles (also built as invisible collision parts)
 	  * spawns    - alley entrances zombies emerge from
 	  * lamps     - street lamp light positions
+	  * stations  - the merchant, workbench and bell used between waves
+	  * loot      - searchable containers (cars, crates, dumpsters, trash)
 	The south edge is a low fence so geometry never hides players from the
 	top-down camera.
 ]]
@@ -44,12 +46,20 @@ export type ColliderSpec = {
 
 export type Spawn = { x: number, z: number, dirX: number, dirZ: number }
 
+-- A grace-period station; (px, pz) is where its prompt sits, in front of it.
+export type Station = { name: string, x: number, z: number, ry: number, px: number, pz: number }
+
+-- A searchable container; `kind` is a Loot table name.
+export type LootSpot = { kind: string, x: number, z: number }
+
 export type Layout = {
 	pieces: { Piece },
 	colliders: { ColliderSpec },
 	spawns: { Spawn },
 	lamps: { { number } },
 	props: { Prop },
+	stations: { Station },
+	loot: { LootSpot },
 	playerSpawn: { number },
 }
 
@@ -69,6 +79,8 @@ local function generate(): Layout
 	local spawns: { Spawn } = {}
 	local lamps: { { number } } = {}
 	local props: { Prop } = {}
+	local stations: { Station } = {}
+	local loot: { LootSpot } = {}
 	local currentProp: number? = nil
 
 	-- Parent frame stack: { x, z, ry }.
@@ -391,6 +403,7 @@ local function generate(): Layout
 	------------------------------------------------------------- props
 	local function car(name: string, x: number, z: number, ry: number, color: string, burnt: boolean)
 		local body = if burnt then "#2e2a27" else color
+		table.insert(loot, { kind = "car", x = x, z = z })
 		local glass = if burnt then "#1a1817" else "#24323d"
 		prop(name, x, 0, z, ry, function()
 			withFrame(x, z, ry, function()
@@ -447,6 +460,7 @@ local function generate(): Layout
 	end
 
 	local function crates(x: number, z: number)
+		table.insert(loot, { kind = "crate", x = x, z = z })
 		local n = rng:int(2, 4)
 		for i = 0, n - 1 do
 			local cx = x + (i % 2) * 1.25 - 0.6
@@ -523,6 +537,7 @@ local function generate(): Layout
 	end
 
 	local function dumpster(x: number, z: number, ry: number)
+		table.insert(loot, { kind = "dumpster", x = x, z = z })
 		prop("Dumpster", x, 0, z, ry, function()
 			withFrame(x, z, ry, function()
 				box(2.4, 1.3, 1.3, "#2f5a3a", "Metal", 0, 0.75, 0)
@@ -605,6 +620,7 @@ local function generate(): Layout
 		end)
 	end)
 	colBox(25 - 1.35, -3 - 5.05, 25 + 1.35, -3 + 5.05, 2.8)
+	table.insert(loot, { kind = "bus", x = 25, z = -3 })
 
 	for _, p in { { -27, -20 }, { 29, 23 }, { -11, 13 }, { 14, -29 }, { -30, 29 }, { 32, -8 }, { -4, 31 } } do
 		crates(p[1], p[2])
@@ -631,6 +647,118 @@ local function generate(): Layout
 	}
 	for _, b in barrels do
 		barrel(b.x, b.z, b.color)
+	end
+
+	------------------------------------------------------------- grace-period stations
+	-- Local (lx, lz) in a frame at (x, z) turned by ry, in world metres.
+	local function toWorld(x: number, z: number, ry: number, lx: number, lz: number): (number, number)
+		local c, sn = math.cos(ry), math.sin(ry)
+		return x + lx * c + lz * sn, z - lx * sn + lz * c
+	end
+
+	-- Box collider for a local rectangle [x0, x1] x [z0, z1] of a turned frame.
+	local function colRect(x: number, z: number, ry: number, x0: number, z0: number, x1: number, z1: number, h: number)
+		local minX, minZ, maxX, maxZ = math.huge, math.huge, -math.huge, -math.huge
+		for _, corner in { { x0, z0 }, { x1, z0 }, { x0, z1 }, { x1, z1 } } do
+			local wx, wz = toWorld(x, z, ry, corner[1], corner[2])
+			minX, minZ = math.min(minX, wx), math.min(minZ, wz)
+			maxX, maxZ = math.max(maxX, wx), math.max(maxZ, wz)
+		end
+		colBox(minX, minZ, maxX, maxZ, h)
+	end
+
+	local function station(name: string, x: number, z: number, ry: number, promptDistance: number)
+		local px, pz = toWorld(x, z, ry, 0, promptDistance)
+		table.insert(stations, { name = name, x = x, z = z, ry = ry, px = px, pz = pz })
+	end
+
+	-- Merchant: a market stall with an awning and the trader behind the counter.
+	-- Local +Z is the customer side (toward the fountain).
+	local function merchant(x: number, z: number, ry: number)
+		withFrame(x, z, ry, function()
+			box(3.2, 1.0, 0.8, WOOD, "WoodPlanks", 0, 0.5, 0.2)
+			box(3.4, 0.08, 1.0, DARK_WOOD, "Wood", 0, 1.04, 0.2)
+			for _, p in { { -1.6, 0.6 }, { 1.6, 0.6 }, { -1.6, -1.1 }, { 1.6, -1.1 } } do
+				cyl(0.14, 2.7, DARK_WOOD, "Wood", p[1], 1.35, p[2])
+			end
+			box(3.7, 0.1, 2.3, "#8a2f2a", "Fabric", 0, 2.72, -0.25, 0.14)
+			for _, sx in { -1.2, 0, 1.2 } do
+				box(0.45, 0.11, 2.31, "#d8cfa8", "Fabric", sx, 2.73, -0.25, 0.14)
+			end
+			box(1.8, 0.45, 0.08, "#2b2420", "Wood", 0, 2.25, 0.66)
+			box(1.6, 0.3, 0.09, "#c9a227", "SmoothPlastic", 0, 2.25, 0.66)
+			-- Goods on the counter.
+			box(0.5, 0.35, 0.4, "#7a5634", "WoodPlanks", -1.1, 1.26, 0.2)
+			box(0.3, 0.4, 0.3, "#3d5a2f", "Metal", -0.55, 1.28, 0.25)
+			box(0.6, 0.18, 0.3, "#2c2f33", "Metal", 0.45, 1.17, 0.15, 0, 0.3)
+			cyl(0.25, 0.3, "#a33a2a", "Metal", 1.1, 1.23, 0.3)
+			-- The trader.
+			box(0.5, 0.9, 0.3, "#3b3a36", "Fabric", 0, 0.45, -0.6)
+			box(0.75, 0.85, 0.4, "#5a4632", "Fabric", 0, 1.33, -0.6)
+			box(0.55, 0.6, 0.05, "#c9b98f", "Fabric", 0, 1.2, -0.38)
+			box(0.22, 0.75, 0.25, "#5a4632", "Fabric", -0.5, 1.38, -0.55, -0.4)
+			box(0.22, 0.75, 0.25, "#5a4632", "Fabric", 0.5, 1.38, -0.55, -0.4)
+			box(0.42, 0.42, 0.42, "#c49a7a", "SmoothPlastic", 0, 1.98, -0.6)
+			box(0.62, 0.06, 0.62, "#3b2f22", "Fabric", 0, 2.21, -0.6)
+			box(0.38, 0.2, 0.38, "#3b2f22", "Fabric", 0, 2.34, -0.6)
+		end)
+		colRect(x, z, ry, -1.8, -1.3, 1.8, 0.75, 1.2)
+		station("merchant", x, z, ry, 1.5)
+	end
+
+	-- Workbench: tools, a vise, a pegboard and a lamp. Local +Z faces the user.
+	local function workbench(x: number, z: number, ry: number)
+		withFrame(x, z, ry, function()
+			box(2.6, 0.12, 1.1, DARK_WOOD, "WoodPlanks", 0, 0.95, 0)
+			for _, p in { { -1.15, 0.42 }, { 1.15, 0.42 }, { -1.15, -0.42 }, { 1.15, -0.42 } } do
+				box(0.12, 0.9, 0.12, "#2b2e31", "Metal", p[1], 0.45, p[2])
+			end
+			box(2.4, 0.08, 0.9, WOOD, "Wood", 0, 0.3, 0)
+			box(0.3, 0.25, 0.35, "#3a5a7a", "Metal", -0.9, 1.13, 0.2)
+			box(0.6, 0.05, 0.1, "#9a9a9a", "Metal", 0.3, 1.04, 0.15, 0, 0.4)
+			box(0.12, 0.08, 0.5, "#a33a2a", "SmoothPlastic", 0.75, 1.05, 0.0)
+			box(0.5, 0.2, 0.35, "#5d5f62", "Metal", 0.2, 0.44, 0.1)
+			box(2.6, 1.2, 0.08, "#6b5a44", "Wood", 0, 1.75, -0.52)
+			for _, tx in { -0.8, -0.3, 0.3, 0.9 } do
+				box(0.08, 0.5, 0.05, "#8a8a8a", "Metal", tx, 1.85, -0.46)
+			end
+			box(0.35, 0.15, 0.3, "#2b2e31", "Metal", 0.85, 2.42, -0.3)
+			box(0.25, 0.08, 0.2, "#fff3c4", "Neon", 0.85, 2.32, -0.3, 0, 0, 0, true)
+			-- Scrap pile beside the bench.
+			box(0.7, 0.35, 0.6, "#5d5f62", "CorrodedMetal", 1.75, 0.18, 0.1, 0, 0.5)
+			box(0.5, 0.3, 0.45, "#7a5634", "WoodPlanks", 1.8, 0.5, 0.0, 0, 0.2)
+		end)
+		colRect(x, z, ry, -1.35, -0.65, 2.15, 0.6, 1.0)
+		station("workbench", x, z, ry, 1.4)
+	end
+
+	-- Bell: ring it to start the next wave early.
+	local function bell(x: number, z: number, ry: number)
+		withFrame(x, z, ry, function()
+			cyl(0.7, 0.2, "#77706a", "Concrete", 0, 0.1, 0)
+			cyl(0.2, 3.0, "#2b2e31", "Metal", 0, 1.5, 0)
+			box(1.2, 0.12, 0.12, "#2b2e31", "Metal", 0.45, 2.95, 0)
+			cyl(0.6, 0.55, "#b8892a", "Metal", 0.85, 2.6, 0)
+			cyl(0.16, 0.2, "#7a5a1a", "Metal", 0.85, 2.25, 0)
+		end)
+		colCircle(x, z, 0.4, 3)
+		station("bell", x, z, ry, 1.1)
+	end
+
+	merchant(-10, 0, math.pi / 2)
+	workbench(10, 0, -math.pi / 2)
+	bell(0, -10.5, 0)
+
+	-- Trash piles along the sidewalks and in the vacant lot.
+	for _, p in { { -12, -33.5 }, { 18, -33.6 }, { 33.8, -11.5 }, { -33.8, 4 }, { -33.8, -24 }, { -8, 40 }, { 20, 42 } } do
+		local x, z = p[1], p[2]
+		for i = 0, 2 do
+			local r = 0.75 - i * 0.12
+			add("Ball", r, r, r, if i == 1 then "#2a3a2a" else "#1d1f1d", "SmoothPlastic", x + (i - 1) * 0.45, r / 2, z + (i % 2) * 0.3)
+		end
+		box(0.5, 0.3, 0.4, "#8a7a5a", "Cardboard", x + 0.5, 0.15, z - 0.4, 0, 0.6)
+		colCircle(x, z, 0.7, 0.7)
+		table.insert(loot, { kind = "trash", x = x, z = z })
 	end
 
 	-- Rubble in the south lot (low, so the camera sees over it).
@@ -661,6 +789,8 @@ local function generate(): Layout
 		spawns = spawns,
 		lamps = lamps,
 		props = props,
+		stations = stations,
+		loot = loot,
 		playerSpawn = { 0, 0, 8 },
 	}
 end
