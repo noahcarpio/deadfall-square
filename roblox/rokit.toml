@@ -1,0 +1,7 @@
+# Toolchain versions (install with Rokit: https://github.com/rojo-rbx/rokit). CI downloads the same versions.
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+selene = "Kampfkarren/selene@0.27.1"
+stylua = "JohnnyMorganz/StyLua@2.0.2"
+lune = "lune-org/lune@0.8.9"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.36.0"
