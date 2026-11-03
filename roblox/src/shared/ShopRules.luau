@@ -15,6 +15,7 @@ local Shop = if script then require(script.Parent.Config.Shop) else require("./C
 local Weapons = if script then require(script.Parent.Config.Weapons) else require("./Config/Weapons")
 local Items = if script then require(script.Parent.Config.Items) else require("./Config/Items")
 local Gear = if script then require(script.Parent.Gear) else require("./Gear")
+type GearItem = { uid: number, id: string, kind: string, rarity: string, power: number, traits: { string } }
 
 export type Action = {
 	kind: string, -- see STATION below
@@ -67,9 +68,9 @@ export type Context = {
 	repairStructures: () -> (),
 	-- Gear access (stash, equipped and gun gear); optional for contexts without gear.
 	gear: {
-		find: (number) -> Gear.Item?,
+		find: (number) -> GearItem?,
 		stashFull: () -> boolean,
-		give: (Gear.Item) -> boolean,
+		give: (GearItem) -> boolean,
 		remove: (number) -> boolean,
 		newUid: () -> number,
 		rng: any,
@@ -291,7 +292,7 @@ local function purchase(ctx: Context, a: Action): boolean
 		g.give(Gear.common(a.id :: string, g.newUid()))
 	elseif a.kind == "salvage" then
 		local g = ctx.gear :: any
-		local item = g.find(a.uid) :: Gear.Item
+		local item = g.find(a.uid) :: GearItem
 		if not g.remove(item.uid) then
 			return false -- equipped pieces can't be salvaged
 		end
@@ -299,7 +300,7 @@ local function purchase(ctx: Context, a: Action): boolean
 			ctx.inventory:add(id, n)
 		end
 	elseif a.kind == "reinforce" then
-		local item = (ctx.gear :: any).find(a.uid) :: Gear.Item
+		local item = (ctx.gear :: any).find(a.uid) :: GearItem
 		item.power = math.floor((item.power + 0.1) * 100 + 0.5) / 100
 	elseif a.kind == "reroll" then
 		local g = ctx.gear :: any

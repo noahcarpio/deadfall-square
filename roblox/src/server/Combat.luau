@@ -177,13 +177,16 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 			"exploder",
 			attacker
 		)
-	elseif attacker and source ~= "perkBlast" and gear and Gear.has(gear, "volatile") and W.rng:chance(0.15) then
-		self:queueExplosion(z.x, z.z, 2.6, 45 * (1 + W.waves.wave * 0.05), 0, 0, "perkBlast", attacker)
 	elseif
 		attacker
 		and source ~= "perkBlast"
-		and attacker.perks:has("explosiveKills")
-		and W.rng:chance(0.2 * attacker.perks:level("explosiveKills"))
+		and (
+			(gear and Gear.has(gear, "volatile") and W.rng:chance(0.15))
+			or (
+				attacker.perks:has("explosiveKills")
+				and W.rng:chance(0.2 * attacker.perks:level("explosiveKills"))
+			)
+		)
 	then
 		self:queueExplosion(z.x, z.z, 2.6, 45 * (1 + W.waves.wave * 0.05), 0, 0, "perkBlast", attacker)
 	end

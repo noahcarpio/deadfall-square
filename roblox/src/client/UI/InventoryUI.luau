@@ -103,7 +103,7 @@ function InventoryUI.new(gui: ScreenGui, onUse: (string) -> ())
 		end)
 	end
 
-	local function gearRow(order: number, label: string, item: any, buttons: { { string, () -> () } })
+	local function gearRow(order: number, label: string, item: any, buttons: { { any } })
 		local color = if item then Color3.fromHex(Gear.rarities[item.rarity].color) else T.muted
 		local row = create("Frame", {
 			BackgroundTransparency = 1,

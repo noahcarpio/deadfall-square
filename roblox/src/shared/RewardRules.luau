@@ -7,12 +7,13 @@
 	guarantee at least one rare-or-better gear card.
 ]]
 local Gear = if script then require(script.Parent.Gear) else require("./Gear")
+type GearItem = { uid: number, id: string, kind: string, rarity: string, power: number, traits: { string } }
 local Perks = if script then require(script.Parent.Config.Perks) else require("./Config/Perks")
 local Items = if script then require(script.Parent.Config.Items) else require("./Config/Items")
 
 export type Card = {
 	kind: string, -- gear | perk | coins | supplies | heal
-	item: Gear.Item?,
+	item: GearItem?,
 	perk: string?,
 	amount: number?,
 	supplies: { [string]: number }?,
