@@ -143,10 +143,8 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 	W.waves:onZombieKilled(z)
 
 	if attacker then
-		local _, coins = attacker.economy:registerKill(
-			z.def.score * (1 + W.waves.wave * 0.05),
-			z.def.coins * W.waves.modifier.coins
-		)
+		local _, coins =
+			attacker.economy:registerKill(z.def.score * (1 + W.waves.wave * 0.05), z.def.coins * W.waves.modifier.coins)
 		attacker.kills[z.type] += 1
 		W.remotes.Notify:FireClient(attacker.player, `+{coins}`, "coin", z.x, z.z)
 		if attacker.perks:has("adrenaline") and not attacker.downed then
@@ -182,10 +180,7 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 		and source ~= "perkBlast"
 		and (
 			(gear and Gear.has(gear, "volatile") and W.rng:chance(0.15))
-			or (
-				attacker.perks:has("explosiveKills")
-				and W.rng:chance(0.2 * attacker.perks:level("explosiveKills"))
-			)
+			or (attacker.perks:has("explosiveKills") and W.rng:chance(0.2 * attacker.perks:level("explosiveKills")))
 		)
 	then
 		self:queueExplosion(z.x, z.z, 2.6, 45 * (1 + W.waves.wave * 0.05), 0, 0, "perkBlast", attacker)

@@ -34,7 +34,12 @@ local StationUI = {}
 local UPGRADE_LABELS = { damage = "Damage", fireRate = "Fire rate", magazine = "Magazine" }
 
 local TABS = {
-	merchant = { { "weapons", "WEAPONS" }, { "gearShop", "GEAR" }, { "survivor", "SURVIVOR" }, { "supplies", "SUPPLIES" } },
+	merchant = {
+		{ "weapons", "WEAPONS" },
+		{ "gearShop", "GEAR" },
+		{ "survivor", "SURVIVOR" },
+		{ "supplies", "SUPPLIES" },
+	},
 	workbench = { { "craft", "CRAFT" }, { "build", "BUILD" }, { "upgrade", "UPGRADES" }, { "gearBench", "GEAR" } },
 }
 
@@ -598,12 +603,14 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 		end
 	end
 
-	for _, sig in {
-		Context.signals.arsenalChanged,
-		Context.signals.statsChanged,
-		Context.signals.inventoryChanged,
-		Context.signals.gearChanged,
-	} do
+	for _, sig in
+		{
+			Context.signals.arsenalChanged,
+			Context.signals.statsChanged,
+			Context.signals.inventoryChanged,
+			Context.signals.gearChanged,
+		}
+	do
 		sig:connect(function()
 			if self.open then
 				render()

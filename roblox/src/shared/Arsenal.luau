@@ -35,11 +35,10 @@ export type Arsenal = typeof(setmetatable(
 ))
 
 function Arsenal.new(): Arsenal
-	local self =
-		setmetatable(
-			{ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0, rateMul = 1 },
-			Arsenal
-		)
+	local self = setmetatable(
+		{ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0, rateMul = 1 },
+		Arsenal
+	)
 	self:give("pistol")
 	return self
 end

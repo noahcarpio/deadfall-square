@@ -758,7 +758,10 @@ function GameServer.start()
 		local bellState = W.waves.bell
 		stateFolder:SetAttribute("BellHp", if phase == "wave" and bellState then bellState.hp / bellState.maxHp else -1)
 		local elite = W.waves.elite
-		stateFolder:SetAttribute("EliteHp", if phase == "wave" and elite and not elite.dying then elite.hp / elite.maxHp else -1)
+		stateFolder:SetAttribute(
+			"EliteHp",
+			if phase == "wave" and elite and not elite.dying then elite.hp / elite.maxHp else -1
+		)
 		if math.abs(night - appliedNight) > 0.003 then
 			appliedNight = night
 			applyNight(night)

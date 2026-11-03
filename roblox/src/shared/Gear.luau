@@ -189,7 +189,12 @@ def({
 export type TraitDef = { id: string, name: string, description: string, kinds: { string } }
 
 local TRAITS: { [string]: TraitDef } = {
-	serrated = { id = "serrated", name = "Serrated", description = "Hits make zombies bleed.", kinds = { "gun", "melee" } },
+	serrated = {
+		id = "serrated",
+		name = "Serrated",
+		description = "Hits make zombies bleed.",
+		kinds = { "gun", "melee" },
+	},
 	hollowPoint = {
 		id = "hollowPoint",
 		name = "Hollow-Point",
