@@ -22,6 +22,7 @@ local Zombies = require("../src/shared/Config/Zombies")
 local Weapons = require("../src/shared/Config/Weapons")
 local Net = require("../src/shared/Net")
 local ArenaLayout = require("../src/shared/ArenaLayout")
+local MeshSizes = require("../src/shared/Config/MeshSizes")
 
 local passed, failed = 0, 0
 local current = ""
@@ -411,6 +412,37 @@ test("Arena layout has spawns, lamps, colliders and a clear player spawn", funct
 	flow:compute({ { s[1], s[3] } })
 	for _, sp in layout.spawns do
 		expect(flow:distanceAt(sp.x, sp.z) < math.huge, `spawn {sp.x},{sp.z} unreachable`)
+	end
+end)
+
+test("Every mesh the game asks for was generated, and props own their fallback pieces", function()
+	local sizes = MeshSizes :: { [string]: { number } }
+	local function has(name: string)
+		local s = sizes[name]
+		expect(s ~= nil, `mesh {name} missing from MeshSizes`)
+		expect(s[1] > 0 and s[2] > 0 and s[3] > 0, `mesh {name} has a zero size`)
+	end
+	for _, name in { "ZombieTorso", "ZombieHead", "ZombieArm", "ZombieLeg", "Barricade", "TurretBase", "TurretHead" } do
+		has(name)
+	end
+	for _, id in Weapons.order do
+		has(`Gun_{id}`)
+	end
+	for _, kind in { "ammo", "health", "armor", "coins", "weapon" } do
+		has(`Pickup_{kind}`)
+	end
+	local layout = ArenaLayout.generate()
+	expect(#layout.props > 0, "layout has no props")
+	local owned = {}
+	for _, piece in layout.pieces do
+		if piece.prop then
+			expect(layout.props[piece.prop] ~= nil, `piece points at missing prop {piece.prop}`)
+			owned[piece.prop] = true
+		end
+	end
+	for i, prop in layout.props do
+		has(prop.name)
+		expect(owned[i] == true, `prop {prop.name} has no fallback pieces`)
 	end
 end)
 

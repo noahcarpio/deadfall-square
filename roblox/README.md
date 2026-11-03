@@ -25,6 +25,19 @@ selene src                                              # lint
 stylua src tests                                        # format
 ```
 
+### Custom 3D models (optional, one-time import)
+
+The game builds everything from plain Parts out of the box. `assets/` holds a set of matching low-poly meshes made for it: zombie body parts, the seven guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
+
+1. Download the repository (**Code → Download ZIP** on GitHub) and unzip it. `DeadfallMeshes.obj`, `DeadfallMeshes.mtl` and `DeadfallPalette.png` must stay together in the same folder.
+2. Open the place in Studio, then use **File → Import 3D** (also on the **Home** or **Avatar** tab) and choose `roblox/assets/DeadfallMeshes.obj`.
+3. In the importer, leave **Merge meshes** (if you see it) turned **off**, so each object stays a separate MeshPart with its own name, then click **Import**. The palette texture is applied automatically.
+4. In the Explorer, drag the imported model into **ReplicatedStorage** and rename it to exactly **`DeadfallMeshes`**. It doesn't matter where it lands in the world, how it's scaled, or whether its parts are nested in folders. The game looks each mesh up by name and sizes it itself.
+5. Press **Play**. Any mesh that's present replaces its Part-built version; any that's missing (or renamed) falls back to Parts.
+6. **Save/Publish** the place. The meshes are uploaded to your account along with it.
+
+The meshes come from a script, `tools/make_meshes.py`. It uses only Python's standard library and needs no Blender. Change it, run `python3 tools/make_meshes.py` to regenerate the files and `Config/MeshSizes.luau`, then `python3 tools/preview_meshes.py` (needs NumPy and Pillow) to redraw the preview. After that, re-import the meshes. CI fails if the committed files don't match the script.
+
 ## Controls
 
 | Action | PC | Controller | Mobile |
@@ -61,6 +74,7 @@ src/server   (ServerScriptService.Server)  GameServer (state machine), ArenaBuil
 src/client   (StarterPlayerScripts.Client) Camera, Input, Character, WeaponClient, ZombieView, Fx,
                                            Audio, UI (Hud, Shop, Screens, Placement)
 tests/                                     Lune unit tests for the shared modules
+tools/, assets/                            mesh generator + generated OBJ/MTL/palette and preview
 ```
 
 - **Server-authoritative.** Health, ammo, coins, purchases, placement and every hit are decided on the server. Clients send trigger pulls with the pellet directions they predicted; the server checks ownership, fire rate and ammo, sanity-checks the spread and resolves hits itself.

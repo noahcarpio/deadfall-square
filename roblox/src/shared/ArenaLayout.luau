@@ -23,7 +23,12 @@ export type Piece = {
 	color: string,
 	material: string,
 	glow: boolean?, -- lit window / lamp: brightens at night
+	prop: number?, -- index into props: replaced by that prop's mesh when it's imported
 }
+
+-- A whole object (car, crate...) that has an imported-mesh version. `y` is the
+-- height of its base; the mesh's local +Z matches the layout's local +Z.
+export type Prop = { name: string, x: number, y: number, z: number, ry: number }
 
 export type ColliderSpec = {
 	kind: "box" | "circle",
@@ -44,6 +49,7 @@ export type Layout = {
 	colliders: { ColliderSpec },
 	spawns: { Spawn },
 	lamps: { { number } },
+	props: { Prop },
 	playerSpawn: { number },
 }
 
@@ -62,6 +68,8 @@ local function generate(): Layout
 	local colliders: { ColliderSpec } = {}
 	local spawns: { Spawn } = {}
 	local lamps: { { number } } = {}
+	local props: { Prop } = {}
+	local currentProp: number? = nil
 
 	-- Parent frame stack: { x, z, ry }.
 	local frame = { 0, 0, 0 }
@@ -98,7 +106,16 @@ local function generate(): Layout
 			color = color,
 			material = material,
 			glow = glow,
+			prop = currentProp,
 		})
+	end
+
+	-- Records a mesh-replaceable prop; pieces added inside `fn` are its block fallback.
+	local function prop(name: string, x: number, y: number, z: number, ry: number, fn: () -> ())
+		table.insert(props, { name = name, x = x, y = y, z = z, ry = ry })
+		currentProp = #props
+		fn()
+		currentProp = nil
 	end
 
 	local function box(sx, sy, sz, color, material, x, y, z, rx: number?, ry: number?, rz: number?, glow: boolean?)
@@ -372,10 +389,11 @@ local function generate(): Layout
 	end
 
 	------------------------------------------------------------- props
-	local function car(x: number, z: number, ry: number, color: string, burnt: boolean)
+	local function car(name: string, x: number, z: number, ry: number, color: string, burnt: boolean)
 		local body = if burnt then "#2e2a27" else color
 		local glass = if burnt then "#1a1817" else "#24323d"
-		withFrame(x, z, ry, function()
+		prop(name, x, 0, z, ry, function()
+			withFrame(x, z, ry, function()
 			local tilt = rng:range(-0.04, 0.04)
 			box(1.9, 0.75, 4.3, body, "Metal", 0, 0.7, 0, 0, 0, tilt)
 			box(1.7, 0.65, 2.2, body, "Metal", 0, 1.38, -0.2, 0, 0, tilt)
@@ -388,6 +406,7 @@ local function generate(): Layout
 			for _, w in { { -0.95, 1.4 }, { 0.95, 1.4 }, { -0.95, -1.4 }, { 0.95, -1.4 } } do
 				box(0.28, 0.76, 0.76, "#161616", "Rubber", w[1], 0.38, w[2])
 			end
+			end)
 		end)
 		local along = math.abs(math.sin(ry)) > 0.5
 		local hw = if along then 2.2 else 1.0
@@ -406,11 +425,13 @@ local function generate(): Layout
 	end
 
 	local function bench(x: number, z: number, ry: number)
-		withFrame(x, z, ry, function()
-			box(2.0, 0.1, 0.55, WOOD, "Wood", 0, 0.5, 0)
-			box(2.0, 0.45, 0.08, WOOD, "Wood", 0, 0.85, -0.25, -0.15)
-			box(0.1, 0.5, 0.5, "#2b2e31", "Metal", -0.85, 0.25, 0)
-			box(0.1, 0.5, 0.5, "#2b2e31", "Metal", 0.85, 0.25, 0)
+		prop("Bench", x, 0, z, ry, function()
+			withFrame(x, z, ry, function()
+				box(2.0, 0.1, 0.55, WOOD, "Wood", 0, 0.5, 0)
+				box(2.0, 0.45, 0.08, WOOD, "Wood", 0, 0.85, -0.25, -0.15)
+				box(0.1, 0.5, 0.5, "#2b2e31", "Metal", -0.85, 0.25, 0)
+				box(0.1, 0.5, 0.5, "#2b2e31", "Metal", 0.85, 0.25, 0)
+			end)
 		end)
 		colCircle(x, z, 0.6, 0.9)
 	end
@@ -434,7 +455,9 @@ local function generate(): Layout
 			for l = 0, levels - 1 do
 				local rot = rng:range(-0.15, 0.15)
 				local y = 0.575 + l * 1.15
-				box(1.15, 1.15, 1.15, if l == 0 then "#8a6238" else "#9a7144", "WoodPlanks", cx, y, cz, 0, rot)
+				prop("Crate", cx, l * 1.15, cz, rot, function()
+					box(1.15, 1.15, 1.15, if l == 0 then "#8a6238" else "#9a7144", "WoodPlanks", cx, y, cz, 0, rot)
+				end)
 			end
 			colBox(cx - 0.6, cz - 0.6, cx + 0.6, cz + 0.6, levels * 1.15)
 		end
@@ -486,10 +509,12 @@ local function generate(): Layout
 	end
 
 	local function barrier(x: number, z: number, ry: number)
-		withFrame(x, z, ry, function()
-			box(3.0, 0.35, 0.8, CONCRETE, "Concrete", 0, 0.18, 0)
-			box(3.0, 0.65, 0.35, CONCRETE, "Concrete", 0, 0.67, 0)
-			box(3.0, 0.1, 0.36, "#c9a227", "SmoothPlastic", 0, 0.9, 0)
+		prop("Barrier", x, 0, z, ry, function()
+			withFrame(x, z, ry, function()
+				box(3.0, 0.35, 0.8, CONCRETE, "Concrete", 0, 0.18, 0)
+				box(3.0, 0.65, 0.35, CONCRETE, "Concrete", 0, 0.67, 0)
+				box(3.0, 0.1, 0.36, "#c9a227", "SmoothPlastic", 0, 0.9, 0)
+			end)
 		end)
 		local along = math.abs(math.sin(ry)) > 0.5
 		local hw = if along then 0.4 else 1.5
@@ -498,9 +523,11 @@ local function generate(): Layout
 	end
 
 	local function dumpster(x: number, z: number, ry: number)
-		withFrame(x, z, ry, function()
-			box(2.4, 1.3, 1.3, "#2f5a3a", "Metal", 0, 0.75, 0)
-			box(2.45, 0.1, 1.35, "#24452d", "Metal", 0, 1.42, 0.05, 0, 0.12)
+		prop("Dumpster", x, 0, z, ry, function()
+			withFrame(x, z, ry, function()
+				box(2.4, 1.3, 1.3, "#2f5a3a", "Metal", 0, 0.75, 0)
+				box(2.45, 0.1, 1.35, "#24452d", "Metal", 0, 1.42, 0.05, 0, 0.12)
+			end)
 		end)
 		local along = math.abs(math.sin(ry)) > 0.5
 		local hw = if along then 0.7 else 1.25
@@ -508,10 +535,14 @@ local function generate(): Layout
 		colBox(x - hw, z - hd, x + hw, z + hd, 1.5)
 	end
 
+	local BARREL_MESHES = { ["#a33a2a"] = "Barrel_red", ["#c49a2a"] = "Barrel_yellow", ["#2a6aa3"] = "Barrel_blue", ["#4a7a3a"] = "Barrel_green" }
+
 	local function barrel(x: number, z: number, color: string)
-		cyl(0.84, 1.1, color, "Metal", x, 0.55, z)
-		cyl(0.88, 0.08, "#2b2b2b", "Metal", x, 0.3, z)
-		cyl(0.88, 0.08, "#2b2b2b", "Metal", x, 0.8, z)
+		prop(BARREL_MESHES[color] or "Barrel_red", x, 0, z, 0, function()
+			cyl(0.84, 1.1, color, "Metal", x, 0.55, z)
+			cyl(0.88, 0.08, "#2b2b2b", "Metal", x, 0.3, z)
+			cyl(0.88, 0.08, "#2b2b2b", "Metal", x, 0.8, z)
+		end)
 		colCircle(x, z, 0.45, 1.1)
 	end
 
@@ -550,20 +581,23 @@ local function generate(): Layout
 		{ -29, -7, math.pi / 2 },
 	}
 	for i, c in cars do
-		car(c[1], c[2], c[3], carColors[(i - 1) % #carColors + 1], false)
+		local colorIndex = (i - 1) % #carColors + 1
+		car(`Car_{colorIndex}`, c[1], c[2], c[3], carColors[colorIndex], false)
 	end
-	car(-34, A + 6, 0, "#3a3530", true)
-	car(30, A + 7, 0.15, "#3c3a38", true)
+	car("Car_burnt", -34, A + 6, 0, "#3a3530", true)
+	car("Car_burnt", 30, A + 7, 0.15, "#3c3a38", true)
 
 	-- Crashed bus.
-	withFrame(25, -3, 0, function()
-		box(2.6, 2.4, 10, "#c48a2a", "Metal", 0, 1.55, 0, 0, 0, 0.05)
-		box(2.62, 0.5, 10.02, "#3a3632", "Metal", 0, 0.55, 0)
-		box(2.64, 0.9, 8.6, "#22303a", "Glass", 0, 2.0, -0.3, 0, 0, 0.05)
-		for _, wz in { 3.4, -3.4 } do
-			box(0.35, 1, 1, "#161616", "Rubber", -1.25, 0.5, wz)
-			box(0.35, 1, 1, "#161616", "Rubber", 1.25, 0.5, wz)
-		end
+	prop("Bus", 25, 0, -3, 0, function()
+		withFrame(25, -3, 0, function()
+			box(2.6, 2.4, 10, "#c48a2a", "Metal", 0, 1.55, 0, 0, 0, 0.05)
+			box(2.62, 0.5, 10.02, "#3a3632", "Metal", 0, 0.55, 0)
+			box(2.64, 0.9, 8.6, "#22303a", "Glass", 0, 2.0, -0.3, 0, 0, 0.05)
+			for _, wz in { 3.4, -3.4 } do
+				box(0.35, 1, 1, "#161616", "Rubber", -1.25, 0.5, wz)
+				box(0.35, 1, 1, "#161616", "Rubber", 1.25, 0.5, wz)
+			end
+		end)
 	end)
 	colBox(25 - 1.35, -3 - 5.05, 25 + 1.35, -3 + 5.05, 2.8)
 
@@ -621,6 +655,7 @@ local function generate(): Layout
 		colliders = colliders,
 		spawns = spawns,
 		lamps = lamps,
+		props = props,
 		playerSpawn = { 0, 0, 8 },
 	}
 end

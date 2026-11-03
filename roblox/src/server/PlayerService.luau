@@ -11,6 +11,7 @@ local Constants = require(Shared.Config.Constants)
 local Weapons = require(Shared.Config.Weapons)
 local Zombies = require(Shared.Config.Zombies)
 local Arsenal = require(Shared.Arsenal)
+local MeshLibrary = require(Shared.MeshLibrary)
 local Economy = require(Shared.Economy)
 local PerkState = require(Shared.PerkState)
 local PlayerStats = require(Shared.PlayerStats)
@@ -248,14 +249,24 @@ function PlayerService.updateGunModel(_self, ps: PState)
 		ps.gun:Destroy()
 	end
 	local def = Weapons.defs[ps.arsenal.current]
-	local length = if def.kind == "hitscan" and def.id == "pistol" then 1.0 elseif def.id == "sniper" then 3.4 else 2.4
 	local model = Instance.new("Model")
 	model.Name = "Gun"
-	local body = Instance.new("Part")
+	-- Imported weapon mesh if available (barrel toward -Z), otherwise a simple block.
+	local body: BasePart
+	local mesh = MeshLibrary.clone("Gun_" .. def.id)
+	if mesh then
+		body = mesh
+		body.Anchored = false
+	else
+		local length = if def.id == "pistol" then 1.0 elseif def.id == "sniper" then 3.4 else 2.4
+		local block = Instance.new("Part")
+		block.Size = Vector3.new(0.35, 0.45, length)
+		block.Color = if def.id == "flamer" then Color3.fromRGB(122, 42, 34) else Color3.fromRGB(44, 47, 51)
+		block.Material = Enum.Material.Metal
+		body = block
+	end
+	local length = body.Size.Z
 	body.Name = "Body"
-	body.Size = Vector3.new(0.35, 0.45, length)
-	body.Color = if def.id == "flamer" then Color3.fromRGB(122, 42, 34) else Color3.fromRGB(44, 47, 51)
-	body.Material = Enum.Material.Metal
 	body.CanCollide = false
 	body.CanQuery = false
 	body.Massless = true

@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local ZombiesConfig = require(Shared.Config.Zombies)
+local MeshLibrary = require(Shared.MeshLibrary)
 local Net = require(Shared.Net)
 
 local Context = require(script.Parent.Context)
@@ -69,8 +70,10 @@ folder.Parent = Workspace
 
 local WHITE = Color3.new(1, 1, 1)
 
-local function newPart(size: Vector3, color: Color3, material: Enum.Material?, shadow: boolean?): BasePart
-	local p = Instance.new("Part")
+-- Uses the imported mesh `meshName` when available, otherwise a plain block.
+local function newPart(size: Vector3, color: Color3, material: Enum.Material?, shadow: boolean?, meshName: string?): BasePart
+	local mesh = if meshName then MeshLibrary.clone(meshName, size) else nil
+	local p: BasePart = mesh or Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
 	p.CanQuery = false
@@ -95,12 +98,12 @@ local function buildRig(def): Rig
 		return Vector3.new(w * base[1], h * base[2], d * base[3]) * sc
 	end
 	local rig = {
-		legL = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false),
-		legR = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false),
-		torso = newPart(v(b.torso, 0.6, 0.76, 0.36), shirt, Enum.Material.Fabric, true),
-		head = newPart(v(b.head, 0.38, 0.38, 0.38), skin, nil, true),
-		armL = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false),
-		armR = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false),
+		legL = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false, "ZombieLeg"),
+		legR = newPart(v(b.legs, 0.22, 0.82, 0.24), pants, nil, false, "ZombieLeg"),
+		torso = newPart(v(b.torso, 0.6, 0.76, 0.36), shirt, Enum.Material.Fabric, true, "ZombieTorso"),
+		head = newPart(v(b.head, 0.38, 0.38, 0.38), skin, nil, true, "ZombieHead"),
+		armL = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false, "ZombieArm"),
+		armR = newPart(v(b.arms, 0.17, 0.74, 0.19), skin, nil, false, "ZombieArm"),
 		eyes = newPart(
 			Vector3.new(0.26, 0.06, 0.04) * sc * b.head[1],
 			Color3.fromHex(def.colors.eyes),

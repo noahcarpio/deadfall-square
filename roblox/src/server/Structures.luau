@@ -9,6 +9,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Shop = require(Shared.Config.Shop)
 local MathUtil = require(Shared.Util.MathUtil)
+local MeshLibrary = require(Shared.MeshLibrary)
 local NavGrid = require(Shared.NavGrid)
 
 local S = Constants.STUDS
@@ -276,12 +277,31 @@ function Structures.place(self, ps, stype: string, rotated: boolean, x: number, 
 	local model = Instance.new("Model")
 	model.Name = def.name
 	local cf = CFrame.new(x * S, 0, z * S) * CFrame.Angles(0, if rotated then math.pi / 2 else 0, 0)
+	-- Imported meshes when available (bottom on the ground), else part-built models.
 	if stype == "barricade" then
-		buildBarricade(model, cf)
+		local mesh = MeshLibrary.clone("Barricade")
+		if mesh then
+			mesh.CFrame = cf * CFrame.new(0, mesh.Size.Y / 2, 0)
+			mesh.Parent = model
+		else
+			buildBarricade(model, cf)
+		end
 	else
-		local head, barrel, eye = buildTurret(model, cf)
-		s.head = head
-		s.headParts = { head, barrel, eye }
+		local base = MeshLibrary.clone("TurretBase")
+		local headMesh = MeshLibrary.clone("TurretHead")
+		if base and headMesh then
+			base.CFrame = cf * CFrame.new(0, base.Size.Y / 2, 0)
+			base.Parent = model
+			headMesh.Name = "Head"
+			headMesh.CFrame = CFrame.new(x * S, 0.97 * S, z * S) * CFrame.Angles(0, math.pi, 0)
+			headMesh.Parent = model
+			s.head = headMesh
+			s.headParts = { headMesh }
+		else
+			local head, barrel, eye = buildTurret(model, cf)
+			s.head = head
+			s.headParts = { head, barrel, eye }
+		end
 	end
 	-- Solid block so characters can't walk through.
 	local blocker = part({

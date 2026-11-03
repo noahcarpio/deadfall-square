@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ArenaLayout = require(Shared.ArenaLayout)
 local Constants = require(Shared.Config.Constants)
+local MeshLibrary = require(Shared.MeshLibrary)
 
 local S = Constants.STUDS
 
@@ -39,6 +40,45 @@ export type Arena = {
 	lampLights: { PointLight },
 }
 
+local function pieceCFrame(piece: ArenaLayout.Piece): CFrame
+	return CFrame.new(piece.pos[1] * S, piece.pos[2] * S, piece.pos[3] * S)
+		* CFrame.Angles(0, piece.gry, 0)
+		* CFrame.fromEulerAnglesYXZ(piece.rot[1], piece.rot[2], piece.rot[3])
+end
+
+--[[
+	Places an imported mesh for a prop. The mesh pivot is its bounding-box
+	centre, so it goes at the centre of the block fallback's bounds measured in
+	the prop's own frame (the generator models each prop to the same bounds).
+]]
+local function placePropMesh(prop: ArenaLayout.Prop, parts: { ArenaLayout.Piece }, parent: Instance)
+	local mesh = MeshLibrary.clone(prop.name)
+	if not mesh then
+		return false
+	end
+	local frame = CFrame.new(prop.x * S, prop.y * S, prop.z * S) * CFrame.Angles(0, prop.ry, 0)
+	local lo = Vector3.one * math.huge
+	local hi = -lo
+	for _, piece in parts do
+		local cf = pieceCFrame(piece)
+		local h = Vector3.new(piece.size[1], piece.size[2], piece.size[3]) * (S / 2)
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					local p = frame:PointToObjectSpace(cf:PointToWorldSpace(Vector3.new(h.X * sx, h.Y * sy, h.Z * sz)))
+					lo = lo:Min(p)
+					hi = hi:Max(p)
+				end
+			end
+		end
+	end
+	local centre = if #parts > 0 then (lo + hi) / 2 else Vector3.new(0, mesh.Size.Y / 2, 0)
+	mesh.CFrame = frame * CFrame.new(centre)
+	mesh.CastShadow = true
+	mesh.Parent = parent
+	return true
+end
+
 local function makePart(piece: ArenaLayout.Piece): BasePart
 	local p = Instance.new("Part")
 	p.Anchored = true
@@ -50,9 +90,7 @@ local function makePart(piece: ArenaLayout.Piece): BasePart
 	p.Color = Color3.fromHex(piece.color)
 	p.Material = MATERIALS[piece.material] or Enum.Material.SmoothPlastic
 	local sx, sy, sz = piece.size[1] * S, piece.size[2] * S, piece.size[3] * S
-	local base = CFrame.new(piece.pos[1] * S, piece.pos[2] * S, piece.pos[3] * S)
-		* CFrame.Angles(0, piece.gry, 0)
-		* CFrame.fromEulerAnglesYXZ(piece.rot[1], piece.rot[2], piece.rot[3])
+	local base = pieceCFrame(piece)
 	if piece.shape == "Cylinder" then
 		-- Roblox cylinders run along X; rotate so the axis is vertical.
 		p.Shape = Enum.PartType.Cylinder
@@ -80,7 +118,28 @@ function ArenaBuilder.build(): Arena
 	visuals.Parent = folder
 	local glowParts = {}
 	local ground: BasePart? = nil
+
+	-- Props with an imported mesh replace their block pieces.
+	local propPieces: { { ArenaLayout.Piece } } = {}
+	for _, piece in layout.pieces do
+		if piece.prop then
+			local list = propPieces[piece.prop]
+			if not list then
+				list = {}
+				propPieces[piece.prop] = list
+			end
+			table.insert(list, piece)
+		end
+	end
+	local meshed: { [number]: boolean } = {}
+	for index, prop in layout.props do
+		meshed[index] = placePropMesh(prop, propPieces[index] or {}, visuals)
+	end
+
 	for i, piece in layout.pieces do
+		if piece.prop and meshed[piece.prop] then
+			continue
+		end
 		local p = makePart(piece)
 		if piece.glow then
 			table.insert(glowParts, p)

@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
+local MeshLibrary = require(Shared.MeshLibrary)
 local Weapons = require(Shared.Config.Weapons)
 
 local S = Constants.STUDS
@@ -71,13 +72,9 @@ function Pickups.rollDrop(self, z, ps)
 	self:spawn(kind, z.x, z.z, ps)
 end
 
-local function makeModel(kind: string, weapon: string?): BasePart
+-- Block fallback used when the imported pickup mesh isn't in the place.
+local function blockModel(kind: string): BasePart
 	local part = Instance.new("Part")
-	part.Name = "Pickup"
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
 	part.Material = Enum.Material.SmoothPlastic
 	part.Color = COLORS[kind]
 	if kind == "ammo" then
@@ -98,6 +95,16 @@ local function makeModel(kind: string, weapon: string?): BasePart
 		part.Color = Color3.fromHex("#6a4a2a")
 		part.Material = Enum.Material.WoodPlanks
 	end
+	return part
+end
+
+local function makeModel(kind: string, weapon: string?): BasePart
+	local part: BasePart = MeshLibrary.clone("Pickup_" .. kind) or blockModel(kind)
+	part.Name = "Pickup"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
 	local light = Instance.new("PointLight")
 	light.Color = COLORS[kind]
 	light.Range = 8

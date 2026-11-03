@@ -49,6 +49,13 @@ jobs:
           chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
       - run: lune run tests/run
 
+  meshes:
+    name: Meshes up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/make_meshes.py --check
+
   lint:
     name: Lint (Selene)
     runs-on: ubuntu-latest
