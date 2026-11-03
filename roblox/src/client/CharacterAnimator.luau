@@ -236,7 +236,8 @@ local function poseJoint(j: Joint?, d: CFrame, w: number)
 		return
 	end
 	local target = j.rc:Inverse() * d * j.rc
-	local x = if w >= 0.999 then target else CFrame.identity:Lerp(target, w)
+	local rest = CFrame.new()
+	local x = if w >= 0.999 then target else rest:Lerp(target, w)
 	setOffset(j, j.original * x)
 	j.active = true
 end
