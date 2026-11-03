@@ -6,6 +6,7 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ZombiesConfig = require(Shared.Config.Zombies)
 local Stealth = require(Shared.Config.Stealth)
+local Gear = require(Shared.Gear)
 
 local EXPLODER = ZombiesConfig.exploder
 local BRUTE = ZombiesConfig.brute
@@ -25,7 +26,8 @@ function Combat.reset(self)
 end
 
 --[[
-	opts = { dirX, dirZ, knock, source, crit, attacker (PState?), allowIncendiary }
+	opts = { dirX, dirZ, knock, source, crit, attacker (PState?), allowIncendiary,
+	         gear (Gear.Item? of the weapon, for its traits) }
 	Returns true if the zombie died.
 ]]
 function Combat.damageZombie(self, z, amount: number, opts): boolean
@@ -37,10 +39,34 @@ function Combat.damageZombie(self, z, amount: number, opts): boolean
 	if attacker and (z.type == "brute" or z.type == "boss") then
 		amount *= 1 + 0.35 * attacker.perks:level("bigGame")
 	end
+	local gear = opts.gear
+	local knock = opts.knock
+	if gear then
+		if Gear.has(gear, "hollowPoint") and not opts.crit and W.rng:chance(0.12) then
+			amount *= 1.6
+			opts.crit = true
+		end
+		if Gear.has(gear, "heavy") then
+			knock *= 1.6
+		end
+	end
 	local dealt = math.min(amount, z.hp)
 	z.hp -= amount
-	z.kx += opts.dirX * opts.knock / z.def.mass
-	z.kz += opts.dirZ * opts.knock / z.def.mass
+	z.kx += opts.dirX * knock / z.def.mass
+	z.kz += opts.dirZ * knock / z.def.mass
+	if gear and attacker then
+		if Gear.has(gear, "leeching") and not attacker.downed then
+			W.players:heal(attacker, dealt * 0.03)
+		end
+		if Gear.has(gear, "chilling") then
+			z.slowUntil = os.clock() + 2
+		end
+		if Gear.has(gear, "serrated") and opts.source ~= "bleed" then
+			z.bleedTime = 3
+			z.bleedDps = math.max(z.bleedDps or 0, amount * 0.12)
+			z.bleedBy = attacker
+		end
+	end
 	z.lastAttacker = attacker
 	W.zombies.alert(z)
 	if attacker then
@@ -58,7 +84,7 @@ function Combat.damageZombie(self, z, amount: number, opts): boolean
 	end
 	table.insert(self.hits, { z.id, math.floor(amount + 0.5), opts.crit == true })
 	if z.hp <= 0 then
-		self:killZombie(z, opts.source, opts.dirX, opts.dirZ, attacker)
+		self:killZombie(z, opts.source, opts.dirX, opts.dirZ, attacker, gear)
 		return true
 	end
 	return false
@@ -70,6 +96,24 @@ function Combat.ignite(_self, z, dps: number, duration: number)
 	end
 	z.burnDps = math.max(if z.burnTime > 0 then z.burnDps else 0, dps)
 	z.burnTime = math.max(z.burnTime, duration)
+end
+
+-- Bleeding from "Serrated" gear: small ticks of damage over a few seconds.
+function Combat.applyBleed(self, z, dt: number)
+	z.bleedTime -= dt
+	z.bleedAccum = (z.bleedAccum or 0) + z.bleedDps * dt
+	if z.bleedAccum >= 4 or (z.bleedTime <= 0 and z.bleedAccum > 0) then
+		local amount = z.bleedAccum
+		z.bleedAccum = 0
+		self:damageZombie(
+			z,
+			amount,
+			{ dirX = 0, dirZ = 0, knock = 0, source = "bleed", crit = false, attacker = z.bleedBy }
+		)
+	end
+	if z.bleedTime <= 0 then
+		z.bleedDps = 0
+	end
 end
 
 function Combat.applyBurn(self, z, dt: number)
@@ -85,7 +129,7 @@ function Combat.applyBurn(self, z, dt: number)
 	end
 end
 
-function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, attacker)
+function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, attacker, gear)
 	if z.dying then
 		return
 	end
@@ -99,7 +143,10 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 	W.waves:onZombieKilled(z)
 
 	if attacker then
-		local _, coins = attacker.economy:registerKill(z.def.score * (1 + W.waves.wave * 0.05), z.def.coins)
+		local _, coins = attacker.economy:registerKill(
+			z.def.score * (1 + W.waves.wave * 0.05),
+			z.def.coins * W.waves.modifier.coins
+		)
 		attacker.kills[z.type] += 1
 		W.remotes.Notify:FireClient(attacker.player, `+{coins}`, "coin", z.x, z.z)
 		if attacker.perks:has("adrenaline") and not attacker.downed then
@@ -108,6 +155,15 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 	end
 	if z.type ~= "boss" then
 		W.pickups:rollDrop(z, attacker)
+	end
+	-- Gear drops: elites always (rare or better), bosses a unique, others rarely.
+	local dropBoost = if attacker then attacker.stats.dropChance else 1
+	if z.elite then
+		W.pickups:spawnGear(z.x, z.z, nil, "rare")
+	elseif z.type == "boss" then
+		W.pickups:spawnGear(z.x, z.z, nil, "unique")
+	elseif W.rng:chance(0.012 * dropBoost) then
+		W.pickups:spawnGear(z.x, z.z, nil, nil)
 	end
 
 	if z.type == "exploder" then
@@ -121,6 +177,8 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 			"exploder",
 			attacker
 		)
+	elseif attacker and source ~= "perkBlast" and gear and Gear.has(gear, "volatile") and W.rng:chance(0.15) then
+		self:queueExplosion(z.x, z.z, 2.6, 45 * (1 + W.waves.wave * 0.05), 0, 0, "perkBlast", attacker)
 	elseif
 		attacker
 		and source ~= "perkBlast"
@@ -159,6 +217,10 @@ end
 -------------------------------------------------------------- players
 
 function Combat.zombieMeleePlayer(self, z, ps)
+	if ps.isBell then
+		self.W.waves:damageBell(z.damage)
+		return
+	end
 	local knock = if z.type == "brute" then BRUTE.knockback elseif z.type == "boss" then 12 else 2.5
 	self.W.players:damage(ps, z.damage, z.x, z.z, knock, z.type)
 	if z.type == "brute" then

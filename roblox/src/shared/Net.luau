@@ -16,7 +16,7 @@ Net.EVENTS = {
 	"Switch", -- c->s: weaponId | cycle direction
 	"Roll", -- c->s
 	"Ready", -- c->s: lobby / intermission ready toggle
-	"ChoosePerk", -- c->s: perkId
+	"ChooseReward", -- c->s: card index (1..3)
 	"ZombieSpawn", -- s->c: { id, type, x, z }
 	"ZombieDeath", -- s->c: { id, dirX, dirZ }
 	"ZombieHits", -- s->c: { { id, damage, crit } }
@@ -26,7 +26,7 @@ Net.EVENTS = {
 	"StatsSync", -- s->c: derived player stats (speed, stamina...)
 	"Hurt", -- s->c: damage taken + knockback impulse
 	"Notify", -- s->c: toast text
-	"PerkOffer", -- s->c: three perk ids
+	"RewardOffer", -- s->c: three reward cards (RewardRules.Card)
 	"GameOver", -- s->c: end-of-run stats
 	"Adrenaline", -- s->c: stamina refund + speed boost after a kill
 	"Crouch", -- c->s: boolean
@@ -34,6 +34,11 @@ Net.EVENTS = {
 	"DiscardItem", -- c->s: itemId, count
 	"InventorySync", -- s->c: { items, capacity }
 	"OpenStation", -- s->c: station name (merchant / workbench), prompt position x, z
+	"GearSync", -- s->c: { stash, melee, armor, gadgets, guns }
+	"EquipGear", -- c->s: uid, gadget slot?
+	"Melee", -- c->s: aimX, aimZ (one swing)
+	"UseAbility", -- c->s: slot, aimX, aimZ, aimDistance
+	"AbilitySync", -- s->c: { [slot] = ready-at server time }
 }
 Net.UNRELIABLE = { "Snapshot" }
 Net.FUNCTIONS = { "Purchase", "Place", "GetLeaderboard" }
@@ -58,6 +63,8 @@ end
 
 Net.FLAG_BURNING = 1
 Net.FLAG_ENRAGED = 2
+-- Floor elites glow (bit 7, above the type code).
+Net.FLAG_ELITE = 128
 -- Bits 4-6 of the flags byte carry the zombie type code (Config/Zombies.code),
 -- so clients that missed a spawn event (late joiners) can still build the rig.
 Net.TYPE_SHIFT = 16

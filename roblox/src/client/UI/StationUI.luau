@@ -4,10 +4,11 @@
 	ShopRules the server uses (so prices always match); every action is sent
 	to the server, which checks the player's distance and applies it.
 
-	  merchant  - WEAPONS (buy guns, refill ammo), SURVIVOR (medkit and
-	              upgrades), SUPPLIES (materials and bandages)
+	  merchant  - WEAPONS (buy guns, refill ammo), GEAR (melee, armor and
+	              gadgets), SURVIVOR (medkit and upgrades), SUPPLIES
 	  workbench - CRAFT (bandages, pipe bombs, hand-loaded ammo), BUILD
-	              (barricades, turrets, repairs), UPGRADES (weapon upgrades)
+	              (barricades, turrets, repairs), UPGRADES (weapon upgrades),
+	              GEAR (salvage, reinforce, re-roll traits)
 ]]
 local ContextActionService = game:GetService("ContextActionService")
 local Workspace = game:GetService("Workspace")
@@ -18,6 +19,7 @@ local Items = require(Shared.Config.Items)
 local Shop = require(Shared.Config.Shop)
 local ShopRules = require(Shared.ShopRules)
 local Weapons = require(Shared.Config.Weapons)
+local Gear = require(Shared.Gear)
 
 local Context = require(script.Parent.Parent.Context)
 local Audio = require(script.Parent.Parent.Audio)
@@ -32,8 +34,8 @@ local StationUI = {}
 local UPGRADE_LABELS = { damage = "Damage", fireRate = "Fire rate", magazine = "Magazine" }
 
 local TABS = {
-	merchant = { { "weapons", "WEAPONS" }, { "survivor", "SURVIVOR" }, { "supplies", "SUPPLIES" } },
-	workbench = { { "craft", "CRAFT" }, { "build", "BUILD" }, { "upgrade", "UPGRADES" } },
+	merchant = { { "weapons", "WEAPONS" }, { "gearShop", "GEAR" }, { "survivor", "SURVIVOR" }, { "supplies", "SUPPLIES" } },
+	workbench = { { "craft", "CRAFT" }, { "build", "BUILD" }, { "upgrade", "UPGRADES" }, { "gearBench", "GEAR" } },
 }
 
 local TITLES = {
@@ -54,6 +56,32 @@ local function materialsText(items: { [string]: number }?): string
 		end
 	end
 	return table.concat(parts, " · ")
+end
+
+-- Every gear piece the player has: equipped first, then the stash.
+local function allGear(): { any }
+	local g = Context.gear
+	local out = {}
+	if g.melee then
+		table.insert(out, g.melee)
+	end
+	if g.armor then
+		table.insert(out, g.armor)
+	end
+	for _, item in g.gadgets do
+		if item then
+			table.insert(out, item)
+		end
+	end
+	for _, id in Gear.order do
+		if g.guns[id] then
+			table.insert(out, g.guns[id])
+		end
+	end
+	for _, item in g.stash do
+		table.insert(out, item)
+	end
+	return out
 end
 
 -- Client mirror of the server's shop context (read-only; for display).
@@ -91,6 +119,29 @@ local function context()
 		applyPlayerUpgrade = function() end,
 		healFull = function() end,
 		repairStructures = function() end,
+		gear = {
+			find = function(uid: number)
+				for _, item in allGear() do
+					if item.uid == uid then
+						return item
+					end
+				end
+				return nil
+			end,
+			stashFull = function()
+				return #Context.gear.stash >= Gear.STASH_SIZE
+			end,
+			give = function()
+				return true
+			end,
+			remove = function()
+				return true
+			end,
+			newUid = function()
+				return 0
+			end,
+			rng = nil,
+		},
 	}
 end
 
@@ -269,6 +320,61 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 			else
 				local f = card(i, `{def.slot}  {def.name}`, "Owned. Infinite ammo.")
 				f.BackgroundColor3 = Color3.fromRGB(20, 32, 26)
+			end
+		end
+	end
+
+	function renderers.gearShop(c)
+		grid.CellSize = UDim2.new(0.25, -8, 0, 160)
+		local order = 0
+		for _, id in Gear.order do
+			local d = Gear.defs[id]
+			if d.price > 0 then
+				order += 1
+				simpleCard(c, order, d.name, d.description, { kind = "buyGear", id = id }, "BUY")
+			end
+		end
+	end
+
+	function renderers.gearBench(c)
+		grid.CellSize = UDim2.new(0.33, -8, 0, 186)
+		local stashed = {}
+		for _, item in Context.gear.stash do
+			stashed[item.uid] = true
+		end
+		for order, item in allGear() do
+			local f = card(order, Gear.title(item), table.concat(Gear.describe(item), " · "))
+			f.BackgroundColor3 = Color3.fromHex(Gear.rarities[item.rarity].color):Lerp(T.panel, 0.85)
+			local reinforce = { kind = "reinforce", uid = item.uid }
+			local ro = ShopRules.getOffer(c, reinforce)
+			rowWith(
+				f,
+				5,
+				`+0.1 power · {materialsText(ro.items)}`,
+				actionButton(c, ro, "REINFORCE", function()
+					act(reinforce)
+				end)
+			)
+			local reroll = { kind = "reroll", uid = item.uid }
+			local rr = ShopRules.getOffer(c, reroll)
+			rowWith(
+				f,
+				6,
+				`New trait · {materialsText(rr.items)}`,
+				actionButton(c, rr, "RE-ROLL", function()
+					act(reroll)
+				end)
+			)
+			if stashed[item.uid] then
+				local salvage = { kind = "salvage", uid = item.uid }
+				rowWith(
+					f,
+					7,
+					`→ {materialsText(Gear.salvageValue(item))}`,
+					actionButton(c, ShopRules.getOffer(c, salvage), "SALVAGE", function()
+						act(salvage)
+					end)
+				)
 			end
 		end
 	end
@@ -492,7 +598,12 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 		end
 	end
 
-	for _, sig in { Context.signals.arsenalChanged, Context.signals.statsChanged, Context.signals.inventoryChanged } do
+	for _, sig in {
+		Context.signals.arsenalChanged,
+		Context.signals.statsChanged,
+		Context.signals.inventoryChanged,
+		Context.signals.gearChanged,
+	} do
 		sig:connect(function()
 			if self.open then
 				render()

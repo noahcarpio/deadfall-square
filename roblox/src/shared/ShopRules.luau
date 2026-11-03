@@ -14,6 +14,7 @@
 local Shop = if script then require(script.Parent.Config.Shop) else require("./Config/Shop")
 local Weapons = if script then require(script.Parent.Config.Weapons) else require("./Config/Weapons")
 local Items = if script then require(script.Parent.Config.Items) else require("./Config/Items")
+local Gear = if script then require(script.Parent.Gear) else require("./Gear")
 
 export type Action = {
 	kind: string, -- see STATION below
@@ -21,6 +22,7 @@ export type Action = {
 	upgrade: string?,
 	id: string?,
 	structure: string?,
+	uid: number?, -- gear piece for salvage / reinforce / reroll
 }
 
 export type Offer = {
@@ -39,6 +41,10 @@ local STATION: { [string]: string } = {
 	playerUpgrade = "merchant",
 	heal = "merchant",
 	buyItem = "merchant",
+	buyGear = "merchant",
+	salvage = "workbench",
+	reinforce = "workbench",
+	reroll = "workbench",
 	weaponUpgrade = "workbench",
 	craft = "workbench",
 	handload = "workbench",
@@ -59,6 +65,15 @@ export type Context = {
 	applyPlayerUpgrade: (string) -> (),
 	healFull: () -> (),
 	repairStructures: () -> (),
+	-- Gear access (stash, equipped and gun gear); optional for contexts without gear.
+	gear: {
+		find: (number) -> Gear.Item?,
+		stashFull: () -> boolean,
+		give: (Gear.Item) -> boolean,
+		remove: (number) -> boolean,
+		newUid: () -> number,
+		rng: any,
+	}?,
 }
 
 local function offer(cost: number, available: boolean, reason: string, tier: number, maxTier: number): Offer
@@ -167,6 +182,39 @@ local function getOffer(ctx: Context, a: Action): Offer
 			o.reason = "BAG FULL"
 		end
 		return o
+	elseif a.kind == "buyGear" then
+		local d = Gear.defs[a.id :: string]
+		if d == nil or d.price <= 0 then
+			return offer(0, false, "INVALID", 0, 0)
+		end
+		if not ctx.gear or ctx.gear.stashFull() then
+			return offer(d.price, false, "STASH FULL", 0, 0)
+		end
+		return offer(d.price, true, "", 0, 0)
+	elseif a.kind == "salvage" or a.kind == "reinforce" or a.kind == "reroll" then
+		local item = if ctx.gear and a.uid then ctx.gear.find(a.uid) else nil
+		if not item then
+			return offer(0, false, "INVALID", 0, 0)
+		end
+		if a.kind == "salvage" then
+			return offer(0, true, "", 0, 0)
+		elseif a.kind == "reinforce" then
+			if item.power >= 3 then
+				return offer(0, false, "MAX", 0, 0)
+			end
+			local coins, mats = Gear.reinforceCost(item)
+			local o = offer(coins, true, "", 0, 0)
+			o.items = mats
+			return o
+		else
+			if item.rarity == "common" or #item.traits == 0 then
+				return offer(0, false, "NO TRAITS", 0, 0)
+			end
+			local coins, mats = Gear.rerollCost(item)
+			local o = offer(coins, true, "", 0, 0)
+			o.items = mats
+			return o
+		end
 	elseif a.kind == "structure" then
 		local def = Shop.structures[a.structure :: string]
 		if def == nil then
@@ -238,6 +286,24 @@ local function purchase(ctx: Context, a: Action): boolean
 		ctx.inventory:add(recipe.item, recipe.count)
 	elseif a.kind == "repair" then
 		ctx.repairStructures()
+	elseif a.kind == "buyGear" then
+		local g = ctx.gear :: any
+		g.give(Gear.common(a.id :: string, g.newUid()))
+	elseif a.kind == "salvage" then
+		local g = ctx.gear :: any
+		local item = g.find(a.uid) :: Gear.Item
+		if not g.remove(item.uid) then
+			return false -- equipped pieces can't be salvaged
+		end
+		for id, n in Gear.salvageValue(item) do
+			ctx.inventory:add(id, n)
+		end
+	elseif a.kind == "reinforce" then
+		local item = (ctx.gear :: any).find(a.uid) :: Gear.Item
+		item.power = math.floor((item.power + 0.1) * 100 + 0.5) / 100
+	elseif a.kind == "reroll" then
+		local g = ctx.gear :: any
+		Gear.rerollTrait(g.rng, g.find(a.uid))
 	end
 	return true
 end

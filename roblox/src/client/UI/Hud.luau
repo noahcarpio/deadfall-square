@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ArenaLayout = require(Shared.ArenaLayout)
+local Floors = require(Shared.Config.Floors)
 local Constants = require(Shared.Config.Constants)
 local Perks = require(Shared.Config.Perks)
 local Weapons = require(Shared.Config.Weapons)
@@ -416,19 +417,26 @@ function Hud.start(gui: ScreenGui)
 			return
 		end
 		if fxKind == "waveStart" then
+			local total = Context.gameState:GetAttribute("Floors") or Floors.FLOORS
+			local objective = Floors.objectives[data.objective or "clear"] or Floors.objectives.clear
+			local modifier = Floors.modifiers[data.modifier or "none"] or Floors.modifiers.none
+			local sub = objective.description
+			if modifier.name ~= "" then
+				sub = `{modifier.name}: {modifier.description}  ·  {sub}`
+			end
 			if data.boss then
-				showBanner(`WAVE {data.wave}`, "BOSS INCOMING — watch for red warnings!", T.boss, 3)
-			else
 				showBanner(
-					`WAVE {data.wave}`,
-					if data.wave == 1 then "Survive the horde" else "They keep coming…",
-					Color3.fromRGB(255, 217, 207),
-					2.4
+					if data.wave >= total then "FINAL FLOOR" else `FLOOR {data.wave}`,
+					"BOSS — watch for red warnings!",
+					T.boss,
+					3
 				)
+			else
+				showBanner(`FLOOR {data.wave} — {objective.name:upper()}`, sub, Color3.fromRGB(255, 217, 207), 3.2)
 			end
 			Audio.play("waveStart")
 		elseif fxKind == "waveClear" then
-			showBanner(`WAVE {data.wave} CLEARED`, `+{data.bonus} coins bonus`, T.accent, 3)
+			showBanner(`FLOOR {data.wave} CLEARED`, `+{data.bonus} coins bonus`, T.accent, 3)
 			Audio.play("waveClear")
 		end
 	end)
@@ -468,15 +476,36 @@ function Hud.start(gui: ScreenGui)
 		local remaining = gs:GetAttribute("Remaining") or 0
 		local phaseEnd = gs:GetAttribute("PhaseEnd") or 0
 		local secs = math.max(0, math.ceil(phaseEnd - Workspace:GetServerTimeNow()))
+		local floors = gs:GetAttribute("Floors") or Floors.FLOORS
+		local objective = Floors.objectives[gs:GetAttribute("Objective") or "clear"] or Floors.objectives.clear
+		local modifier = Floors.modifiers[gs:GetAttribute("Modifier") or "none"] or Floors.modifiers.none
+		local modText = if modifier.name ~= "" then ` · {modifier.name}` else ""
 		if phase == "countdown" then
-			waveLabel.Text = `WAVE {wave + 1}`
-			waveSub.Text = `Starting in {secs}`
+			waveLabel.Text = `FLOOR {wave + 1} / {floors}`
+			waveSub.Text = `{objective.name}{modText} — starting in {secs}`
 		elseif phase == "wave" then
-			waveLabel.Text = `WAVE {wave}`
-			waveSub.Text = `{remaining} zombie{if remaining == 1 then "" else "s"} remaining`
+			waveLabel.Text = `FLOOR {wave} / {floors}`
+			local objectiveId = gs:GetAttribute("Objective")
+			if objectiveId == "holdout" then
+				local t = math.ceil(gs:GetAttribute("TimeLeft") or 0)
+				waveSub.Text = `Hold out: {t}s{modText}`
+			elseif objectiveId == "defend" then
+				local bellHp = gs:GetAttribute("BellHp") or 0
+				waveSub.Text = `Bell {math.max(0, math.floor(bellHp * 100 + 0.5))}% · {remaining} left{modText}`
+			elseif objectiveId == "elite" then
+				local eliteHp = gs:GetAttribute("EliteHp") or -1
+				waveSub.Text = if eliteHp >= 0
+					then `Elite {math.floor(eliteHp * 100 + 0.5)}%{modText}`
+					else `The elite is coming…{modText}`
+			else
+				waveSub.Text = `{remaining} zombie{if remaining == 1 then "" else "s"} remaining{modText}`
+			end
+		elseif phase == "reward" then
+			waveLabel.Text = `FLOOR {wave} CLEARED`
+			waveSub.Text = `Choose a reward ({secs}s)`
 		elseif phase == "intermission" then
-			waveLabel.Text = `WAVE {wave} CLEARED`
-			waveSub.Text = `Grace period: {secs}s — merchant & workbench open`
+			waveLabel.Text = `FLOOR {wave} CLEARED`
+			waveSub.Text = `Grace period: {secs}s — next: {objective.name}{modText}`
 		end
 		local bossId = gs:GetAttribute("BossId") or 0
 		bossFrame.Visible = bossId ~= 0 and phase == "wave"

@@ -13,7 +13,11 @@ export type WeaponState = {
 	mag: number,
 	reserve: number,
 	upgrades: { damage: number, fireRate: number, magazine: number },
+	-- Gear attuned to this gun (rarity, power, traits); nil for a plain gun.
+	gear: GunGear?,
 }
+
+export type GunGear = { uid: number, rarity: string, power: number, traits: { string } }
 
 local Arsenal = {}
 Arsenal.__index = Arsenal
@@ -25,13 +29,17 @@ export type Arsenal = typeof(setmetatable(
 		reloadEnd: number,
 		reloadDuration: number,
 		nextShot: number,
+		rateMul: number,
 	},
 	Arsenal
 ))
 
 function Arsenal.new(): Arsenal
 	local self =
-		setmetatable({ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0 }, Arsenal)
+		setmetatable(
+			{ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0, rateMul = 1 },
+			Arsenal
+		)
 	self:give("pistol")
 	return self
 end
@@ -189,7 +197,7 @@ function Arsenal.tryFire(
 		return "blocked"
 	end
 	local w = self:currentState()
-	local interval = 1 / Weapons.fireRateOf(Weapons.defs[w.id], w.upgrades)
+	local interval = 1 / (Weapons.fireRateOf(Weapons.defs[w.id], w.upgrades) * self:rateBonus(w))
 	if now < self.nextShot - interval * tolerance then
 		return "blocked"
 	end
@@ -204,6 +212,30 @@ function Arsenal.tryFire(
 		self:startReload(now + interval, reloadSpeed)
 	end
 	return "fired"
+end
+
+-- Fire-rate multiplier from the gun's gear ("Rapid") and temporary boosts.
+function Arsenal.rateBonus(self: Arsenal, w: WeaponState): number
+	local k = self.rateMul
+	if w.gear and table.find(w.gear.traits, "rapid") then
+		k *= 1.15
+	end
+	return k
+end
+
+-- Damage multiplier from the gun's gear power.
+function Arsenal.powerOf(self: Arsenal, id: string): number
+	local w = self.owned[id]
+	return if w and w.gear then w.gear.power else 1
+end
+
+-- Attunes gear to a gun (giving the gun if it isn't owned yet).
+function Arsenal.attune(self: Arsenal, id: string, gear: GunGear)
+	if not self.owned[id] then
+		self:give(id)
+	end
+	local w = self.owned[id]
+	w.gear = { uid = gear.uid, rarity = gear.rarity, power = gear.power, traits = table.clone(gear.traits) }
 end
 
 -- Reloads every weapon from reserve (free top-up between waves).
@@ -226,6 +258,7 @@ function Arsenal.serialize(self: Arsenal): { [string]: any }
 			mag = w.mag,
 			reserve = if w.reserve == math.huge then -1 else w.reserve,
 			upgrades = table.clone(w.upgrades),
+			gear = w.gear,
 		}
 	end
 	return {
@@ -233,6 +266,7 @@ function Arsenal.serialize(self: Arsenal): { [string]: any }
 		weapons = weapons,
 		reloadEnd = self.reloadEnd,
 		reloadDuration = self.reloadDuration,
+		rateMul = self.rateMul,
 	}
 end
 
@@ -244,11 +278,13 @@ function Arsenal.applySerialized(self: Arsenal, data: { [string]: any })
 			mag = w.mag,
 			reserve = if w.reserve < 0 then math.huge else w.reserve,
 			upgrades = { damage = w.upgrades.damage, fireRate = w.upgrades.fireRate, magazine = w.upgrades.magazine },
+			gear = w.gear,
 		}
 	end
 	self.current = data.current
 	self.reloadEnd = data.reloadEnd
 	self.reloadDuration = data.reloadDuration
+	self.rateMul = data.rateMul or self.rateMul
 end
 
 return Arsenal

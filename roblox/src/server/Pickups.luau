@@ -1,5 +1,6 @@
 --[[
-	Loot dropped by zombies: ammo, health, armor, coin bags and weapon crates.
+	Loot dropped by zombies: ammo, health, armor, coin bags, weapon crates and
+	gear (rarity-coloured, with a light beam; goes to the finder's stash).
 	Pickups are anchored server parts (few at a time); clients animate them.
 ]]
 local CollectionService = game:GetService("CollectionService")
@@ -10,6 +11,7 @@ local Constants = require(Shared.Config.Constants)
 local Visuals = require(Shared.Config.Visuals)
 local MeshLibrary = require(Shared.MeshLibrary)
 local Weapons = require(Shared.Config.Weapons)
+local Gear = require(Shared.Gear)
 
 local S = Constants.STUDS
 local LIFETIME = 22
@@ -99,15 +101,17 @@ local function blockModel(kind: string): BasePart
 	return part
 end
 
-local function makeModel(kind: string, weapon: string?): BasePart
-	local part: BasePart = MeshLibrary.clone("Pickup_" .. kind) or blockModel(kind)
+local function makeModel(kind: string, weapon: string?, gearItem: Gear.Item?): BasePart
+	local meshKind = if kind == "gear" then "weapon" else kind
+	local part: BasePart = MeshLibrary.clone("Pickup_" .. meshKind) or blockModel(meshKind)
+	local color = if gearItem then Color3.fromHex(Gear.rarities[gearItem.rarity].color) else COLORS[kind]
 	part.Name = "Pickup"
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
 	local light = Instance.new("PointLight")
-	light.Color = COLORS[kind]
+	light.Color = color
 	light.Range = 8
 	light.Brightness = 1.2
 	light.Parent = part
@@ -121,9 +125,28 @@ local function makeModel(kind: string, weapon: string?): BasePart
 	label.Size = UDim2.fromScale(1, 1)
 	label.Font = Enum.Font.GothamBold
 	label.TextScaled = true
-	label.TextColor3 = COLORS[kind]
+	label.TextColor3 = color
 	label.TextStrokeTransparency = 0.4
-	label.Text = if kind == "weapon" and weapon then Weapons.defs[weapon].name:upper() else kind:upper()
+	label.Text = if gearItem
+		then Gear.title(gearItem):upper()
+		elseif kind == "weapon" and weapon then Weapons.defs[weapon].name:upper()
+		else kind:upper()
+	if gearItem then
+		-- A tall beam so gear is easy to spot from the top-down camera.
+		local beam = Instance.new("Part")
+		beam.Name = "Beam"
+		beam.Anchored = true
+		beam.CanCollide = false
+		beam.CanQuery = false
+		beam.CanTouch = false
+		beam.Material = Enum.Material.Neon
+		beam.Color = color
+		beam.Transparency = 0.55
+		beam.Shape = Enum.PartType.Cylinder
+		beam.Size = Vector3.new(6 * S, 0.25 * S, 0.25 * S)
+		beam.Parent = part
+		part:SetAttribute("Beam", true)
+	end
 	label.Parent = gui
 	gui.Parent = part
 	part:SetAttribute("Kind", kind)
@@ -148,6 +171,20 @@ function Pickups.spawn(self, kind: string, x: number, z: number, ps)
 	table.insert(self.list, { kind = kind, weapon = weapon, x = x, z = z, life = LIFETIME, part = part })
 end
 
+-- Drops a gear piece (rolled for the current floor) at (x, z).
+function Pickups.spawnGear(self, x: number, z: number, kind: string?, minRarity: string?)
+	local W = self.W
+	local item = Gear.roll(W.rng, math.max(1, W.waves.wave), 0, kind, minRarity)
+	local part = makeModel("gear", nil, item)
+	part.Position = Vector3.new(x * S, 1.4 * S, z * S)
+	local beam = part:FindFirstChild("Beam") :: BasePart?
+	if beam then
+		beam.CFrame = CFrame.new(x * S, 3 * S, z * S) * CFrame.Angles(0, 0, math.pi / 2)
+	end
+	part.Parent = self.folder
+	table.insert(self.list, { kind = "gear", item = item, x = x, z = z, life = 60, part = part })
+end
+
 -- Applies a pickup to a player. Returns false if it should stay on the ground.
 function Pickups.collect(self, p, ps): boolean
 	local W = self.W
@@ -170,6 +207,13 @@ function Pickups.collect(self, p, ps): boolean
 		end
 		W.players:syncArsenal(ps)
 		label = "AMMO"
+	elseif p.kind == "gear" then
+		local item = table.clone(p.item)
+		item.uid = W.players:newUid(ps)
+		if not W.players:giveGear(ps, item) then
+			return false -- stash full: leave it for someone else
+		end
+		label = `{Gear.title(item):upper()} → STASH`
 	elseif p.kind == "coins" then
 		local amount = math.floor(W.rng:int(12, 22) * (1 + W.waves.wave * 0.08) * ps.economy.coinMultiplier + 0.5)
 		ps.economy:addCoins(amount)
@@ -208,6 +252,10 @@ function Pickups.update(self, dt: number)
 			p.x += (best.x - p.x) / math.max(bestD, 1e-3) * step
 			p.z += (best.z - p.z) / math.max(bestD, 1e-3) * step
 			p.part.Position = Vector3.new(p.x * S, 1.4 * S, p.z * S)
+			local beam = p.part:FindFirstChild("Beam") :: BasePart?
+			if beam then
+				beam.CFrame = CFrame.new(p.x * S, 3 * S, p.z * S) * CFrame.Angles(0, 0, math.pi / 2)
+			end
 			if bestD < 1.0 and self:collect(p, best) then
 				p.part:Destroy()
 				table.remove(self.list, i)

@@ -30,27 +30,33 @@ export type Stats = {
 	dropChance: number,
 	magnetRadius: number,
 	carryCapacity: number,
+	hazardTaken: number, -- acid and fire damage multiplier
 }
 
 export type Tiers = { maxHealth: number, armor: number, speed: number, stamina: number, backpack: number? }
 
 type PerkLevels = { level: (any, string) -> number, has: (any, string) -> boolean }
 
-local function compute(tiers: Tiers, perks: PerkLevels): Stats
+-- Equipped-armor effects (Gear.bonus); optional.
+export type GearBonus = { defense: number, speed: number, hazard: number, drop: number, carry: number }
+
+local function compute(tiers: Tiers, perks: PerkLevels, gear: GearBonus?): Stats
+	local g: GearBonus = gear or { defense = 0, speed = 0, hazard = 0, drop = 0, carry = 0 }
 	local e = Shop.effects
 	local marathon = perks:has("marathon")
 	return {
 		maxHealth = BASE.maxHealth + e.maxHealthPerTier * tiers.maxHealth,
 		maxArmor = BASE.maxArmor + e.armorPerTier * tiers.armor,
-		speed = BASE.speed * (1 + e.speedPerTier * tiers.speed),
+		speed = BASE.speed * (1 + e.speedPerTier * tiers.speed + g.speed),
 		maxStamina = BASE.maxStamina * (1 + e.staminaPerTier * tiers.stamina + (if marathon then 0.4 else 0)),
 		staminaRegen = BASE.staminaRegen * (1 + 0.25 * tiers.stamina + (if marathon then 0.3 else 0)),
 		rollCost = BASE.rollCost * (if marathon then 0.7 else 1),
-		damageTaken = 0.88 ^ perks:level("thickSkin"),
+		damageTaken = 0.88 ^ perks:level("thickSkin") * (1 - g.defense),
 		reloadSpeed = 1 + 0.3 * perks:level("quickHands"),
-		dropChance = 1 + 0.5 * perks:level("scavenger"),
+		dropChance = 1 + 0.5 * perks:level("scavenger") + g.drop,
 		magnetRadius = 2.5 + 1.5 * perks:level("scavenger"),
-		carryCapacity = Items.BASE_CAPACITY + Items.CAPACITY_PER_BACKPACK * (tiers.backpack or 0),
+		carryCapacity = Items.BASE_CAPACITY + Items.CAPACITY_PER_BACKPACK * (tiers.backpack or 0) + g.carry,
+		hazardTaken = 1 - g.hazard,
 	}
 end
 

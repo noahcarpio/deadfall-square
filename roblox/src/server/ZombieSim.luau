@@ -60,6 +60,8 @@ function ZombieSim.new(W)
 		goalsVersion = 0,
 		spotted = {} :: { [any]: boolean },
 		heard = {},
+		homeX = PLAZA_X,
+		homeZ = PLAZA_Z,
 	}, ZombieSim)
 	for id = MAX, 1, -1 do
 		table.insert(self.free, id)
@@ -76,6 +78,12 @@ function ZombieSim.clear(self)
 	table.clear(self.goals)
 	self.goalsVersion += 1
 	self.aliveCount = 0
+end
+
+-- Where new arrivals head first (the plaza, or the bell on a defend floor); nil resets.
+function ZombieSim.setHome(self, x: number?, z: number?)
+	self.homeX = x or PLAZA_X
+	self.homeZ = z or PLAZA_Z
 end
 
 -- Registers (or refreshes) a point of interest for investigating zombies.
@@ -206,8 +214,8 @@ function ZombieSim.spawn(self, ztype: string, x: number, z: number, scaling)
 		modeTime = 0,
 		lostTime = 0,
 		senseTimer = rng:next() * 0.25,
-		goalX = PLAZA_X + rng:range(-4, 4),
-		goalZ = PLAZA_Z + rng:range(-3, 3),
+		goalX = self.homeX + rng:range(-4, 4),
+		goalZ = self.homeZ + rng:range(-3, 3),
 		goalLos = false,
 		wanderTimer = 0,
 		wanderX = 0,
@@ -215,7 +223,7 @@ function ZombieSim.spawn(self, ztype: string, x: number, z: number, scaling)
 		pace = 1,
 	}
 	table.insert(self.list, zombie)
-	self:addGoal(PLAZA_X, PLAZA_Z)
+	self:addGoal(self.homeX, self.homeZ)
 	self.byId[id] = zombie
 	self.aliveCount += 1
 	self.W.remotes.ZombieSpawn:FireAllClients(id, ztype, x, z)
@@ -352,9 +360,13 @@ local function faceTarget(z): number
 	return math.atan2(t.x - z.x, t.z - z.z)
 end
 
+-- Clock for this update (slows from "Chilling" gear, stuns from the Shock Beacon).
+local clockNow = 0
+
 local function move(z, factor: number)
-	out.x = z.dirX * z.speed * factor * z.pace
-	out.z = z.dirZ * z.speed * factor * z.pace
+	local slow = if z.slowUntil and z.slowUntil > clockNow then 0.6 else 1
+	out.x = z.dirX * z.speed * factor * z.pace * slow
+	out.z = z.dirZ * z.speed * factor * z.pace * slow
 end
 
 local function tryMelee(_W, z, edge: number): boolean
@@ -594,7 +606,8 @@ local function sense(W, z, dt: number)
 	end
 	z.senseTimer = 0.25
 	local night = W.night or 0
-	local sight = Stealth.SIGHT_DAY + (Stealth.SIGHT_NIGHT - Stealth.SIGHT_DAY) * night
+	local sight = (Stealth.SIGHT_DAY + (Stealth.SIGHT_NIGHT - Stealth.SIGHT_DAY) * night)
+		* (if W.waves and W.waves.active then W.waves.modifier.sight else 1)
 	local fx, fz = math.sin(z.facing), math.cos(z.facing)
 	local seen = nil
 	for _, ps in W.targets do
@@ -777,6 +790,7 @@ end
 
 function ZombieSim.update(self, dt: number)
 	local W = self.W
+	clockNow = os.clock()
 	table.clear(self.spotted)
 	self:rebuildHash()
 	local ids = self.near
@@ -800,6 +814,12 @@ function ZombieSim.update(self, dt: number)
 		if z.burnTime > 0 then
 			z.burnTime -= dt
 			W.combat:applyBurn(z, dt)
+			if z.dying then
+				continue
+			end
+		end
+		if z.bleedTime and z.bleedTime > 0 then
+			W.combat:applyBleed(z, dt)
 			if z.dying then
 				continue
 			end
@@ -897,6 +917,9 @@ function ZombieSim.sendSnapshot(self)
 			end
 			if z.enraged then
 				flags += Net.FLAG_ENRAGED
+			end
+			if z.elite then
+				flags += Net.FLAG_ELITE
 			end
 			flags += ZombiesConfig.code[z.type] * Net.TYPE_SHIFT
 			table.insert(records, {

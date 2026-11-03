@@ -2,13 +2,18 @@
 	Server entry point: builds the arena and every gameplay service, wires the
 	remotes, and runs the co-op game loop:
 
-	  lobby --(everyone ready)--> countdown --> wave --(cleared)--> intermission
-	    ^                                        |                     |
-	    +---- gameover <--(everyone downed)------+     <--(bell/timer)-+
+	  lobby --(everyone ready)--> countdown --> wave (a floor of the climb)
+	    ^                            ^             | floor done
+	    |                            |             v
+	    |                       intermission <-- reward (pick 1 of 3 cards)
+	    |                       (bell/timer)       |
+	    +-- gameover <-- everyone downed, or the top floor is cleared (victory)
 
-	The intermission is a 30-second grace period: the merchant, workbench and
-	alarm bell in the plaza open, containers restock, and players walk around
-	to trade, craft, loot and build.
+	Each "wave" is a floor of the tower climb (Config/Floors, FloorPlan) with
+	an objective and a modifier. After a floor everyone picks a reward card
+	(RewardRules), then the 30-second grace period opens the merchant,
+	workbench and alarm bell, containers restock, and players trade, craft,
+	loot, equip gear and build.
 
 	Shared state for the HUD is published as attributes on
 	ReplicatedStorage.GameState.
@@ -22,6 +27,10 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Waves = require(Shared.Config.Waves)
+local Floors = require(Shared.Config.Floors)
+local FloorPlan = require(Shared.FloorPlan)
+local Gear = require(Shared.Gear)
+local RewardRules = require(Shared.RewardRules)
 local Collision = require(Shared.Collision)
 local FlowField = require(Shared.FlowField)
 local MathUtil = require(Shared.Util.MathUtil)
@@ -182,6 +191,7 @@ function GameServer.start()
 		W.combat:reset()
 		W.structures:clear()
 		W.waves:reset()
+		W.waves.plan = FloorPlan.build(W.rng)
 		W.players:resetAll()
 		W.throwables:clear()
 		W.loot:restock(1, true)
@@ -189,10 +199,55 @@ function GameServer.start()
 		setPhase("countdown", Constants.COUNTDOWN_SECONDS)
 	end
 
+	local gameOver: (boolean) -> ()
+
+	-- Applies a reward card to a player.
+	local function applyReward(ps, card)
+		if card.kind == "gear" and card.item then
+			if not W.players:giveGear(ps, card.item) then
+				-- Stash full: salvage it straight into materials.
+				for id, n in Gear.salvageValue(card.item) do
+					ps.inventory:add(id, n)
+				end
+				W.players:syncInventory(ps)
+				W.notify(ps.player, "Stash full — the gear was salvaged into materials", "info")
+			end
+		elseif card.kind == "perk" and card.perk and ps.perks:canTake(card.perk) then
+			ps.perks:add(card.perk)
+			W.players:refreshStats(ps)
+		elseif card.kind == "coins" then
+			ps.economy:addCoins(card.amount or 0)
+		elseif card.kind == "supplies" and card.supplies then
+			for id, n in card.supplies do
+				ps.inventory:add(id, n)
+			end
+			W.players:syncInventory(ps)
+		elseif card.kind == "heal" then
+			ps.hp = ps.stats.maxHealth
+			ps.armor = ps.stats.maxArmor
+		end
+		ps.rewardOffer = {}
+		W.players:syncAttributes()
+	end
+
+	local function startGrace()
+		for _, ps in W.players:list() do
+			if #ps.rewardOffer > 0 then
+				applyReward(ps, ps.rewardOffer[1]) -- didn't choose in time
+			end
+		end
+		setPhase("intermission", Constants.INTERMISSION_SECONDS)
+	end
+
 	local function onWaveCleared()
-		local wave = W.waves.wave
-		local bonus = Waves.clearBonus(wave)
-		local perkWave = Waves.isPerkWave(wave)
+		local floor = W.waves.wave
+		if floor >= Floors.FLOORS then
+			gameOver(true)
+			return
+		end
+		local info = W.waves:floorInfo(floor)
+		local bonus = math.floor(Waves.clearBonus(floor) * W.waves.modifier.coins + 0.5)
+		local rewarded = not W.waves.bellBroken
 		for _, ps in W.players:list() do
 			ps.economy:addCoins(bonus)
 			if ps.downed then
@@ -201,20 +256,31 @@ function GameServer.start()
 			ps.arsenal:reloadAll()
 			ps.ready = false
 			W.players:syncArsenal(ps)
-			if perkWave then
-				ps.perkOffer = ps.perks:rollChoices(W.rng, 3)
-				if #ps.perkOffer > 0 then
-					remotes.PerkOffer:FireClient(ps.player, ps.perkOffer)
-				end
+			ps.rewardOffer = {}
+			if rewarded then
+				ps.rewardOffer = RewardRules.roll(
+					W.rng,
+					floor,
+					info ~= nil and info.boss,
+					ps.perks:rollChoices(W.rng, 2),
+					function()
+						return W.players:newUid(ps)
+					end
+				)
+				remotes.RewardOffer:FireClient(ps.player, ps.rewardOffer)
 			end
 		end
 		W.pickups.vacuum = true
-		W.loot:restock(wave + 1, false)
-		W.fx("waveClear", { wave = wave, bonus = bonus })
-		setPhase("intermission", Constants.INTERMISSION_SECONDS)
+		W.loot:restock(floor + 1, false)
+		W.fx("waveClear", { wave = floor, bonus = bonus })
+		if rewarded then
+			setPhase("reward", Floors.REWARD_SECONDS)
+		else
+			startGrace()
+		end
 	end
 
-	local function gameOver()
+	gameOver = function(victory: boolean)
 		local wave = W.waves.wave
 		local team = {}
 		for _, ps in W.players:list() do
@@ -233,8 +299,9 @@ function GameServer.start()
 		for _, ps in W.players:list() do
 			leaderboard:submit(ps.userId, ps.economy.score)
 			remotes.GameOver:FireClient(ps.player, {
+				victory = victory,
 				score = ps.economy.score,
-				wavesSurvived = math.max(0, wave - 1),
+				wavesSurvived = if victory then wave else math.max(0, wave - 1),
 				kills = ps.kills,
 				accuracy = if ps.shotsFired > 0 then math.min(1, ps.shotsHit / ps.shotsFired) else 0,
 				timePlayed = os.clock() - runStart,
@@ -337,12 +404,16 @@ function GameServer.start()
 			ps.ready = value
 		end
 	end)
-	remotes.ChoosePerk.OnServerEvent:Connect(function(player, id)
+	remotes.ChooseReward.OnServerEvent:Connect(function(player, index)
 		local ps = stateOf(player)
-		if ps and type(id) == "string" and table.find(ps.perkOffer, id) and ps.perks:canTake(id) then
-			ps.perks:add(id)
-			ps.perkOffer = {}
-			W.players:refreshStats(ps)
+		if ps and phase == "reward" and type(index) == "number" and ps.rewardOffer[index] then
+			applyReward(ps, ps.rewardOffer[index])
+		end
+	end)
+	remotes.EquipGear.OnServerEvent:Connect(function(player, uid, slot)
+		local ps = stateOf(player)
+		if ps and phase ~= "lobby" and type(uid) == "number" and (slot == nil or type(slot) == "number") then
+			W.players:equipGear(ps, uid, slot)
 		end
 	end)
 
@@ -371,6 +442,24 @@ function GameServer.start()
 			repairStructures = function()
 				W.structures:repairFor(ps)
 			end,
+			gear = {
+				find = function(uid: number)
+					return W.players:findGear(ps, uid)
+				end,
+				stashFull = function()
+					return #ps.gear.stash >= Gear.STASH_SIZE
+				end,
+				give = function(item)
+					return W.players:giveGear(ps, item)
+				end,
+				remove = function(uid: number)
+					return W.players:removeGear(ps, uid)
+				end,
+				newUid = function()
+					return W.players:newUid(ps)
+				end,
+				rng = W.rng,
+			},
 		}
 	end
 
@@ -385,6 +474,7 @@ function GameServer.start()
 			upgrade = if type(action.upgrade) == "string" then action.upgrade else nil,
 			id = if type(action.id) == "string" then action.id else nil,
 			structure = if type(action.structure) == "string" then action.structure else nil,
+			uid = if type(action.uid) == "number" then action.uid else nil,
 		}
 		local station = ShopRules.STATION[clean.kind]
 		if not station or not W.stations:near(ps, station) then
@@ -393,6 +483,11 @@ function GameServer.start()
 		local ok = ShopRules.purchase(shopContext(ps) :: any, clean)
 		if ok then
 			W.players:syncInventory(ps)
+			if clean.uid then
+				-- Reinforced / re-rolled gear may be equipped: refresh everything that reads it.
+				W.players:refreshStats(ps)
+				W.players:syncGear(ps)
+			end
 			if clean.kind == "buyWeapon" then
 				W.players:updateGunModel(ps)
 			end
@@ -498,13 +593,18 @@ function GameServer.start()
 		Lighting.ExposureCompensation = -0.1 * n
 		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128):Lerp(Color3.fromRGB(40, 46, 70), n)
 		Lighting.Ambient = Color3.fromRGB(70, 70, 70):Lerp(Color3.fromRGB(14, 16, 26), n)
-		atmosphere.Density = 0.3 + n * 0.22
+		-- Floor modifiers: Thick Fog thickens the air, Blood Moon tints everything red.
+		local m = if phase == "wave" then W.waves.modifier else Floors.modifiers.none
+		atmosphere.Density = 0.3 + n * 0.22 + m.fog
 		atmosphere.Haze = 1 + n
 		atmosphere.Color = if n < 0.45
 			then DAY_FOG:Lerp(DUSK_FOG, n / 0.45)
 			else DUSK_FOG:Lerp(NIGHT_FOG, (n - 0.45) / 0.55)
 		local g = Visuals.GRADE
 		grade.TintColor = g.dayTint:Lerp(g.nightTint, n)
+		if m.id == "bloodMoon" then
+			grade.TintColor = grade.TintColor:Lerp(Color3.fromRGB(255, 120, 110), 0.45)
+		end
 		grade.Contrast = lerp(g.contrast, n)
 		grade.Saturation = lerp(g.saturation, n)
 		grade.Brightness = lerp(g.brightness, n)
@@ -571,6 +671,10 @@ function GameServer.start()
 
 		W.players:tick(dt, night)
 		W.targets = W.players:targets()
+		local bell = W.waves:extraTargets()
+		if bell then
+			table.insert(W.targets, bell)
+		end
 
 		if phase == "lobby" then
 			if everyoneReady() then
@@ -580,14 +684,30 @@ function GameServer.start()
 			if now >= phaseEnd then
 				W.pickups.vacuum = false
 				W.waves:start(W.players:count())
-				W.fx("waveStart", { wave = W.waves.wave, boss = Waves.isBossWave(W.waves.wave) })
+				local info = W.waves:floorInfo()
+				W.fx("waveStart", {
+					wave = W.waves.wave,
+					boss = info ~= nil and info.boss,
+					objective = W.waves.objective,
+					modifier = W.waves.modifier.id,
+				})
 				setPhase("wave")
+				applyNight(night)
+			end
+		elseif phase == "reward" then
+			local waiting = false
+			for _, ps in W.players:list() do
+				if #ps.rewardOffer > 0 then
+					waiting = true
+				end
+			end
+			if now >= phaseEnd or not waiting then
+				startGrace()
 			end
 		elseif phase == "intermission" then
 			if now >= phaseEnd or everyoneReady() then
 				for _, ps in W.players:list() do
 					ps.ready = false
-					ps.perkOffer = {}
 				end
 				setPhase("countdown", Constants.COUNTDOWN_SECONDS)
 			end
@@ -612,7 +732,7 @@ function GameServer.start()
 				if W.waves:update(dt) then
 					onWaveCleared()
 				elseif W.players:allDown() then
-					gameOver()
+					gameOver(false)
 				end
 			end
 			W.combat:processExplosions()
@@ -629,6 +749,16 @@ function GameServer.start()
 			stateFolder:SetAttribute("BossEnraged", boss.enraged)
 		end
 		stateFolder:SetAttribute("Players", #Players:GetPlayers())
+		-- Floor objective state for the HUD.
+		local upcoming = W.waves:floorInfo(if phase == "wave" then W.waves.wave else W.waves.wave + 1)
+		stateFolder:SetAttribute("Floors", Floors.FLOORS)
+		stateFolder:SetAttribute("Objective", if upcoming then upcoming.objective else "clear")
+		stateFolder:SetAttribute("Modifier", if upcoming then upcoming.modifier else "none")
+		stateFolder:SetAttribute("TimeLeft", if phase == "wave" then W.waves:timeLeft() else 0)
+		local bellState = W.waves.bell
+		stateFolder:SetAttribute("BellHp", if phase == "wave" and bellState then bellState.hp / bellState.maxHp else -1)
+		local elite = W.waves.elite
+		stateFolder:SetAttribute("EliteHp", if phase == "wave" and elite and not elite.dying then elite.hp / elite.maxHp else -1)
 		if math.abs(night - appliedNight) > 0.003 then
 			appliedNight = night
 			applyNight(night)

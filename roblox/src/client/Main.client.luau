@@ -82,7 +82,7 @@ end)
 local screensGui = Builder.screen("DeadfallScreens", 10)
 screensGui.Parent = playerGui
 local lobby = Screens.lobby(screensGui)
-local perks = Screens.perks(screensGui)
+local rewards = Screens.rewards(screensGui)
 local gameOver = Screens.gameOver(screensGui)
 local station
 local lastStation: { name: string, x: number, z: number }? = nil
@@ -97,24 +97,24 @@ station = StationUI.new(screensGui, function(stype: string)
 	placement.start(stype)
 end)
 Context.remotes.OpenStation.OnClientEvent:Connect(function(name: string, x: number, z: number)
-	if Context.phase() == "intermission" and not placement.active and not perks.open then
+	if Context.phase() == "intermission" and not placement.active and not rewards.open then
 		lastStation = { name = name, x = x, z = z }
 		station.show(name, x, z)
 		Audio.play("uiClick")
 	end
 end)
 
-local pendingPerks: { string }? = nil
+local pendingRewards: { any }? = nil
 local gameOverData = nil
 
-Context.remotes.PerkOffer.OnClientEvent:Connect(function(choices: { string })
-	pendingPerks = choices
+Context.remotes.RewardOffer.OnClientEvent:Connect(function(cards: { any })
+	pendingRewards = cards
 end)
 Context.remotes.GameOver.OnClientEvent:Connect(function(data)
 	gameOverData = data
 end)
-perks.onChosen = function()
-	pendingPerks = nil
+rewards.onChosen = function()
+	pendingRewards = nil
 end
 
 -- Default movement controls are disabled while a menu covers the screen.
@@ -136,9 +136,12 @@ RunService.RenderStepped:Connect(function()
 	if phase ~= lastPhase then
 		lastPhase = phase
 		Context.signals.phaseChanged:fire(phase)
+		if phase ~= "reward" then
+			rewards.hide()
+			pendingRewards = nil
+		end
 		if phase ~= "intermission" then
 			station.hide()
-			perks.hide()
 			if placement.active then
 				placement.stop()
 			end
@@ -149,16 +152,14 @@ RunService.RenderStepped:Connect(function()
 		end
 		if phase == "lobby" then
 			lobby.show()
-			pendingPerks = nil
 		else
 			lobby.hide()
 		end
 	end
 
-	-- A perk choice arrives with some grace periods; it is shown first.
-	if phase == "intermission" and pendingPerks and not perks.open and not placement.active then
-		station.hide()
-		perks.show(pendingPerks)
+	-- After each floor: choose a reward card.
+	if phase == "reward" and pendingRewards and not rewards.open then
+		rewards.show(pendingRewards, Context.gameState:GetAttribute("Wave") or 0)
 	end
 	if phase == "gameover" and gameOverData and not gameOver.open then
 		gameOver.show(gameOverData)
@@ -171,7 +172,7 @@ RunService.RenderStepped:Connect(function()
 
 	lobby.update()
 	station.update()
-	Context.menuOpen = station.open or perks.open or gameOver.open or phase == "lobby"
+	Context.menuOpen = station.open or rewards.open or gameOver.open or phase == "lobby"
 	-- World prompts (search, trade, revive) hide while a panel covers the screen.
 	ProximityPromptService.Enabled = not Context.menuOpen and not placement.active
 	if controls then

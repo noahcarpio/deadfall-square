@@ -3,7 +3,7 @@
 	leaderboard), the perk choice (1 of 3) and the end-of-run summary.
 ]]
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Perks = require(Shared.Config.Perks)
+local RewardRules = require(Shared.RewardRules)
 local ZombiesConfig = require(Shared.Config.Zombies)
 local MathUtil = require(Shared.Util.MathUtil)
 
@@ -190,25 +190,25 @@ end
 
 ------------------------------------------------------------------ perks
 
-function Screens.perks(gui: ScreenGui)
-	local root = backdrop(gui, "Perks")
-	Builder.label("CHOOSE A PERK", 48, {
+function Screens.rewards(gui: ScreenGui)
+	local root = backdrop(gui, "Rewards")
+	local title = Builder.label("CHOOSE A REWARD", 48, {
 		Font = T.head,
 		TextXAlignment = Enum.TextXAlignment.Center,
-		Position = UDim2.fromScale(0, 0.18),
+		Position = UDim2.fromScale(0, 0.14),
 		Parent = root,
 	})
-	Builder.label("Pick one. Perks last for the whole run.", 16, {
+	local sub = Builder.label("Pick one. Gear goes to your stash: equip it from the bag (I).", 16, {
 		TextColor3 = T.muted,
 		TextXAlignment = Enum.TextXAlignment.Center,
-		Position = UDim2.new(0, 0, 0.18, 54),
+		Position = UDim2.new(0, 0, 0.14, 54),
 		Parent = root,
 	})
 	local row = create("Frame", {
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0.34),
-		Size = UDim2.fromOffset(720, 280),
+		Position = UDim2.fromScale(0.5, 0.3),
+		Size = UDim2.fromOffset(780, 330),
 		Parent = root,
 	})
 	local layout = Builder.list(16, true)
@@ -216,57 +216,59 @@ function Screens.perks(gui: ScreenGui)
 	layout.Parent = row
 
 	local self: any = { open = false, onChosen = nil }
-	function self.show(choices: { string })
+	function self.show(cards: { any }, floor: number)
 		for _, c in row:GetChildren() do
 			if c:IsA("TextButton") then
 				c:Destroy()
 			end
 		end
-		for i, id in choices do
-			local def = Perks.defs[id]
-			local color = Color3.fromHex(def.color)
-			local level = 0
-			for _, p in Context.perks do
-				if p.id == id then
-					level = p.level
-				end
-			end
+		title.Text = `FLOOR {floor} CLEARED — CHOOSE A REWARD`
+		sub.Text = "Pick one. Gear goes to your stash: equip it from the bag (I)."
+		for i, card in cards do
+			local text = RewardRules.describe(card)
+			local color = Color3.fromHex(text.color)
 			local cardButton = create("TextButton", {
 				LayoutOrder = i,
 				Text = "",
 				AutoButtonColor = true,
 				BackgroundColor3 = T.panel,
-				Size = UDim2.fromOffset(220, 270),
+				Size = UDim2.fromOffset(240, 320),
 				Parent = row,
-			}, { Builder.corner(12), Builder.stroke(color, 2, 0.2), Builder.padding(14), Builder.list(8) })
-			Builder.label(def.glyph, 56, {
+			}, { Builder.corner(12), Builder.stroke(color, 3, 0.1), Builder.padding(14), Builder.list(6) })
+			Builder.label(text.glyph, 52, {
 				Font = T.head,
 				TextColor3 = color,
 				TextXAlignment = Enum.TextXAlignment.Center,
 				LayoutOrder = 1,
 				Parent = cardButton,
 			})
-			Builder.label(
-				def.name,
-				24,
-				{ Font = T.head, TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 2, Parent = cardButton }
-			)
-			local desc = Builder.label(def.description, 15, {
+			local name = Builder.label(text.title, 22, {
+				Font = T.head,
+				TextColor3 = color,
 				TextXAlignment = Enum.TextXAlignment.Center,
 				TextWrapped = true,
-				Size = UDim2.new(1, 0, 0, 80),
+				Size = UDim2.new(1, 0, 0, 50),
+				LayoutOrder = 2,
+				Parent = cardButton,
+			})
+			name.TextYAlignment = Enum.TextYAlignment.Top
+			local desc = Builder.label(table.concat(text.lines, "\n"), 13, {
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextWrapped = true,
+				Size = UDim2.new(1, 0, 0, 130),
 				LayoutOrder = 3,
 				Parent = cardButton,
 			})
 			desc.TextYAlignment = Enum.TextYAlignment.Top
-			Builder.label(if def.maxStacks > 1 then `LEVEL {level + 1} / {def.maxStacks}` else "UNIQUE", 13, {
+			Builder.label(text.footer, 13, {
+				Font = T.bold,
 				TextColor3 = T.muted,
 				TextXAlignment = Enum.TextXAlignment.Center,
 				LayoutOrder = 4,
 				Parent = cardButton,
 			})
 			cardButton.Activated:Connect(function()
-				Context.remotes.ChoosePerk:FireServer(id)
+				Context.remotes.ChooseReward:FireServer(i)
 				Audio.play("uiBuy")
 				self.hide()
 				if self.onChosen then
@@ -297,7 +299,7 @@ function Screens.gameOver(gui: ScreenGui)
 	})
 	create("UISizeConstraint", { MaxSize = Vector2.new(920, 620), Parent = panel })
 	Builder.padding(20).Parent = panel
-	Builder.label("YOU DIED", 64, {
+	local heading = Builder.label("YOU DIED", 64, {
 		Font = T.head,
 		TextColor3 = T.danger,
 		TextXAlignment = Enum.TextXAlignment.Center,
@@ -357,8 +359,10 @@ function Screens.gameOver(gui: ScreenGui)
 		for _, n in data.kills do
 			totalKills += n
 		end
+		heading.Text = if data.victory then "THE CLIMB IS YOURS" else "YOU DIED"
+		heading.TextColor3 = if data.victory then T.gold else T.danger
 		stat(1, "Score", tostring(data.score), true)
-		stat(2, "Waves survived", tostring(data.wavesSurvived), true)
+		stat(2, "Floors cleared", tostring(data.wavesSurvived), true)
 		stat(3, "Time played", MathUtil.formatTime(data.timePlayed))
 		stat(4, "Total kills", tostring(totalKills))
 		stat(5, "Accuracy", `{math.floor(data.accuracy * 100 + 0.5)}%`)

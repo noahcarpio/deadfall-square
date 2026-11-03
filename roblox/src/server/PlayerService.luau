@@ -13,6 +13,7 @@ local Constants = require(Shared.Config.Constants)
 local Weapons = require(Shared.Config.Weapons)
 local Zombies = require(Shared.Config.Zombies)
 local Arsenal = require(Shared.Arsenal)
+local Gear = require(Shared.Gear)
 local Inventory = require(Shared.Inventory)
 local Items = require(Shared.Config.Items)
 local Stealth = require(Shared.Config.Stealth)
@@ -34,6 +35,15 @@ export type PState = {
 	perks: any,
 	tiers: { maxHealth: number, armor: number, speed: number, stamina: number, backpack: number },
 	inventory: Inventory.Inventory,
+	-- Equipped gear and the stash (Gear.Item tables; guns live in the arsenal too).
+	gear: {
+		stash: { Gear.Item },
+		melee: Gear.Item?,
+		armor: Gear.Item?,
+		gadgets: { Gear.Item | false },
+		guns: { [string]: Gear.Item },
+	},
+	nextUid: number,
 	crouching: boolean,
 	noiseTimer: number,
 	noiseX: number,
@@ -58,7 +68,7 @@ export type PState = {
 	flashlight: SpotLight?,
 	gun: Model?,
 	ready: boolean,
-	perkOffer: { string },
+	rewardOffer: { any }, -- RewardRules cards waiting for a choice
 	kills: { [string]: number },
 	shotsFired: number,
 	shotsHit: number,
@@ -88,7 +98,20 @@ local function freshRunState(ps: PState)
 	ps.economy = Economy.new()
 	ps.perks = PerkState.new()
 	ps.tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 }
-	ps.stats = PlayerStats.compute(ps.tiers, ps.perks)
+	-- Starting kit: a machete and a Charge Strike.
+	ps.nextUid = 1
+	local function uid()
+		ps.nextUid += 1
+		return ps.nextUid
+	end
+	ps.gear = {
+		stash = {},
+		melee = Gear.common("machete", uid()),
+		armor = nil,
+		gadgets = { Gear.common("chargeStrike", uid()), false, false },
+		guns = {},
+	}
+	ps.stats = PlayerStats.compute(ps.tiers, ps.perks, Gear.bonus(ps.gear.armor))
 	-- Everyone starts with a few rags and a bandage.
 	ps.inventory = Inventory.new(ps.stats.carryCapacity)
 	ps.inventory:add("cloth", 2)
@@ -100,7 +123,7 @@ local function freshRunState(ps: PState)
 	ps.invulnUntil = 0
 	ps.lastRoll = 0
 	ps.secondWindWave = -1
-	ps.perkOffer = {}
+	ps.rewardOffer = {}
 	ps.kills = {}
 	for _, t in Zombies.types do
 		ps.kills[t] = 0
@@ -413,6 +436,125 @@ function PlayerService.setCrouch(self, ps: PState, on: boolean)
 	self:applyMovement(ps)
 end
 
+------------------------------------------------------------------ gear
+
+function PlayerService.newUid(_self, ps: PState): number
+	ps.nextUid += 1
+	return ps.nextUid
+end
+
+function PlayerService.syncGear(self, ps: PState)
+	local g = ps.gear
+	local gadgets = {}
+	for i = 1, Gear.GADGET_SLOTS do
+		gadgets[i] = g.gadgets[i] or false
+	end
+	local character = ps.player.Character
+	if character then
+		character:SetAttribute("Melee", if g.melee then g.melee.id else nil)
+	end
+	self.W.remotes.GearSync:FireClient(ps.player, {
+		stash = g.stash,
+		melee = g.melee or false,
+		armor = g.armor or false,
+		gadgets = gadgets,
+		guns = g.guns,
+	})
+end
+
+-- Finds a piece anywhere (stash, equipped or attuned to a gun).
+function PlayerService.findGear(_self, ps: PState, uid: number): Gear.Item?
+	local g = ps.gear
+	for _, item in g.stash do
+		if item.uid == uid then
+			return item
+		end
+	end
+	if g.melee and g.melee.uid == uid then
+		return g.melee
+	end
+	if g.armor and g.armor.uid == uid then
+		return g.armor
+	end
+	for _, item in g.gadgets do
+		if item and item.uid == uid then
+			return item
+		end
+	end
+	for _, item in g.guns do
+		if item.uid == uid then
+			return item
+		end
+	end
+	return nil
+end
+
+-- Puts a found piece in the stash. Returns false if the stash is full.
+function PlayerService.giveGear(self, ps: PState, item: Gear.Item): boolean
+	if #ps.gear.stash >= Gear.STASH_SIZE then
+		return false
+	end
+	table.insert(ps.gear.stash, item)
+	self:syncGear(ps)
+	return true
+end
+
+-- Removes a stash piece (salvage / sold). Equipped pieces can't be removed.
+function PlayerService.removeGear(self, ps: PState, uid: number): boolean
+	for i, item in ps.gear.stash do
+		if item.uid == uid then
+			table.remove(ps.gear.stash, i)
+			self:syncGear(ps)
+			return true
+		end
+	end
+	return false
+end
+
+-- Equips a stash piece, swapping whatever it replaces back into the stash.
+function PlayerService.equipGear(self, ps: PState, uid: number, slot: number?): boolean
+	local g = ps.gear
+	local index = nil
+	for i, item in g.stash do
+		if item.uid == uid then
+			index = i
+		end
+	end
+	if not index then
+		return false
+	end
+	local item = table.remove(g.stash, index) :: Gear.Item
+	local old: Gear.Item? = nil
+	if item.kind == "melee" then
+		old = g.melee
+		g.melee = item
+	elseif item.kind == "armor" then
+		old = g.armor
+		g.armor = item
+	elseif item.kind == "gadget" then
+		local s = slot
+		if not s or s < 1 or s > Gear.GADGET_SLOTS or s ~= math.floor(s) then
+			s = table.find(g.gadgets, false) or 1
+		end
+		local current = g.gadgets[s :: number]
+		old = if current then current else nil
+		g.gadgets[s :: number] = item
+	else
+		old = g.guns[item.id]
+		g.guns[item.id] = item
+		ps.arsenal:attune(item.id, item :: any)
+		ps.arsenal.owned[item.id].gear = item :: any -- share the table so reinforcing shows at once
+		self:syncArsenal(ps)
+		self:updateGunModel(ps)
+	end
+	if old then
+		table.insert(g.stash, old)
+	end
+	self:refreshStats(ps)
+	self:syncGear(ps)
+	return true
+end
+
 function PlayerService.syncInventory(self, ps: PState)
 	self.W.remotes.InventorySync:FireClient(ps.player, ps.inventory:serialize())
 end
@@ -445,12 +587,13 @@ function PlayerService.syncAll(self, ps: PState)
 	self:syncArsenal(ps)
 	self:syncStats(ps)
 	self:syncInventory(ps)
+	self:syncGear(ps)
 end
 
 -- Recomputes stats after upgrades/perks; extra max health is granted immediately.
 function PlayerService.refreshStats(self, ps: PState)
 	local old = ps.stats
-	ps.stats = PlayerStats.compute(ps.tiers, ps.perks)
+	ps.stats = PlayerStats.compute(ps.tiers, ps.perks, Gear.bonus(ps.gear.armor))
 	ps.hp = math.min(ps.stats.maxHealth, ps.hp + math.max(0, ps.stats.maxHealth - old.maxHealth))
 	ps.armor = math.min(ps.stats.maxArmor, ps.armor)
 	ps.inventory.capacity = ps.stats.carryCapacity
@@ -494,6 +637,9 @@ function PlayerService.damage(
 		return
 	end
 	amount *= ps.stats.damageTaken
+	if source == "acid" or source == "exploder" then
+		amount *= ps.stats.hazardTaken
+	end
 	local continuous = amount < 1.5 and source == "acid"
 	ps.hp, ps.armor = PlayerStats.applyArmor(ps.hp, ps.armor, amount)
 	ps.damageTaken += amount

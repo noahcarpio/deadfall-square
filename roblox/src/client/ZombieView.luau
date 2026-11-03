@@ -358,7 +358,7 @@ function ZombieView.start()
 		local time, records = Net.unpack(packet)
 		for _, r in records do
 			local v = views[r.id]
-			local code = r.flags // Net.TYPE_SHIFT
+			local code = (r.flags // Net.TYPE_SHIFT) % 8
 			local ztype = ZombiesConfig.types[code]
 			if (not v or v.dying or v.type ~= ztype) and ztype then
 				v = create(r.id, ztype, r.x, r.z)
@@ -426,11 +426,27 @@ function ZombieView.start()
 				v.fire = nil
 			end
 			local enraged = bit32.band(v.flags, Net.FLAG_ENRAGED) ~= 0
+			-- Floor elites: a violet tint and a glow.
+			local elite = bit32.band(v.flags, Net.FLAG_ELITE) ~= 0 and not v.dying
+			local light = v.rig.torso:FindFirstChild("EliteGlow")
+			if elite and not light then
+				local l = Instance.new("PointLight")
+				l.Name = "EliteGlow"
+				l.Color = Color3.fromHex("#b04cff")
+				l.Range = 14
+				l.Brightness = 3
+				l.Parent = v.rig.torso
+			elseif not elite and light then
+				light:Destroy()
+			end
 			for i, part in v.rig.parts do
 				part.Transparency = transparency
 				local base = v.rig.colors[i]
 				if enraged and i ~= 7 then
 					base = base:Lerp(Color3.fromHex("#a83a2a"), 0.45)
+				end
+				if elite and i ~= 7 then
+					base = base:Lerp(Color3.fromHex("#b04cff"), 0.4)
 				end
 				if burning and i ~= 7 then
 					base = base:Lerp(Color3.new(0.1, 0.08, 0.07), 0.4)

@@ -70,6 +70,8 @@ local Context = {
 	-- Mirror of the server's bag (InventorySync).
 	inventory = Inventory.new(Items.BASE_CAPACITY),
 	crouching = false,
+	-- Mirror of the server's gear (GearSync): stash, melee, armor, gadgets, guns.
+	gear = { stash = {}, melee = false, armor = false, gadgets = { false, false, false }, guns = {} } :: any,
 	stamina = base.maxStamina,
 	-- Aim on the ground plane (metres) and whether the trigger is held.
 	aimX = 0,
@@ -99,6 +101,7 @@ local Context = {
 		phaseChanged = signal(),
 		inventoryChanged = signal(),
 		crouchChanged = signal(),
+		gearChanged = signal(),
 		fired = signal(), -- (weaponId) our own shot, for the recoil animation
 	},
 	signal = signal,
@@ -108,6 +111,13 @@ remotes.InventorySync.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and type(data.items) == "table" and type(data.capacity) == "number" then
 		Context.inventory:load(data)
 		Context.signals.inventoryChanged:fire()
+	end
+end)
+
+remotes.GearSync.OnClientEvent:Connect(function(data)
+	if type(data) == "table" then
+		Context.gear = data
+		Context.signals.gearChanged:fire()
 	end
 end)
 
