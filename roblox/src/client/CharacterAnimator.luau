@@ -434,7 +434,8 @@ local function stateFor(player: Player, character: Model): State
 		local swingAt = character:GetAttribute("SwingAt")
 		if type(swingAt) == "number" and now - swingAt < MeleeMath.SWING_TIME then
 			st.swing = (now - swingAt) / MeleeMath.SWING_TIME
-			st.swingStep = character:GetAttribute("SwingStep") or 1
+			local step = character:GetAttribute("SwingStep")
+			st.swingStep = if type(step) == "number" then step else 1
 		end
 		local rollAt = character:GetAttribute("RollAt")
 		if type(rollAt) == "number" and now - rollAt < ROLL_TIME then
