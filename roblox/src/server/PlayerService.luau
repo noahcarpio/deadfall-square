@@ -320,8 +320,7 @@ end
 function PlayerService.applyMovement(_self, ps: PState)
 	local h = ps.humanoid
 	if h then
-		h.WalkSpeed = if ps.downed then 0
-			else ps.stats.speed * S * (if ps.crouching then Stealth.CROUCH_SPEED else 1)
+		h.WalkSpeed = if ps.downed then 0 else ps.stats.speed * S * (if ps.crouching then Stealth.CROUCH_SPEED else 1)
 	end
 	if ps.prompt then
 		ps.prompt.Enabled = ps.downed

@@ -57,7 +57,11 @@ function Inventory.remove(self: Inventory, id: string, n: number): boolean
 	if n <= 0 or have < n then
 		return false
 	end
-	self.items[id] = if have == n then nil else have - n
+	if have == n then
+		(self.items :: any)[id] = nil
+	else
+		self.items[id] = have - n
+	end
 	return true
 end
 

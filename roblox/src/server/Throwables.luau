@@ -107,7 +107,16 @@ function Throwables.update(self, dt: number)
 				b.part:Destroy()
 			end
 			local owner = if b.owner and b.owner.player.Parent then b.owner else nil
-			W.combat:explosion(b.x, b.z, BOMB.radius, BOMB.damage * (1 + W.waves.wave * 0.04), 30, 40, "pipebomb", owner)
+			W.combat:explosion(
+				b.x,
+				b.z,
+				BOMB.radius,
+				BOMB.damage * (1 + W.waves.wave * 0.04),
+				30,
+				40,
+				"pipebomb",
+				owner
+			)
 		end
 	end
 end

@@ -95,7 +95,7 @@ local function context()
 end
 
 function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
-	local self = { open = false, station = "merchant" }
+	local self: any = { open = false, station = "merchant" }
 	local stationX, stationZ = 0, 0
 	local root = Builder.panel({
 		Name = "Station",
@@ -275,7 +275,14 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 
 	function renderers.survivor(c)
 		grid.CellSize = UDim2.new(0.25, -8, 0, 140)
-		simpleCard(c, 0, "Field Medkit", `Restore health to full ({c.health} / {c.maxHealth}).`, { kind = "heal" }, "HEAL")
+		simpleCard(
+			c,
+			0,
+			"Field Medkit",
+			`Restore health to full ({c.health} / {c.maxHealth}).`,
+			{ kind = "heal" },
+			"HEAL"
+		)
 		for i, id in Shop.upgradeOrder do
 			local def = Shop.playerUpgrades[id]
 			local action = { kind = "playerUpgrade", id = id }
@@ -470,7 +477,8 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 			return
 		end
 		coins.Text = `● {Context.player:GetAttribute("Coins") or 0}`
-		local left = math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
+		local left =
+			math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
 		local inv = Context.inventory
 		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · next wave in {left}s · Esc to leave`
 		local character = Context.character()

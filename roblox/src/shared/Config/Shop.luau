@@ -49,7 +49,8 @@ local PLAYER_UPGRADES = {
 local UPGRADE_ORDER = { "maxHealth", "armor", "speed", "stamina", "backpack" }
 
 -- Merchant prices (coins) for single items.
-local ITEM_PRICES: { [string]: number } = { scrap = 20, wood = 15, cloth = 12, parts = 35, gunpowder = 30, bandage = 45 }
+local ITEM_PRICES: { [string]: number } =
+	{ scrap = 20, wood = 15, cloth = 12, parts = 35, gunpowder = 30, bandage = 45 }
 local ITEM_SHOP_ORDER = { "bandage", "scrap", "wood", "cloth", "parts", "gunpowder" }
 
 -- Workbench recipes that make an inventory item.
@@ -61,7 +62,8 @@ local RECIPES: { [string]: Recipe } = {
 local RECIPE_ORDER = { "bandage", "pipebomb" }
 
 -- Materials for hand-loading ammo (refills a share of one weapon's reserve).
-local HANDLOAD: { cost: { [string]: number }, fraction: number } = { cost = { gunpowder = 2, scrap = 1 }, fraction = 0.4 }
+local HANDLOAD: { cost: { [string]: number }, fraction: number } =
+	{ cost = { gunpowder = 2, scrap = 1 }, fraction = 0.4 }
 
 -- One plank repairs this much structure health.
 local REPAIR_HP_PER_WOOD = 80

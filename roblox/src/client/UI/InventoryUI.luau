@@ -122,7 +122,8 @@ function InventoryUI.new(gui: ScreenGui, onUse: (string) -> ())
 			end
 		end
 		if not any then
-			local empty = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), Parent = listFrame })
+			local empty =
+				create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), Parent = listFrame })
 			local l = Builder.label("Empty. Search cars, crates, dumpsters and trash for materials.", 13, {
 				TextColor3 = T.muted,
 				TextWrapped = true,

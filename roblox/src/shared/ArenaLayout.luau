@@ -754,7 +754,17 @@ local function generate(): Layout
 		local x, z = p[1], p[2]
 		for i = 0, 2 do
 			local r = 0.75 - i * 0.12
-			add("Ball", r, r, r, if i == 1 then "#2a3a2a" else "#1d1f1d", "SmoothPlastic", x + (i - 1) * 0.45, r / 2, z + (i % 2) * 0.3)
+			add(
+				"Ball",
+				r,
+				r,
+				r,
+				if i == 1 then "#2a3a2a" else "#1d1f1d",
+				"SmoothPlastic",
+				x + (i - 1) * 0.45,
+				r / 2,
+				z + (i % 2) * 0.3
+			)
 		end
 		box(0.5, 0.3, 0.4, "#8a7a5a", "Cardboard", x + 0.5, 0.15, z - 0.4, 0, 0.6)
 		colCircle(x, z, 0.7, 0.7)
