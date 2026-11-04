@@ -79,7 +79,7 @@ def({
 	id = "machete",
 	kind = "melee",
 	name = "Machete",
-	description = "Quick slashes. Silent and deadly up close.",
+	description = "Quick slashes, deadly up close.",
 	weight = 1.2,
 	price = 150,
 	melee = { damage = 26, rate = 2.6, range = 2.1, arc = math.rad(110), knock = 2.5, stagger = false },

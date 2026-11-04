@@ -34,6 +34,8 @@ local Gear = require("../src/shared/Gear")
 local RewardRules = require("../src/shared/RewardRules")
 local MeleeMath = require("../src/shared/MeleeMath")
 local PartyRules = require("../src/shared/PartyRules")
+local AnimationClips = require("../src/shared/Config/AnimationClips")
+local Animations = require("../src/shared/Config/Animations")
 
 local passed, failed = 0, 0
 local current = ""
@@ -865,6 +867,24 @@ test("Parties: create, join, leader hand-off, full parties and starting", functi
 	expect(full == nil and why ~= nil)
 	expect(PartyRules.join(st, 99, 12345) == nil)
 	expect(PartyRules.canStart(st, 99) == nil)
+end)
+
+test("Every keyframed clip has an id slot, and every reload clip exists", function()
+	for name in AnimationClips do
+		expect(Animations.IDS[name] ~= nil, `Config/Animations has no id slot for {name}`)
+	end
+	for name in Animations.IDS do
+		expect(AnimationClips[name] ~= nil, `id slot {name} has no generated clip`)
+	end
+	for weapon, name in Animations.RELOAD do
+		expect(Weapons.defs[weapon] ~= nil, `unknown weapon {weapon}`)
+		expect(AnimationClips[name] ~= nil, `reload clip {name} missing`)
+	end
+	expect(AnimationClips.Reload_Rifle ~= nil, "fallback reload clip missing")
+	for i = 1, 3 do
+		eq(AnimationClips[`Swing_{i}`].length, MeleeMath.SWING_TIME)
+	end
+	eq(AnimationClips.Roll.length, PlayerStats.BASE.rollDuration)
 end)
 
 print(`\n{passed} passed, {failed} failed`)

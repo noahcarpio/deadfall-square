@@ -21,6 +21,25 @@ local REACH = { car = 3.6, bus = 6.2, crate = 2.8, dumpster = 2.8, trash = 2.2 }
 local LootService = {}
 LootService.__index = LootService
 
+-- Players kneel (character attribute "Kneeling", animated on clients) while holding a prompt.
+local function kneelWhileHolding(prompt: ProximityPrompt)
+	local function set(player: Player, on: boolean)
+		if player.Character then
+			player.Character:SetAttribute("Kneeling", on)
+		end
+	end
+	prompt.PromptButtonHoldBegan:Connect(function(player)
+		set(player, true)
+	end)
+	prompt.PromptButtonHoldEnded:Connect(function(player)
+		set(player, false)
+	end)
+	prompt.Triggered:Connect(function(player)
+		set(player, false)
+	end)
+end
+LootService.kneelWhileHolding = kneelWhileHolding
+
 function LootService.new(W, layout)
 	local self = setmetatable({ W = W, containers = {}, active = false }, LootService)
 	local folder = Instance.new("Folder")
@@ -51,6 +70,7 @@ function LootService.new(W, layout)
 		prompt.Triggered:Connect(function(player: Player)
 			self:search(c, player)
 		end)
+		kneelWhileHolding(prompt)
 		table.insert(self.containers, c)
 	end
 	return self

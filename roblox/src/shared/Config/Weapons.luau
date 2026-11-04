@@ -23,7 +23,6 @@ export type WeaponDef = {
 	color: string,
 	blastRadius: number?,
 	projectileSpeed: number?,
-	-- Zombies within this many metres hear each shot.
 	description: string,
 }
 

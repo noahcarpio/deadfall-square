@@ -53,11 +53,12 @@ jobs:
       - run: lune run tests/run
 
   meshes:
-    name: Meshes up to date
+    name: Meshes and animations up to date
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: python3 tools/make_meshes.py --check
+      - run: python3 tools/make_animations.py --check
 
   lint:
     name: Lint (Selene)

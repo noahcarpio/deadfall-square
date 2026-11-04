@@ -20,6 +20,8 @@ local Economy = require(Shared.Economy)
 local PerkState = require(Shared.PerkState)
 local PlayerStats = require(Shared.PlayerStats)
 
+local LootService = require(script.Parent.LootService)
+
 local S = Constants.STUDS
 
 local PlayerService = {}
@@ -256,6 +258,7 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 	prompt.Enabled = ps.downed
 	prompt.Parent = root
+	LootService.kneelWhileHolding(prompt)
 	prompt.Triggered:Connect(function(by: Player)
 		local helper = self.states[by]
 		if helper and helper ~= ps and ps.downed and not helper.downed then

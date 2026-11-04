@@ -12,6 +12,14 @@
 	  swing    - melee: forehand, backhand and an overhead finisher (the melee
 	             weapon shows only while swinging; the gun hides meanwhile)
 
+	Keyframed clips (tools/make_animations.py -> ReplicatedStorage.DeadfallAnimations)
+	take over where they exist: reloads, the pipe-bomb throw, the three melee
+	swings, the roll, the downed crawl and kneeling to search or revive. Reload,
+	throw and kneel clips play on top of the aim pose (offsets from it); swing,
+	roll and downed clips replace the code-made pose while they play. Clips need
+	R15 and an animation id (Config/Animations; in Studio they play without
+	one), otherwise the code-made poses below are used.
+
 	Every client animates every character from replicated state (character
 	attributes set by the server, the Shot remote for others' recoil), so
 	everyone sees the same thing. Poses change each joint's offset (Motor6D.C0,
@@ -23,11 +31,15 @@
 	window gets one "[CharacterAnimator]" line per character with the joints
 	it found (or a warning if it found none).
 ]]
+local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local AnimationClips = require(Shared.Config.AnimationClips)
+local Animations = require(Shared.Config.Animations)
 local Constants = require(Shared.Config.Constants)
 local MeleeMath = require(Shared.MeleeMath)
 local PlayerStats = require(Shared.PlayerStats)
@@ -96,6 +108,9 @@ type Rig = {
 	reported: boolean,
 	warned: boolean,
 	jointSummary: string?,
+	-- Keyframed clips: loaded tracks (false = unavailable) and the trigger each last played for.
+	tracks: { [string]: AnimationTrack | false },
+	keys: { [string]: any },
 }
 
 local CharacterAnimator = {}
@@ -203,6 +218,8 @@ local function rigFor(character: Model): Rig?
 			firstSeen = os.clock(),
 			reported = false,
 			warned = false,
+			tracks = {},
+			keys = {},
 		}
 		rigs[character] = rig
 		character.Destroying:Connect(function()
@@ -322,6 +339,100 @@ local function checkArm(rig: Rig, dt: number)
 	end
 end
 
+------------------------------------------------------------------ keyframed clips
+
+local RELOAD_CLIPS = { "Reload_Rifle", "Reload_Pistol", "Reload_Shotgun" }
+local THROW_TIME = (AnimationClips :: any).Throw.length
+
+-- Animation id for a clip: the published id, or (in Studio) a temporary one for the sequence.
+local clipIds: { [string]: string | false } = {}
+local function clipId(name: string): string?
+	local cached = clipIds[name]
+	if cached == nil then
+		cached = false
+		local id = Animations.IDS[name]
+		if id and id ~= "" then
+			cached = id
+		elseif RunService:IsStudio() then
+			local folder = ReplicatedStorage:FindFirstChild("DeadfallAnimations")
+			local seq = folder and folder:FindFirstChild(name)
+			if seq and seq:IsA("KeyframeSequence") then
+				local ok, temp = pcall(function()
+					return KeyframeSequenceProvider:RegisterKeyframeSequence(seq)
+				end)
+				if ok and type(temp) == "string" then
+					cached = temp
+				end
+			end
+		end
+		clipIds[name] = cached
+	end
+	return cached or nil
+end
+
+local function clip(rig: Rig, name: string): AnimationTrack?
+	if not rig.r15 then
+		return nil
+	end
+	local cached = rig.tracks[name]
+	if cached == nil then
+		cached = false
+		local id = clipId(name)
+		local humanoid = rig.character:FindFirstChildOfClass("Humanoid")
+		local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+		local info = (AnimationClips :: any)[name]
+		if id and animator and info then
+			local animation = Instance.new("Animation")
+			animation.AnimationId = id
+			local ok, track = pcall(function()
+				return animator:LoadAnimation(animation)
+			end)
+			if ok and track then
+				track.Priority = Enum.AnimationPriority.Action
+				track.Looped = info.loop
+				cached = track
+			end
+		end
+		rig.tracks[name] = cached
+	end
+	return cached or nil
+end
+
+-- Plays a one-shot clip once per new `key`, stretched to `duration` seconds; true while it plays.
+local function trigger(rig: Rig, name: string, key: any, duration: number): boolean
+	local track = clip(rig, name)
+	if not track then
+		return false
+	end
+	if key ~= nil and rig.keys[name] ~= key then
+		rig.keys[name] = key
+		track:Play(0.08, 1, (AnimationClips :: any)[name].length / math.max(0.05, duration))
+	end
+	return track.IsPlaying
+end
+
+-- Keeps a looping clip playing while `on`; true while it plays.
+local function hold(rig: Rig, name: string, on: boolean): boolean
+	local track = clip(rig, name)
+	if not track then
+		return false
+	end
+	if on and not track.IsPlaying then
+		track:Play(0.25)
+	elseif not on and track.IsPlaying then
+		track:Stop(0.25)
+	end
+	return on
+end
+
+local function stopClip(rig: Rig, name: string)
+	local track = rig.tracks[name]
+	if track and track.IsPlaying then
+		track:Stop(0.15)
+	end
+	rig.keys[name] = nil
+end
+
 local function rx(a: number): CFrame
 	return CFrame.Angles(a, 0, 0)
 end
@@ -335,6 +446,14 @@ type State = {
 	swing: number, -- 0..1 melee swing progress, or -1
 	swingStep: number, -- combo step 1..3
 	speed: number, -- studs/s
+	-- For the keyframed clips: what triggered each action (changes on every new one).
+	weapon: string,
+	reloadKey: any,
+	reloadTime: number,
+	swingKey: any,
+	rollKey: any,
+	throwKey: any,
+	kneeling: boolean,
 }
 
 -- Shows the melee weapon only while swinging, and hides the gun meanwhile (local view only).
@@ -367,13 +486,30 @@ local function animate(rig: Rig, st: State, dt: number)
 	rig.downed = damp(rig.downed, if st.downed then 1 else 0, 6, dt)
 	rig.recoil = damp(rig.recoil, 0, 14, dt)
 
-	-- Arms and gun.
-	local bump = if st.reload >= 0 then math.sin(math.pi * math.clamp(st.reload, 0, 1)) else 0
-	local raise = 1 - rig.sprint * 0.65
-	local pitchR = 0.6 + (HALF_PI + 0.05 - 0.6) * raise + rig.recoil * 0.45 - bump * 0.8
-	local pitchL = 0.6 + (1.45 - 0.6) * raise - bump * 1.1
-	local armW = rig.aim * (1 - rig.downed)
+	-- Keyframed clips (where available) for this frame.
+	local reloadClip = if st.reload >= 0 then Animations.RELOAD[st.weapon] or "Reload_Rifle" else nil
+	local reloadPlaying = false
+	for _, name in RELOAD_CLIPS do
+		if name == reloadClip then
+			reloadPlaying = trigger(rig, name, st.reloadKey, st.reloadTime)
+		elseif rig.keys[name] ~= nil then
+			stopClip(rig, name)
+		end
+	end
+	trigger(rig, "Throw", st.throwKey, THROW_TIME)
 	local swinging = st.swing >= 0 and st.swing < 1 and not st.downed
+	local swingPlaying = swinging and trigger(rig, `Swing_{st.swingStep}`, st.swingKey, MeleeMath.SWING_TIME)
+	local rollPlaying = st.roll >= 0 and trigger(rig, "Roll", st.rollKey, ROLL_TIME)
+	local downedPlaying = hold(rig, "Downed", st.downed)
+	hold(rig, "Kneel", st.kneeling and not st.downed)
+
+	-- Arms and gun. A reload clip moves the arms itself; the gun still tilts here.
+	local bump = if st.reload >= 0 then math.sin(math.pi * math.clamp(st.reload, 0, 1)) else 0
+	local armBump = if reloadPlaying then 0 else bump
+	local raise = 1 - rig.sprint * 0.65
+	local pitchR = 0.6 + (HALF_PI + 0.05 - 0.6) * raise + rig.recoil * 0.45 - armBump * 0.8
+	local pitchL = 0.6 + (1.45 - 0.6) * raise - armBump * 1.1
+	local armW = rig.aim * (1 - rig.downed)
 	-- Weapons can be rebuilt by the server (switching, equipping); re-apply visibility then.
 	local melee = rig.character:FindFirstChild("MeleeWeapon")
 	if melee and melee:GetAttribute("Seen") ~= true then
@@ -400,11 +536,13 @@ local function animate(rig: Rig, st: State, dt: number)
 			yaw, pitch = 1.3 - 2.4 * e, 1.35 -- forehand
 			waistYaw, waistPitch = yaw * 0.45, 0
 		end
-		pose(rig, "rShoulder", CFrame.Angles(0, yaw, 0) * rx(pitch), 1)
-		pose(rig, "lShoulder", CFrame.Angles(0, -0.3, 0) * rx(0.45), 1)
-		pose(rig, "rElbow", rx(0.15), 1)
-		pose(rig, "lElbow", rx(0.6), 1)
-		pose(rig, "waist", CFrame.Angles(0, waistYaw, 0) * rx(waistPitch), 1)
+		-- A swing clip poses the body itself; the blade below still sweeps from here.
+		local w = if swingPlaying then 0 else 1
+		pose(rig, "rShoulder", CFrame.Angles(0, yaw, 0) * rx(pitch), w)
+		pose(rig, "lShoulder", CFrame.Angles(0, -0.3, 0) * rx(0.45), w)
+		pose(rig, "rElbow", rx(0.15), w)
+		pose(rig, "lElbow", rx(0.6), w)
+		pose(rig, "waist", CFrame.Angles(0, waistYaw, 0) * rx(waistPitch), w)
 		-- The blade sweeps through the swing arc in the character's frame, whatever the arm does.
 		local mgrip = melee and melee:FindFirstChild("MeleeGrip", true)
 		if mgrip and mgrip:IsA("Motor6D") then
@@ -425,10 +563,10 @@ local function animate(rig: Rig, st: State, dt: number)
 			end
 		end
 	else
-		pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 1.1, 0), armW)
+		pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, armBump * 1.1, 0), armW)
 		pose(rig, "lShoulder", CFrame.Angles(0, -0.55, 0) * rx(pitchL), armW)
 		pose(rig, "rElbow", rx(rig.recoil * 0.25), armW)
-		pose(rig, "lElbow", rx(0.35 + bump * 0.7), armW)
+		pose(rig, "lElbow", rx(0.35 + armBump * 0.7), armW)
 	end
 	-- The gun's grip (our own Motor6D; rebuilt on every weapon switch). The gun is pointed where the
 	-- character faces in world space, so it never follows a hanging arm toward the floor.
@@ -455,8 +593,8 @@ local function animate(rig: Rig, st: State, dt: number)
 
 	-- Legs and torso.
 	if rig.r15 then
-		-- Knees tuck in during the roll.
-		local tuck = if st.roll >= 0 then math.sin(math.pi * st.roll) else 0
+		-- Knees tuck in during the roll (unless the roll clip does it).
+		local tuck = if st.roll >= 0 and not rollPlaying then math.sin(math.pi * st.roll) else 0
 		pose(rig, "rHip", rx(tuck * 1.3), tuck)
 		pose(rig, "lHip", rx(tuck * 1.3), tuck)
 		pose(rig, "rKnee", rx(-tuck * 2), tuck)
@@ -469,11 +607,11 @@ local function animate(rig: Rig, st: State, dt: number)
 	end
 
 	-- Whole body: roll tumble, or lying down while downed.
-	if st.roll >= 0 then
+	if st.roll >= 0 and not rollPlaying then
 		local t = math.clamp(st.roll, 0, 1)
 		pose(rig, "root", CFrame.new(0, -1.1 * math.sin(math.pi * t), 0) * rx(-2 * math.pi * t), 1)
 	else
-		pose(rig, "root", CFrame.new(0, -2.0, -0.6) * rx(-1.45), rig.downed)
+		pose(rig, "root", CFrame.new(0, -2.0, -0.6) * rx(-1.45), if downedPlaying or rollPlaying then 0 else rig.downed)
 	end
 end
 
@@ -490,20 +628,35 @@ local function stateFor(player: Player, character: Model): State
 		swing = -1,
 		swingStep = 1,
 		speed = speed,
+		weapon = character:GetAttribute("Weapon") or "pistol",
+		reloadKey = nil,
+		reloadTime = 1,
+		swingKey = nil,
+		rollKey = nil,
+		throwKey = nil,
+		kneeling = character:GetAttribute("Kneeling") == true,
 	}
+	local throwAt = character:GetAttribute("ThrowAt")
+	if type(throwAt) == "number" and Workspace:GetServerTimeNow() - throwAt < THROW_TIME then
+		st.throwKey = throwAt
+	end
 	if player == Context.player then
 		st.sprinting = Context.sprinting and speed > 1
 		local a = Context.arsenal
 		if a.reloadEnd > 0 and a.reloadDuration > 0 then
 			st.reload = 1 - (a.reloadEnd - os.clock()) / a.reloadDuration
+			st.reloadKey = a.reloadEnd
+			st.reloadTime = a.reloadDuration
 		end
 		if Context.rolling then
 			st.roll = (os.clock() - Context.rollStart) / ROLL_TIME
+			st.rollKey = Context.rollStart
 		end
 		local since = os.clock() - Context.swingAt
 		if since < MeleeMath.SWING_TIME then
 			st.swing = since / MeleeMath.SWING_TIME
 			st.swingStep = Context.swingStep
+			st.swingKey = Context.swingAt
 		end
 	else
 		local now = Workspace:GetServerTimeNow()
@@ -512,16 +665,20 @@ local function stateFor(player: Player, character: Model): State
 		local reloadTime = character:GetAttribute("ReloadTime")
 		if type(reloadEnd) == "number" and type(reloadTime) == "number" and reloadTime > 0 and now < reloadEnd then
 			st.reload = 1 - (reloadEnd - now) / reloadTime
+			st.reloadKey = reloadEnd
+			st.reloadTime = reloadTime
 		end
 		local swingAt = character:GetAttribute("SwingAt")
 		if type(swingAt) == "number" and now - swingAt < MeleeMath.SWING_TIME then
 			st.swing = (now - swingAt) / MeleeMath.SWING_TIME
 			local step = character:GetAttribute("SwingStep")
 			st.swingStep = if type(step) == "number" then step else 1
+			st.swingKey = swingAt
 		end
 		local rollAt = character:GetAttribute("RollAt")
 		if type(rollAt) == "number" and now - rollAt < ROLL_TIME then
 			st.roll = (now - rollAt) / ROLL_TIME
+			st.rollKey = rollAt
 		end
 	end
 	return st

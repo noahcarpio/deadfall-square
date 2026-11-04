@@ -67,6 +67,10 @@ function Throwables.throw(self, ps, dirX: number, dirZ: number, distance: number
 		light = nil,
 		owner = ps,
 	})
+	-- Clients play the throw animation from this.
+	if ps.player.Character then
+		ps.player.Character:SetAttribute("ThrowAt", Workspace:GetServerTimeNow())
+	end
 	return true
 end
 
