@@ -446,13 +446,15 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 end)
 
 ------------------------------------------------------------------- waves
+-- Average over several rolls: a single horde's mix (a few brutes more or less) is noisy.
 local function threat(wave: number): number
-	local comp = WaveComposition.build(wave, Rng.new(wave), 1)
 	local hp = 0
-	for _, t in comp do
-		hp += Zombies.defs[t].hp
+	for seed = 1, 12 do
+		for _, t in WaveComposition.build(wave, Rng.new(wave * 100 + seed), 1) do
+			hp += Zombies.defs[t].hp
+		end
 	end
-	return hp * Waves.hpMultiplier(wave) * Waves.damageMultiplier(wave)
+	return hp / 12 * Waves.hpMultiplier(wave) * Waves.damageMultiplier(wave)
 end
 
 test("Wave 1 is a small group of walkers; types unlock on schedule", function()
@@ -473,17 +475,18 @@ test("Wave 1 is a small group of walkers; types unlock on schedule", function()
 	end
 end)
 
-test("Difficulty rises: wave 10 >> wave 1, wave 21 >> wave 10", function()
+test("Difficulty rises: floor 11 >> floor 1, floor 21 >> floor 11", function()
 	local last = 0
-	for w = 1, 24 do
+	for w = 1, 29 do
 		if not Waves.isBossWave(w) then
 			local t = threat(w)
 			expect(t > last, `threat not increasing at wave {w}`)
 			last = t
 		end
 	end
-	expect(threat(10) / threat(1) > 10)
-	expect(threat(21) / threat(10) > 3)
+	-- (Floor 10 is a boss floor, whose horde is trimmed to make room for the boss.)
+	expect(threat(11) / threat(1) > 10)
+	expect(threat(21) / threat(11) > 3)
 end)
 
 test("Horde scaling: more zombies every floor, not tougher ones", function()
@@ -491,14 +494,17 @@ test("Horde scaling: more zombies every floor, not tougher ones", function()
 	expect(34 * Waves.hpMultiplier(Floors.FLOORS) < 34 * 2.2, "zombie health balloons late")
 	-- The horde itself grows a lot.
 	local function size(w: number): number
-		return #WaveComposition.build(w, Rng.new(w), 1)
+		local n = 0
+		for seed = 1, 12 do
+			n += #WaveComposition.build(w, Rng.new(w * 100 + seed), 1)
+		end
+		return n / 12
 	end
 	expect(size(29) > size(1) * 10, `floor 29 horde {size(29)} vs floor 1 {size(1)}`)
 	local last = 0
 	for w = 1, Floors.FLOORS do
 		if not Waves.isBossWave(w) then
-			-- (A floor with a few more brutes can field slightly fewer bodies.)
-			expect(size(w) >= last * 0.9, `horde shrank on floor {w}`)
+			expect(size(w) >= last, `horde shrank on floor {w}`)
 			last = size(w)
 		end
 	end
