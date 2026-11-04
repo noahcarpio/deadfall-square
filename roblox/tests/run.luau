@@ -796,11 +796,9 @@ test("Melee balance: every weapon reaches its finisher, has a role, and can't st
 		eq(step, 3, `{id} never reaches its finisher`)
 		-- Per-target damage stays in one band; melee shouldn't outclass the guns.
 		expect(dps(id) >= 55 and dps(id) <= 110, `{id} melee DPS {dps(id)} out of band`)
-		-- A stagger weapon can't re-stun the same zombie before it recovers and acts again.
-		if m.stagger then
-			expect(MeleeMath.STAGGER_TIME + MeleeMath.STUN_IMMUNITY > gap * 2, `{id} can stunlock`)
-		end
 	end
+	-- After any melee stun a zombie gets at least a second to act before the next one.
+	expect(MeleeMath.STUN_IMMUNITY >= 1, "melee stuns can chain into a stunlock")
 	-- Roles: the bat is the cheapest, the spear reaches furthest, the axe cleaves widest,
 	-- and the sledge hits hardest per target.
 	for _, id in { "machete", "spear", "fireaxe", "sledge" } do

@@ -84,7 +84,8 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 			})
 		end
 	end
-	local dots = create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = root })
+	local dots =
+		create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = root })
 	local pool: { Frame } = {}
 	local timer = 0
 	local function dot(i: number, x: number, z: number, color: Color3, px: number)
@@ -476,7 +477,8 @@ function Hud.start(gui: ScreenGui)
 	local function updateDownMarks(show: boolean)
 		local camera = Workspace.CurrentCamera
 		local view = camera.ViewportSize
-		local myRoot = Context.character() and Context.character():FindFirstChild("HumanoidRootPart") :: BasePart?
+		local me = Context.character()
+		local myRoot = if me then me:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
 		for _, other in Players:GetPlayers() do
 			local root = other.Character and other.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			local mark = downMarks[other]
