@@ -83,6 +83,8 @@ export type Context = {
 	}?,
 	-- Removes a sold gun (the arsenal and its attuned gear).
 	removeGun: ((string) -> ())?,
+	-- Drops a gun on the ground to free a slot for a new one (server only).
+	dropGun: ((string) -> ())?,
 }
 
 -- Selling returns about 40% of what something cost, more for rarer, stronger pieces.
@@ -359,7 +361,19 @@ local function purchase(ctx: Context, a: Action): boolean
 			w.mag += ctx.arsenal:magSize(id) - before
 		end
 	elseif a.kind == "buyWeapon" then
+		-- All gun slots taken: the gun in hand (else slot 2) is dropped to make room.
+		local swap = if ctx.arsenal:hasRoomFor(a.weapon :: string) then nil else ctx.arsenal:swapTarget()
+		if swap then
+			if ctx.dropGun then
+				ctx.dropGun(swap)
+			elseif ctx.removeGun then
+				ctx.removeGun(swap)
+			else
+				ctx.arsenal:remove(swap)
+			end
+		end
 		ctx.arsenal:give(a.weapon :: string)
+		ctx.arsenal:switchTo(a.weapon :: string, 0)
 	elseif a.kind == "ammo" then
 		ctx.arsenal:refill(a.weapon :: string)
 	elseif a.kind == "handload" then

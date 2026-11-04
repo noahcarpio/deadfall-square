@@ -245,9 +245,11 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 	local renderers = {}
 
 	function renderers.guns(c)
+		local slot = 0
 		for i, id in Weapons.order do
 			local w = c.arsenal:get(id)
 			if w then
+				slot += 1
 				local def = Weapons.defs[id]
 				local gear = w.gear
 				local color = if gear then Builder.rarityColor(gear.rarity) else T.text
@@ -291,7 +293,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 					})
 					table.insert(buttons, sellButton(c, { kind = "sellGun", weapon = id }))
 				end
-				card(i, `{def.slot}  {title}`, color, lines, buttons)
+				card(i, `{slot}  {title}`, color, lines, buttons)
 			end
 		end
 	end

@@ -20,6 +20,7 @@ local Items = require(Shared.Config.Items)
 local Shop = require(Shared.Config.Shop)
 local ShopRules = require(Shared.ShopRules)
 local Weapons = require(Shared.Config.Weapons)
+local Arsenal = require(Shared.Arsenal)
 local Gear = require(Shared.Gear)
 
 local Context = require(script.Parent.Parent.Context)
@@ -326,15 +327,31 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 
 	local renderers = {}
 
+	-- Slot number (1-3) of an owned gun.
+	local function slotOf(c, id: string): number
+		for n, w in c.arsenal:list() do
+			if w.id == id then
+				return n
+			end
+		end
+		return 0
+	end
+
 	function renderers.weapons(c)
 		grid.CellSize = UDim2.new(0.5, -8, 0, 150)
+		-- Buying with every gun slot full drops the gun in hand (else slot 2).
+		local swap = c.arsenal:swapTarget()
+		local full = c.arsenal:gunCount() >= Arsenal.MAX_GUNS
 		for i, id in Weapons.order do
 			local def = Weapons.defs[id]
 			local w = c.arsenal:get(id)
 			if not w then
-				simpleCard(c, i, `{def.slot}  {def.name}`, def.description, { kind = "buyWeapon", weapon = id }, "BUY")
+				local note = if full and swap
+					then `{def.description}\nSlots full: drops your {Weapons.defs[swap].name}.`
+					else def.description
+				simpleCard(c, i, def.name, note, { kind = "buyWeapon", weapon = id }, if full then "SWAP" else "BUY")
 			elseif def.reserveMax ~= math.huge then
-				local f = card(i, `{def.slot}  {def.name}`, "Owned. Upgrade it at the workbench.")
+				local f = card(i, `{slotOf(c, id)}  {def.name}`, "Owned. Upgrade it at the workbench.")
 				f.BackgroundColor3 = T.shade
 				local action = { kind = "ammo", weapon = id }
 				rowWith(
@@ -346,7 +363,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 					end)
 				)
 			else
-				local f = card(i, `{def.slot}  {def.name}`, "Owned. Infinite ammo.")
+				local f = card(i, `{slotOf(c, id)}  {def.name}`, "Owned. Infinite ammo.")
 				f.BackgroundColor3 = T.shade
 			end
 		end
@@ -507,7 +524,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 			local def = Weapons.defs[id]
 			if c.arsenal:get(id) then
 				order += 1
-				local f = card(order, `{def.slot}  {def.name}`, nil)
+				local f = card(order, `{slotOf(c, id)}  {def.name}`, nil)
 				for k, kind in { "damage", "fireRate", "magazine" } do
 					local action = { kind = "weaponUpgrade", weapon = id, upgrade = kind }
 					local o = ShopRules.getOffer(c, action)

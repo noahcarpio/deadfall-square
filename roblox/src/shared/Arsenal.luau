@@ -22,6 +22,9 @@ export type GunGear = { uid: number, rarity: string, power: number, traits: { st
 local Arsenal = {}
 Arsenal.__index = Arsenal
 
+-- Guns carried besides the pistol (slots 2 and 3; the pistol is always slot 1).
+Arsenal.MAX_GUNS = 2
+
 export type Arsenal = typeof(setmetatable(
 	{} :: {
 		owned: { [string]: WeaponState },
@@ -61,7 +64,38 @@ function Arsenal.magSize(self: Arsenal, id: string): number
 	return if w then Weapons.magSizeOf(def, w.upgrades) else def.magSize
 end
 
--- Owned weapons in slot order.
+-- Guns owned besides the pistol.
+function Arsenal.gunCount(self: Arsenal): number
+	local n = 0
+	for id in self.owned do
+		if id ~= "pistol" then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- True if `id` is owned or there's a free slot for it.
+function Arsenal.hasRoomFor(self: Arsenal, id: string): boolean
+	return self.owned[id] ~= nil or self:gunCount() < Arsenal.MAX_GUNS
+end
+
+-- The gun given up to make room for a new one: the gun in hand, else the one in slot 2.
+function Arsenal.swapTarget(self: Arsenal): string?
+	if self.current ~= "pistol" and self.owned[self.current] then
+		return self.current
+	end
+	local list = self:list()
+	return if list[2] then list[2].id else nil
+end
+
+-- The weapon in slot `n` (1 = pistol), if any.
+function Arsenal.inSlot(self: Arsenal, n: number): string?
+	local w = self:list()[n]
+	return if w then w.id else nil
+end
+
+-- Owned weapons in slot order: the pistol, then the others in Weapons.order.
 function Arsenal.list(self: Arsenal): { WeaponState }
 	local out = {}
 	for _, id in Weapons.order do
@@ -74,10 +108,14 @@ function Arsenal.list(self: Arsenal): { WeaponState }
 end
 
 -- Gives a weapon; owning it already grants half a reserve of ammo instead.
-function Arsenal.give(self: Arsenal, id: string): "new" | "ammo"
+-- "full" (and nothing changes) when every gun slot is taken: make room first.
+function Arsenal.give(self: Arsenal, id: string): "new" | "ammo" | "full"
 	if self.owned[id] then
 		self:addAmmoFraction(id, 0.5)
 		return "ammo"
+	end
+	if not self:hasRoomFor(id) then
+		return "full"
 	end
 	local def = Weapons.defs[id]
 	self.owned[id] = {
@@ -241,13 +279,14 @@ function Arsenal.powerOf(self: Arsenal, id: string): number
 	return if w and w.gear then w.gear.power else 1
 end
 
--- Attunes gear to a gun (giving the gun if it isn't owned yet).
-function Arsenal.attune(self: Arsenal, id: string, gear: GunGear)
-	if not self.owned[id] then
-		self:give(id)
+-- Attunes gear to a gun (giving the gun if it isn't owned yet). False when there's no slot for it.
+function Arsenal.attune(self: Arsenal, id: string, gear: GunGear): boolean
+	if not self.owned[id] and self:give(id) == "full" then
+		return false
 	end
 	local w = self.owned[id]
 	w.gear = { uid = gear.uid, rarity = gear.rarity, power = gear.power, traits = table.clone(gear.traits) }
+	return true
 end
 
 -- Reloads every weapon from reserve (free top-up between waves).

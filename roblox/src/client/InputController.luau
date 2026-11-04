@@ -302,10 +302,6 @@ local function bindActions()
 		Enum.KeyCode.One,
 		Enum.KeyCode.Two,
 		Enum.KeyCode.Three,
-		Enum.KeyCode.Four,
-		Enum.KeyCode.Five,
-		Enum.KeyCode.Six,
-		Enum.KeyCode.Seven,
 	}
 	ContextActionService:BindAction("DeadfallSlot", function(_, state, input)
 		if state == Enum.UserInputState.Begin then

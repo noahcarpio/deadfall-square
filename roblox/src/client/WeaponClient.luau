@@ -165,10 +165,9 @@ function WeaponClient.start()
 		end
 		local now = os.clock()
 		if slot then
-			for _, w in arsenal:list() do
-				if Weapons.defs[w.id].slot == slot and arsenal:switchTo(w.id, now) then
-					remotes.Switch:FireServer(w.id)
-				end
+			local id = arsenal:inSlot(slot)
+			if id and arsenal:switchTo(id, now) then
+				remotes.Switch:FireServer(id)
 			end
 		elseif direction and arsenal:cycle(direction, now) then
 			remotes.Switch:FireServer(arsenal.current)

@@ -34,6 +34,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Waves = require(Shared.Config.Waves)
 local Floors = require(Shared.Config.Floors)
+local Weapons = require(Shared.Config.Weapons)
 local Places = require(Shared.Config.Places)
 local FloorPlan = require(Shared.FloorPlan)
 local Gear = require(Shared.Gear)
@@ -518,6 +519,10 @@ function GameServer.start()
 			},
 			removeGun = function(id: string)
 				W.players:removeGun(ps, id)
+			end,
+			dropGun = function(id: string)
+				W.players:dropGun(ps, id)
+				W.notify(ps.player, `Dropped your {Weapons.defs[id].name} to make room`, "info")
 			end,
 		}
 	end

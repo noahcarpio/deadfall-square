@@ -109,7 +109,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 | Sprint | Shift | L3 / LT | RUN toggle |
 | Dodge roll | Space | A | ROLL |
 | Reload | R | X | RELOAD |
-| Switch weapon | 1–7, wheel, Q / E | LB (tap) | SWAP |
+| Switch weapon (pistol + 2 gun slots) | 1–3, wheel, Q / E | LB (tap) | SWAP |
 | Melee swing (3-hit combo) | Right click | RB | SLASH |
 | Gadgets 1 / 2 / 3 | Z / X / V | Hold LB + X / Y / B | G1 / G2 / G3 |
 | Use: search, trade, craft, ring bell, revive | F (hold to search / revive) | Y | Tap (and hold) the prompt |

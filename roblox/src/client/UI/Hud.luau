@@ -15,6 +15,7 @@ local Floors = require(Shared.Config.Floors)
 local Constants = require(Shared.Config.Constants)
 local Perks = require(Shared.Config.Perks)
 local Weapons = require(Shared.Config.Weapons)
+local Arsenal = require(Shared.Arsenal)
 
 local Context = require(script.Parent.Parent.Context)
 local Audio = require(script.Parent.Parent.Audio)
@@ -250,9 +251,10 @@ function Hud.start(gui: ScreenGui)
 	local slotLayout = Builder.list(4, true)
 	slotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	slotLayout.Parent = slots
+	-- Slot 1 is always the pistol, then up to Arsenal.MAX_GUNS more guns.
 	local slotLabels = {}
-	for i, id in Weapons.order do
-		local l = create("TextLabel", {
+	for i = 1, 1 + Arsenal.MAX_GUNS do
+		slotLabels[i] = create("TextLabel", {
 			LayoutOrder = i,
 			Text = tostring(i),
 			Font = T.mono,
@@ -262,7 +264,6 @@ function Hud.start(gui: ScreenGui)
 			TextColor3 = T.muted,
 			Parent = slots,
 		}, { Builder.corner(4) })
-		slotLabels[id] = l
 	end
 
 	local mapRoot, mapUpdate = minimap(playerGui)
@@ -542,10 +543,10 @@ function Hud.start(gui: ScreenGui)
 				1
 			)
 		end
-		for id, l in slotLabels do
-			local owned = arsenal:owns(id)
-			l.BackgroundColor3 = if id == arsenal.current then T.text elseif owned then T.shade else T.panel
-			l.TextColor3 = if id == arsenal.current then T.panel elseif owned then T.text else T.rule
+		for i, l in slotLabels do
+			local id = arsenal:inSlot(i)
+			l.BackgroundColor3 = if id == arsenal.current then T.text elseif id then T.shade else T.panel
+			l.TextColor3 = if id == arsenal.current then T.panel elseif id then T.text else T.rule
 		end
 
 		-- Perks.

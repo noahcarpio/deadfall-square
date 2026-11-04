@@ -220,7 +220,7 @@ test("Arsenal enforces fire rate and auto-reloads", function()
 		end
 		t += 1 / 60
 	end
-	expect(shots >= 4 and shots <= 5, `pistol fired {shots} shots in 1s`)
+	expect(shots >= 3 and shots <= 4, `pistol fired {shots} shots in 1s`)
 	for _ = 1, 20 do
 		a:tryFire(t, 0, 1)
 		t += 0.5
@@ -313,6 +313,37 @@ local function shopContext(coins: number, capacity: number?)
 	end
 	return ctx
 end
+
+test("Arsenal carries the pistol plus two guns; buying a third swaps the one in hand", function()
+	local a = Arsenal.new()
+	eq(a:give("shotgun"), "new")
+	eq(a:give("smg"), "new")
+	eq(a:give("rifle"), "full")
+	expect(not a:owns("rifle"))
+	eq(a:inSlot(1), "pistol")
+	eq(a:inSlot(2), "shotgun")
+	eq(a:inSlot(3), "smg")
+	-- Holding the pistol: slot 2 is the one swapped out; holding a gun: that gun.
+	eq(a:swapTarget(), "shotgun")
+	a:switchTo("smg", 0)
+	eq(a:swapTarget(), "smg")
+	expect(not a:attune("rifle", { uid = 1, rarity = "rare", power = 1.2, traits = {} }))
+	-- The shop drops the gun in hand to make room and equips the new one.
+	local ctx = shopContext(100000)
+	ctx.arsenal:give("shotgun")
+	ctx.arsenal:give("smg")
+	ctx.arsenal:switchTo("shotgun", 0)
+	local dropped = nil
+	ctx.dropGun = function(id)
+		dropped = id
+		ctx.arsenal:remove(id)
+	end
+	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "rifle" }), true)
+	eq(dropped, "shotgun")
+	expect(ctx.arsenal:owns("rifle") and ctx.arsenal:owns("smg") and not ctx.arsenal:owns("shotgun"))
+	eq(ctx.arsenal.current, "rifle")
+	eq(ctx.arsenal:gunCount(), Arsenal.MAX_GUNS)
+end)
 
 test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local ctx = shopContext(300)

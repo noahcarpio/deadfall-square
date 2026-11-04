@@ -267,7 +267,7 @@ function Pickups.collect(self, p, ps): boolean
 		local item = table.clone(p.item)
 		item.traits = table.clone(p.item.traits)
 		item.uid = W.players:newUid(ps)
-		if item.kind == "gun" and not ps.arsenal:owns(item.id) then
+		if item.kind == "gun" and not ps.arsenal:owns(item.id) and ps.arsenal:hasRoomFor(item.id) then
 			-- A dropped gun with gear: take the gun and its gear straight into the hands.
 			ps.gear.guns[item.id] = item
 			ps.arsenal:attune(item.id, item :: any)
@@ -306,10 +306,19 @@ function Pickups.collect(self, p, ps): boolean
 		ps.economy:addCoins(amount)
 		label = `+{amount} COINS`
 	else
-		local res = ps.arsenal:give(p.weapon)
-		W.players:syncArsenal(ps)
 		local name = Weapons.defs[p.weapon].name
-		label = if res == "new" then `NEW: {name} [{Weapons.defs[p.weapon].slot}]` else `{name} AMMO`
+		local res = ps.arsenal:give(p.weapon)
+		if res == "full" then
+			-- Gun slots full: leave it on the ground, and say how to take it (throttled).
+			local now = os.clock()
+			if now - (ps.slotNoticeAt or 0) > 4 then
+				ps.slotNoticeAt = now
+				W.notify(ps.player, `Gun slots full — drop a gun (I) to take the {name}`, "info")
+			end
+			return false
+		end
+		W.players:syncArsenal(ps)
+		label = if res == "new" then `NEW: {name}` else `{name} AMMO`
 	end
 	W.remotes.Notify:FireClient(ps.player, label, "pickup", ps.x, ps.z)
 	return true

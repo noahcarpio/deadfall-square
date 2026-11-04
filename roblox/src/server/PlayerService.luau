@@ -72,6 +72,7 @@ export type PState = {
 	damageTaken: number,
 	revives: number,
 	lastHurtNotify: number,
+	slotNoticeAt: number,
 	connections: { RBXScriptConnection },
 }
 
@@ -146,6 +147,7 @@ function PlayerService.add(self, player: Player)
 		hasBody = false,
 		ready = false,
 		lastHurtNotify = 0,
+		slotNoticeAt = 0,
 		connections = {},
 	} :: any
 	freshRunState(ps)
@@ -594,6 +596,19 @@ function PlayerService.equipGear(self, ps: PState, uid: number, slot: number?): 
 		old = if current then current else nil
 		g.gadgets[s :: number] = item
 	else
+		-- No free gun slot: the gun in hand (else slot 2) goes to the stash with its gear,
+		-- or onto the ground if it's a plain gun.
+		if not ps.arsenal:hasRoomFor(item.id) then
+			local swap = ps.arsenal:swapTarget()
+			if swap then
+				local swapGear = self:removeGun(ps, swap)
+				if swapGear then
+					table.insert(g.stash, swapGear)
+				else
+					self.W.pickups:spawnGun(ps.x, ps.z, swap, ps)
+				end
+			end
+		end
 		old = g.guns[item.id]
 		g.guns[item.id] = item
 		ps.arsenal:attune(item.id, item :: any)

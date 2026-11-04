@@ -16,7 +16,7 @@ This is a list of weapons that could be added to Deadfall Square, tuned against 
 
 | Gun | Burst DPS | Sustained DPS | Price | Coins / sDPS | Walker hits | Role |
 |---|---|---|---|---|---|---|
-| M9 Pistol | 72 | 52 | free | — | 3 | Fallback, infinite ammo |
+| M9 Pistol (after the nerf: 12 dmg, 3.5/s, 10 mag) | 42 | 31 | free | — | 3 | Fallback, infinite ammo |
 | Pump Shotgun | 101 | 72 | 260 | 3.6 | 1 | Close crowds |
 | Vector SMG | 117 | 75 | 340 | 4.5 | 4 | Spray, ammo hungry |
 | AR-15 Rifle | 162 | 106 | 520 | 4.9 | 2 | All-rounder |
@@ -46,7 +46,7 @@ Gaps this leaves:
 | 9 | **Railgun** | hitscan, 0.6 s charge | 420 × 1 | 0.55 | 3 / 3.2 s | 90 | 231 / 146 | 1,500, Unique only | 10.3 | Boss and elite killer; pierces everything | Charge-up leaves you open; 3 shots | charge-up |
 
 Notes:
-- **Revolver vs pistol:** a similar sustained DPS (54 vs 52), but in big hits. It is a "skill" sidearm, not an upgrade, which keeps the free pistol relevant.
+- **Revolver vs pistol:** after the pistol nerf (31 sustained DPS) the revolver is a clear step up at 54. It is a cheap first buy that spends a gun slot, which is the point.
 - **Double-barrel vs pump:** about the same sustained output, front-loaded. Its 0.7 s Brute kill is the reason to buy it. Watch knockback: two blasts at 5 knockback each can fling Brutes out of melee range. That is fine, but cap it.
 - **DMR and LMG** both cost more per DPS than the rifle on purpose, because they get pierce or uptime. If playtests show the rifle is still always picked, cut the DMR's price to 620 before buffing its damage.
 - **Auto shotgun and railgun** are late-game guns. Make them Rare or Unique rewards (floor 12+ and 18+), not merchant stock. That way the merchant's best buy stays the rifle or flamer, and rewards feel special.
@@ -77,7 +77,7 @@ Pipe bomb: 220 damage, radius 4.5, 4 s fuse, crafted.
 
 ## Before adding more guns
 
-- **Slots.** Each gun has a fixed `slot` (1–7, the number keys), and all seven are used. More guns need either a **carry limit** (for example the pistol plus 3 guns, with the rest stashed and dropped as now) or slots by **category** (sidearm, primary, heavy). Choose this first, because it changes how strong each gun can be: with a carry limit, guns can be stronger, since you can't own them all.
+- **Slots: decided.** Players carry the pistol plus **two** guns (`Arsenal.MAX_GUNS`). Any number of guns can exist, and each pick is a real choice, so new guns can be a little stronger than when you could own all of them.
 - **New mechanics, cheapest first:**
   1. a speed modifier while held (LMG, chainsaw);
   2. burst fire (carbine);
@@ -91,4 +91,4 @@ Pipe bomb: 220 damage, radius 4.5, 4 s fuse, crafted.
 
 1. **Revolver**, **Double-Barrel** and **DMR**: they need no new code, fill real gaps and are easy to judge.
 2. **Baseball Bat** and **Spear**: also no new code (melee definitions only).
-3. Then the **carry limit**, before the LMG, auto shotgun and railgun.
+3. Then the LMG, auto shotgun and railgun (the carry limit is now in place).
