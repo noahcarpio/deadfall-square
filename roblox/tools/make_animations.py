@@ -281,8 +281,116 @@ def kneel() -> Clip:
     return c
 
 
+def emotes() -> list[Clip]:
+    """Cosmetic emotes (Cosmetics.luau). Absolute: the gun is lowered and hidden while they play.
+
+    For a raised arm, +rz swings the right arm out to the side (-rz the left);
+    with the upper arm out sideways, +rz on the right elbow folds the forearm up.
+    """
+    out = []
+
+    wave = Clip("Emote_Wave", 2.0, "absolute")
+    up = {"rShoulder": (0, 0, 2.6), "neck": (0, -0.2, 0)}
+    wave.key(0.0, {"rShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "neck": (0, 0, 0)})
+    for i, t in enumerate([0.35, 0.6, 0.85, 1.1, 1.35, 1.6]):
+        wave.key(t, {**up, "rElbow": (0, 0, 0.5 if i % 2 == 0 else -0.4)}, "out" if i == 0 else "cubic")
+    wave.key(2.0, {"rShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "neck": (0, 0, 0)})
+    out.append(wave)
+
+    point = Clip("Emote_Point", 1.4, "absolute")
+    rest = {"rShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "waist": (0, 0, 0), "neck": (0, 0, 0)}
+    aim = {"rShoulder": (1.6, 0.15, 0), "rElbow": (0.05, 0, 0), "waist": (0, 0.25, 0), "neck": (0, 0.2, 0)}
+    point.key(0.0, rest)
+    point.key(0.25, aim, "out")
+    point.key(1.1, aim)
+    point.key(1.4, rest)
+    out.append(point)
+
+    salute = Clip("Emote_Salute", 1.6, "absolute")
+    rest = {"rShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "neck": (0, 0, 0)}
+    brow = {"rShoulder": (1.3, -0.3, 0.9), "rElbow": (2.1, 0, 0), "neck": (0.08, 0, 0)}
+    salute.key(0.0, rest)
+    salute.key(0.3, brow, "out")
+    salute.key(1.2, brow)
+    salute.key(1.6, rest)
+    out.append(salute)
+
+    cheer = Clip("Emote_Cheer", 1.6, "absolute")
+    rest = {"rShoulder": (0, 0, 0), "lShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "lElbow": (0, 0, 0), "root": (0, 0, 0)}
+    cheer.key(0.0, rest)
+    for i, t in enumerate([0.25, 0.5, 0.75, 1.0, 1.25]):
+        pump = 0.3 if i % 2 == 0 else 0
+        cheer.key(
+            t,
+            {
+                "rShoulder": (0, 0, 2.7 - pump),
+                "lShoulder": (0, 0, -2.7 + pump),
+                "rElbow": (0, 0, pump * 1.5),
+                "lElbow": (0, 0, -pump * 1.5),
+                "root": (0, 0, 0, 0, 0.35 if i % 2 == 0 else 0, 0),
+            },
+            "out",
+        )
+    cheer.key(1.6, rest)
+    out.append(cheer)
+
+    flex = Clip("Emote_Flex", 1.8, "absolute")
+    rest = {"rShoulder": (0, 0, 0), "lShoulder": (0, 0, 0), "rElbow": (0, 0, 0), "lElbow": (0, 0, 0), "waist": (0, 0, 0)}
+    pose = {"rShoulder": (0, 0, 1.5), "lShoulder": (0, 0, -1.5), "rElbow": (0, 0, 1.6), "lElbow": (0, 0, -1.6)}
+    flex.key(0.0, rest)
+    flex.key(0.35, {**pose, "waist": (0.1, 0, 0)}, "out")
+    flex.key(0.8, {**pose, "waist": (0.15, 0.2, 0)})
+    flex.key(1.3, {**pose, "waist": (0.15, -0.2, 0)})
+    flex.key(1.8, rest)
+    out.append(flex)
+
+    sit = Clip("Emote_Sit", 2.4, "absolute", loop=True)
+    for t, breathe in [(0.0, 0.0), (1.2, 1.0), (2.4, 0.0)]:
+        sit.key(
+            t,
+            {
+                "root": (0, 0, 0, 0, -1.4, 0.2),
+                "waist": (-0.15 + 0.04 * breathe, 0, 0),
+                "neck": (-0.1, 0, 0),
+                "rHip": (1.57, 0, 0.1),
+                "lHip": (1.57, 0, -0.1),
+                "rKnee": (-1.57, 0, 0),
+                "lKnee": (-1.57, 0, 0),
+                "rShoulder": (0.55, 0, 0.1),
+                "lShoulder": (0.55, 0, -0.1),
+                "rElbow": (0.4, 0, 0),
+                "lElbow": (0.4, 0, 0),
+            },
+        )
+    out.append(sit)
+
+    dance = Clip("Emote_Dance", 1.2, "absolute", loop=True)
+    for i, t in enumerate([0.0, 0.3, 0.6, 0.9, 1.2]):
+        side = 1 if i % 2 == 0 else -1
+        bob = 0.0 if i % 2 == 0 else 1.0
+        if i == 4:
+            side, bob = 1, 0.0
+        dance.key(
+            t,
+            {
+                "root": (0, 0.3 * side, 0, 0, -0.25 * bob, 0),
+                "waist": (0, -0.35 * side, 0.1 * side),
+                "rShoulder": (0, 0, 2.3 if side > 0 else 0.6),
+                "lShoulder": (0, 0, -0.6 if side > 0 else -2.3),
+                "rElbow": (0, 0, 0.6),
+                "lElbow": (0, 0, -0.6),
+                "rHip": (0.3 * bob, 0, 0),
+                "lHip": (0.3 * bob, 0, 0),
+                "rKnee": (-0.5 * bob, 0, 0),
+                "lKnee": (-0.5 * bob, 0, 0),
+            },
+        )
+    out.append(dance)
+    return out
+
+
 def all_clips() -> list[Clip]:
-    return [*reloads(), throw(), *swings(), roll(), downed(), kneel()]
+    return [*reloads(), throw(), *swings(), roll(), downed(), kneel(), *emotes()]
 
 
 # --------------------------------------------------------------------------- output

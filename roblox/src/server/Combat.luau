@@ -141,8 +141,10 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 	W.waves:onZombieKilled(z)
 
 	if attacker then
-		local _, coins =
-			attacker.economy:registerKill(z.def.score * (1 + W.waves.wave * 0.05), z.def.coins * W.waves.modifier.coins)
+		local _, coins = attacker.economy:registerKill(
+			z.def.score * (1 + W.waves.wave * 0.05),
+			z.def.coins * W.waves.modifier.coins * W.waves.tier.coins
+		)
 		attacker.kills[z.type] += 1
 		W.remotes.Notify:FireClient(attacker.player, `+{coins}`, "coin", z.x, z.z)
 		if attacker.perks:has("adrenaline") and not attacker.downed then
@@ -202,6 +204,9 @@ function Combat.killZombie(self, z, source: string, dirX: number, dirZ: number, 
 		end
 		W.waves.boss = nil
 		W.notifyAll("BOSS DEFEATED", "good")
+		if W.onBossKilled then
+			W.onBossKilled()
+		end
 	end
 end
 

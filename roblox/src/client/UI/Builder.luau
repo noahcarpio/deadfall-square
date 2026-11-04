@@ -191,7 +191,7 @@ local function kit(P: Theme.Palette)
 			BackgroundTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 36),
 			Parent = parent,
-		}, { Builder.list(24, true) })
+		}, { Builder.list(16, true) })
 		create("Frame", {
 			Name = "Rule",
 			BackgroundColor3 = P.border,

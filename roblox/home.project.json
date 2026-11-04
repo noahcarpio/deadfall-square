@@ -12,6 +12,9 @@
         "$path": "src/home/server",
         "Leaderboard": {
           "$path": "src/server/Leaderboard.luau"
+        },
+        "Profile": {
+          "$path": "src/server/Profile.luau"
         }
       }
     },

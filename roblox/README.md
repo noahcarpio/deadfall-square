@@ -115,6 +115,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 | Use: search, trade, craft, ring bell, revive | F (hold to search / revive) | Y | Tap (and hold) the prompt |
 | Bandage / pipe bomb | B / G (thrown at the cursor) | D-pad up / down | HEAL / BOMB |
 | Inventory (guns, gear, items: equip, use, drop, sell) | I | D-pad right | BAG |
+| Emote menu (your 4 equipped emotes) | T | D-pad left | EMOTE |
 | Leave the merchant / workbench (or just walk away) | Esc or LEAVE | B | LEAVE |
 | Placement: rotate / cancel / pan | R or right-click / Esc / WASD | — / B / — | ROTATE / CANCEL / drag |
 
@@ -174,7 +175,28 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 
   R15 avatars get everything. R6 avatars get the code-made versions.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.
-- **Home page (separate place):** a Field Manual cover page with your party (leader marked), CREATE PARTY / START RUN / INVITE FRIENDS / LEAVE PARTY, and numbered tabs for open parties to join, how to play, and the best climbs. Up to 6 survivors per party. Code in `src/home/`; party rules in `src/shared/PartyRules.luau`.
+- **Home page (separate place):** a Field Manual cover page with:
+  - your Scrip and unlocked tier;
+  - your party (leader marked, with each member's title) and the difficulty tier;
+  - CREATE PARTY / START RUN / INVITE FRIENDS / LEAVE PARTY;
+  - numbered tabs: Parties, Locker, Crates, How to play, Best climbs.
+
+  Up to 6 survivors per party. Code in `src/home/`; party rules in `src/shared/PartyRules.luau`.
+- **Difficulty tiers** (`Config/Tiers.luau`, 10 tiers from Survivor to Apocalypse VI):
+  - Winning a climb unlocks the next tier for everyone who was there.
+  - The party leader picks any tier they've unlocked.
+  - Each tier brings a bigger horde (+25% per tier), harder hits (+12%), a faster horde (up to +25%) and more coins.
+  - Zombie health only rises 6% per tier, so there are still no damage sponges.
+- **Scrip and cosmetics** (`Cosmetics.luau`, saved by `src/server/Profile.luau`):
+  - **Earning Scrip:** beating a boss pays 10 Scrip (+5 per tier), and winning pays 100 (+50 per tier). Scrip is earned only, never sold.
+  - **Survivor Crate (120 Scrip):** gives one weapon skin, trail, emote or title you don't own yet. The odds are shown on the Crates tab: Common 55%, Rare 30%, Epic 12%, Legendary 3%.
+  - **Locker:** equip your items there.
+    - Skins recolour every gun and melee weapon.
+    - Trails follow you.
+    - Titles show under your name.
+    - Up to 4 emotes go in the in-game emote menu (**T**, D-pad left, or EMOTE on touch).
+  - **Saving:** profiles live in a DataStore (`DeadfallProfile_v1`). Every change is an atomic update, so the Home and game places never overwrite each other.
+  - **Testing in Studio:** with API access off, profiles stay in memory and start with 1,000 Scrip. The Crates tab also has a Studio-only "+500 Scrip" button.
 - **UI:** HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap with M / W / B markers for the merchant, workbench and bell, crosshair, on-screen markers pointing to downed teammates, a low-health bandage cue), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
 
 ## Architecture

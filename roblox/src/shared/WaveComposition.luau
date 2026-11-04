@@ -14,8 +14,9 @@ type RngLike = {
 	Boss waves trade 40% of the horde for the boss (spawned separately). Each
 	newly unlocked type appears at least once so players meet it.
 ]]
-local function build(wave: number, rng: RngLike, players: number?): { string }
-	local budget = Waves.budget(wave) * Waves.playerScale(players or 1)
+-- `countScale` grows the whole horde (difficulty tiers).
+local function build(wave: number, rng: RngLike, players: number?, countScale: number?): { string }
+	local budget = Waves.budget(wave) * Waves.playerScale(players or 1) * (countScale or 1)
 	if Waves.isBossWave(wave) then
 		budget *= 0.6
 	end

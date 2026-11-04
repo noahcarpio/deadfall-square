@@ -28,6 +28,7 @@ local InputController = {
 	onSwitch = Context.signal(), -- (slot | nil, direction | nil)
 	onUseItem = Context.signal(), -- (itemId)
 	onToggleBag = Context.signal(),
+	onEmote = Context.signal(),
 	onMelee = Context.signal(),
 	onAbility = Context.signal(), -- (slot 1..3)
 }
@@ -196,6 +197,9 @@ local function buildMobileControls(): ScreenGui
 	button("BAG", function()
 		InputController.onToggleBag:fire()
 	end, column2)
+	button("EMOTE", function()
+		InputController.onEmote:fire()
+	end, column2)
 	local column3 = create("Frame", {
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -298,6 +302,12 @@ local function bindActions()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.I, Enum.KeyCode.DPadRight)
+	ContextActionService:BindAction("DeadfallEmote", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			InputController.onEmote:fire()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.T, Enum.KeyCode.DPadLeft)
 	local digits = {
 		Enum.KeyCode.One,
 		Enum.KeyCode.Two,

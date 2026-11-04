@@ -23,6 +23,13 @@ return {
 		Roll = "",
 		Downed = "",
 		Kneel = "",
+		Emote_Wave = "",
+		Emote_Point = "",
+		Emote_Salute = "",
+		Emote_Cheer = "",
+		Emote_Flex = "",
+		Emote_Sit = "",
+		Emote_Dance = "",
 	} :: { [string]: string },
 	-- Which reload clip each weapon uses (anything else: Reload_Rifle).
 	RELOAD = {

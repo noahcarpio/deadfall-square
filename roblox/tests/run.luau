@@ -34,6 +34,8 @@ local Gear = require("../src/shared/Gear")
 local RewardRules = require("../src/shared/RewardRules")
 local MeleeMath = require("../src/shared/MeleeMath")
 local PartyRules = require("../src/shared/PartyRules")
+local Tiers = require("../src/shared/Config/Tiers")
+local Cosmetics = require("../src/shared/Cosmetics")
 local AnimationClips = require("../src/shared/Config/AnimationClips")
 local Animations = require("../src/shared/Config/Animations")
 
@@ -1071,6 +1073,113 @@ test("Every keyframed clip has an id slot, and every reload clip exists", functi
 		eq(AnimationClips[`Swing_{i}`].length, MeleeMath.SWING_TIME)
 	end
 	eq(AnimationClips.Roll.length, PlayerStats.BASE.rollDuration)
+end)
+
+test("Tiers: bigger, faster hordes with only a small health step; leader picks up to their unlock", function()
+	local one, ten = Tiers.get(1), Tiers.get(Tiers.MAX)
+	expect(ten.count > one.count * 2, "top tier should field a much bigger horde")
+	expect(ten.hp < 1.6, "tiers must not turn zombies into sponges")
+	expect(ten.scripWin > one.scripWin and ten.scripBoss > one.scripBoss)
+	eq(Tiers.get(0).tier, 1)
+	eq(Tiers.get(99).tier, Tiers.MAX)
+	-- Party tier: leader only, capped at their unlocked tier.
+	local st = PartyRules.new()
+	local party = PartyRules.create(st, 1)
+	PartyRules.join(st, 2, party.id)
+	eq(party.tier, 1)
+	expect(not PartyRules.setTier(st, 2, 2, 5), "a member can't pick the tier")
+	expect(not PartyRules.setTier(st, 1, 3, 2), "can't pick a locked tier")
+	expect(PartyRules.setTier(st, 1, 2, 2))
+	eq(party.tier, 2)
+end)
+
+test("Profiles: wins pay Scrip and unlock the next tier; bosses pay a little", function()
+	local p = Cosmetics.newProfile()
+	eq(Cosmetics.unlockedTier(p), 1)
+	eq(Cosmetics.applyBoss(p, 1), Tiers.get(1).scripBoss)
+	eq(Cosmetics.applyWin(p, 1), Tiers.get(1).scripWin)
+	eq(p.wins, 1)
+	eq(Cosmetics.unlockedTier(p), 2)
+	-- Winning a lower tier never lowers your unlock; a carried win unlocks past it.
+	Cosmetics.applyWin(p, 5)
+	Cosmetics.applyWin(p, 2)
+	eq(Cosmetics.unlockedTier(p), 6)
+	-- Junk from storage is repaired.
+	local fixed = Cosmetics.normalize({
+		scrip = -5,
+		highestTier = 99,
+		owned = { nope = true, skinGold = true },
+		equipped = { skin = "skinGold", trail = "trailGhost" },
+	})
+	eq(fixed.scrip, 0)
+	eq(fixed.highestTier, Tiers.MAX)
+	eq(fixed.owned.nope, nil)
+	eq(fixed.equipped.skin, "skinGold")
+	eq(fixed.equipped.trail, nil) -- not owned
+end)
+
+test("Crates: published odds, no duplicates until a rarity is complete, earned Scrip only", function()
+	local total = 0
+	for _, r in Cosmetics.RARITY_ORDER do
+		total += Cosmetics.RARITIES[r].odds
+	end
+	expect(math.abs(total - 1) < 1e-9, "crate odds must sum to 100%")
+	-- Every item can be won.
+	for _, id in Cosmetics.ORDER do
+		local it = Cosmetics.ITEMS[id]
+		expect(Cosmetics.RARITIES[it.rarity] ~= nil, `{id} has an unknown rarity`)
+		if it.kind == "emote" then
+			expect(AnimationClips[it.clip :: string] ~= nil, `{id}: no clip {it.clip}`)
+		end
+	end
+	-- Opening crates until the collection is complete never repeats an item.
+	local p = Cosmetics.newProfile(1000000)
+	local rng = Rng.new(7)
+	local seen = {}
+	for _ = 1, #Cosmetics.ORDER do
+		local ok, id = Cosmetics.buyCrate(p, rng)
+		expect(ok and id ~= nil, "crate should give an item")
+		expect(not seen[id :: string], `duplicate {id}`)
+		seen[id :: string] = true
+	end
+	-- Everything owned: no charge, nothing given.
+	local before = p.scrip
+	local ok, id = Cosmetics.buyCrate(p, rng)
+	expect(ok and id == nil and p.scrip == before)
+	-- Not enough Scrip.
+	local poor = Cosmetics.newProfile(Cosmetics.CRATE_PRICE - 1)
+	expect(not (Cosmetics.buyCrate(poor, rng)))
+	-- Odds are roughly honoured on a fresh collection (many players' first crate).
+	local counts = { common = 0, rare = 0, epic = 0, legendary = 0 }
+	for seed = 1, 4000 do
+		local first = Cosmetics.rollCrate(Rng.new(seed), {}) :: string
+		counts[Cosmetics.ITEMS[first].rarity] += 1
+	end
+	expect(math.abs(counts.common / 4000 - 0.55) < 0.04 and counts.legendary > 40 and counts.legendary < 220)
+end)
+
+test("Locker: equip only what you own; emotes fill four slots", function()
+	local p = Cosmetics.newProfile()
+	expect(not Cosmetics.equip(p, "skin", "skinGold"), "can't equip what you don't own")
+	p.owned.skinGold = true
+	expect(Cosmetics.equip(p, "skin", "skinGold"))
+	eq(p.equipped.skin, "skinGold")
+	expect(Cosmetics.equip(p, "skin", nil))
+	eq(p.equipped.skin, nil)
+	expect(not Cosmetics.equip(p, "trail", "skinGold"), "wrong kind")
+	local emotes = {}
+	for _, id in Cosmetics.ORDER do
+		if Cosmetics.ITEMS[id].kind == "emote" then
+			p.owned[id] = true
+			table.insert(emotes, id)
+		end
+	end
+	for i, id in emotes do
+		eq(Cosmetics.equip(p, "emote", id), i <= Cosmetics.EMOTE_SLOTS)
+	end
+	eq(#p.equipped.emotes, Cosmetics.EMOTE_SLOTS)
+	expect(Cosmetics.equip(p, "emote", emotes[1])) -- toggles off
+	eq(#p.equipped.emotes, Cosmetics.EMOTE_SLOTS - 1)
 end)
 
 print(`\n{passed} passed, {failed} failed`)

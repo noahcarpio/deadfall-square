@@ -9,10 +9,13 @@
 	  elite   - kill the glowing elite; the horde keeps coming until then
 	  boss    - the Abomination plus a horde; kill everything
 
-	Groups spawn from alleys away from players under a concurrency cap.
+	Groups spawn from alleys away from players under a concurrency cap. The
+	run's difficulty tier (Config/Tiers, set by GameServer) grows the horde and
+	makes it faster and harder-hitting.
 ]]
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Floors = require(Shared.Config.Floors)
+local Tiers = require(Shared.Config.Tiers)
 local Waves = require(Shared.Config.Waves)
 local WaveComposition = require(Shared.WaveComposition)
 
@@ -20,7 +23,7 @@ local WaveDirector = {}
 WaveDirector.__index = WaveDirector
 
 function WaveDirector.new(W)
-	local self = setmetatable({ W = W }, WaveDirector)
+	local self = setmetatable({ W = W, tier = Tiers.get(1) }, WaveDirector)
 	self:reset()
 	return self
 end
@@ -55,10 +58,11 @@ end
 function WaveDirector.scaling(self)
 	local w = math.max(1, self.wave)
 	local m = self.modifier
+	local t = self.tier
 	return {
-		hp = Waves.hpMultiplier(w) * m.hp,
-		damage = Waves.damageMultiplier(w),
-		speed = Waves.speedMultiplier(w) * m.speed,
+		hp = Waves.hpMultiplier(w) * m.hp * t.hp,
+		damage = Waves.damageMultiplier(w) * t.damage,
+		speed = Waves.speedMultiplier(w) * m.speed * t.speed,
 	}
 end
 
@@ -78,7 +82,7 @@ end
 -- Applies the floor modifier to a composition.
 function WaveDirector.compose(self, players: number): { string }
 	local W = self.W
-	local queue = WaveComposition.build(self.wave, W.rng, players)
+	local queue = WaveComposition.build(self.wave, W.rng, players, self.tier.count)
 	local m = self.modifier
 	if m.brutes > 0 then
 		for i, t in queue do

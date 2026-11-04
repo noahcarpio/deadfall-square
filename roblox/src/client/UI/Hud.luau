@@ -568,15 +568,17 @@ function Hud.start(gui: ScreenGui)
 		local objective = Floors.objectives[gs:GetAttribute("Objective") or "clear"] or Floors.objectives.clear
 		local modifier = Floors.modifiers[gs:GetAttribute("Modifier") or "none"] or Floors.modifiers.none
 		local modText = if modifier.name ~= "" then ` · {modifier.name}` else ""
+		local tierNumber = gs:GetAttribute("Tier") or 1
+		local tierText = if tierNumber > 1 then ` · T{tierNumber}` else ""
 		if phase == "waiting" then
 			local here, size = gs:GetAttribute("PartyHere") or 0, gs:GetAttribute("PartySize") or 1
 			waveLabel.Text = "WAITING FOR YOUR PARTY"
 			waveSub.Text = `{here} / {size} here`
 		elseif phase == "countdown" then
-			waveLabel.Text = `FLOOR {wave + 1} / {floors}`
+			waveLabel.Text = `FLOOR {wave + 1} / {floors}{tierText}`
 			waveSub.Text = `{objective.name}{modText} — starting in {secs}`
 		elseif phase == "wave" then
-			waveLabel.Text = `FLOOR {wave} / {floors}`
+			waveLabel.Text = `FLOOR {wave} / {floors}{tierText}`
 			local objectiveId = gs:GetAttribute("Objective")
 			if objectiveId == "holdout" then
 				local t = math.ceil(gs:GetAttribute("TimeLeft") or 0)
