@@ -163,7 +163,7 @@ local function getOffer(ctx: Context, a: Action): Offer
 	elseif a.kind == "buyWeapon" then
 		local id = a.weapon :: string
 		local def = Weapons.defs[id]
-		if def == nil or def.price <= 0 then
+		if def == nil or def.price <= 0 or def.merchant == false then
 			return offer(0, false, "INVALID", 0, 1)
 		end
 		if ctx.arsenal:owns(id) then

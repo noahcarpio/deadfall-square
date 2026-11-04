@@ -536,12 +536,18 @@ function Hud.start(gui: ScreenGui)
 		ammoLabel.Text = `{w.mag} / {reserve}`
 		ammoLabel.TextColor3 = if w.mag <= math.ceil(arsenal:magSize(w.id) * 0.25) then T.danger else T.text
 		local now = os.clock()
-		reloadBar.Visible = arsenal:isReloading(now)
-		if reloadBar.Visible then
+		-- The same bar shows reload progress, or a charge-up gun's charge (in rust).
+		local reloading = arsenal:isReloading(now)
+		reloadBar.Visible = reloading or Context.charge > 0
+		if reloading then
+			reloadFill.BackgroundColor3 = T.accent
 			reloadFill.Size = UDim2.fromScale(
 				math.clamp(1 - (arsenal.reloadEnd - now) / math.max(0.01, arsenal.reloadDuration), 0, 1),
 				1
 			)
+		elseif Context.charge > 0 then
+			reloadFill.BackgroundColor3 = T.rust
+			reloadFill.Size = UDim2.fromScale(Context.charge, 1)
 		end
 		for i, l in slotLabels do
 			local id = arsenal:inSlot(i)

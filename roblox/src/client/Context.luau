@@ -79,6 +79,8 @@ local Context = {
 	firing = false,
 	-- Current weapon spread (radians), for the crosshair.
 	spread = 0,
+	-- Charge-up guns (railgun): 0..1 while the trigger is held.
+	charge = 0,
 	sprinting = false,
 	rolling = false,
 	rollStart = 0,

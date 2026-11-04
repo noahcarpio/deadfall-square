@@ -30,6 +30,7 @@ return {
 		revolver = "Reload_Pistol",
 		shotgun = "Reload_Shotgun",
 		doublebarrel = "Reload_Shotgun",
+		-- The auto shotgun takes a drum, so it uses the rifle (magazine) reload.
 		launcher = "Reload_Shotgun",
 	} :: { [string]: string },
 }

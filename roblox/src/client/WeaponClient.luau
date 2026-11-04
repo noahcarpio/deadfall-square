@@ -175,6 +175,7 @@ function WeaponClient.start()
 		Context.signals.arsenalChanged:fire()
 	end)
 
+	local chargeStart: number? = nil
 	RunService.Heartbeat:Connect(function()
 		local character = Context.character()
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -191,6 +192,10 @@ function WeaponClient.start()
 			Context.signals.arsenalChanged:fire()
 		end
 		local swinging = os.clock() - Context.swingAt < MeleeMath.SWING_TIME
+		if not Context.firing or not def.charge or swinging or Context.rolling then
+			chargeStart = nil
+			Context.charge = 0
+		end
 		if
 			not root
 			or not Context.firing
@@ -201,7 +206,19 @@ function WeaponClient.start()
 		then
 			return
 		end
+		-- Charge-up guns fire only after the trigger has been held for `charge` seconds.
+		if def.charge and not arsenal:isReloading(os.clock()) then
+			chargeStart = chargeStart or os.clock()
+			Context.charge = math.clamp((os.clock() - (chargeStart :: number)) / def.charge, 0, 1)
+			if Context.charge < 1 then
+				return
+			end
+		end
 		local result = arsenal:tryFire(os.clock(), 0, Context.stats.reloadSpeed)
+		if result == "fired" then
+			chargeStart = nil
+			Context.charge = 0
+		end
 		if result == "empty" then
 			local w = arsenal:currentState()
 			if w.reserve <= 0 then

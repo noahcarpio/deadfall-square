@@ -394,6 +394,14 @@ def guns(p: Palette) -> list[Model]:
     mbox(g, 0.07, 0.14, 0.08, DARK, 0, -0.08, -0.02, rx=-0.3, mirror=True)
     mbox(g, 0.05, 0.05, 0.16, DARK, 0, 0.06, -0.14, mirror=True)  # folding stock
 
+    g = gun("carbine")
+    mbox(g, 0.09, 0.13, 0.48, "#34383d", 0, 0.06, 0.14, mirror=True)
+    mcyl(g, 0.022, 0.022, 0.22, 6, DARK, 0, 0.07, 0.48, rx=HP, mirror=True)
+    mbox(g, 0.1, 0.09, 0.18, "#2a2d31", 0, 0.03, 0.3, mirror=True)  # handguard
+    mbox(g, 0.06, 0.18, 0.08, DARK, 0, -0.1, 0.16, rx=0.18, mirror=True)  # magazine
+    mbox(g, 0.05, 0.07, 0.12, DARK, 0, 0.16, 0.12, mirror=True)  # red-dot
+    mbox(g, 0.08, 0.13, 0.24, "#34383d", 0, 0.02, -0.18, mirror=True)  # stock
+
     g = gun("rifle")
     mbox(g, 0.1, 0.14, 0.62, "#3b3f36", 0, 0.06, 0.2, mirror=True)
     mcyl(g, 0.025, 0.025, 0.3, 6, DARK, 0, 0.07, 0.62, rx=HP, mirror=True)
@@ -408,6 +416,15 @@ def guns(p: Palette) -> list[Model]:
     mcyl(g, 0.04, 0.04, 0.24, 8, DARK, 0, 0.17, 0.18, rx=HP, mirror=True)  # scope
     mbox(g, 0.06, 0.18, 0.08, DARK, 0, -0.1, 0.16, rx=0.12, mirror=True)  # magazine
     mbox(g, 0.08, 0.14, 0.32, "#3d4146", 0, 0.01, -0.22, rx=0.12, mirror=True)  # stock
+
+    g = gun("lmg")
+    mbox(g, 0.13, 0.16, 0.66, "#3a3f33", 0, 0.06, 0.2, mirror=True)
+    mcyl(g, 0.03, 0.03, 0.42, 6, DARK, 0, 0.07, 0.72, rx=HP, mirror=True)
+    mbox(g, 0.16, 0.18, 0.18, "#4a5038", 0.1, -0.1, 0.16, mirror=True)  # ammo box
+    mbox(g, 0.12, 0.05, 0.3, DARK, 0, 0.16, 0.18, mirror=True)  # feed cover
+    mbox(g, 0.02, 0.16, 0.02, DARK, -0.04, -0.06, 0.66, rz=0.35, mirror=True)  # bipod
+    mbox(g, 0.02, 0.16, 0.02, DARK, 0.04, -0.06, 0.66, rz=-0.35, mirror=True)
+    mbox(g, 0.1, 0.15, 0.3, "#3a3f33", 0, 0.02, -0.22, mirror=True)  # stock
 
     g = gun("sniper")
     mbox(g, 0.1, 0.13, 0.7, "#4a4632", 0, 0.05, 0.22, mirror=True)
@@ -429,6 +446,21 @@ def guns(p: Palette) -> list[Model]:
     mcyl(g, 0.12, 0.12, 0.2, 8, DARK, 0, 0.07, 0.05, rx=HP, mirror=True)  # drum
     mbox(g, 0.07, 0.18, 0.08, DARK, 0, -0.1, 0.1, rx=0.2, mirror=True)
     mbox(g, 0.09, 0.13, 0.3, "#4d5a3a", 0, 0.0, -0.22, mirror=True)
+
+    g = gun("autoshotgun")
+    mbox(g, 0.13, 0.16, 0.56, "#2f3236", 0, 0.05, 0.2, mirror=True)
+    mcyl(g, 0.04, 0.04, 0.3, 6, DARK, 0, 0.06, 0.6, rx=HP, mirror=True)
+    mcyl(g, 0.12, 0.12, 0.1, 10, DARK, 0, -0.12, 0.16, mirror=True)  # drum magazine
+    mbox(g, 0.1, 0.05, 0.36, DARK, 0, 0.16, 0.2, mirror=True)  # carry rail
+    mbox(g, 0.1, 0.15, 0.28, "#2f3236", 0, 0.01, -0.2, mirror=True)  # stock
+
+    g = gun("railgun")
+    mbox(g, 0.14, 0.16, 0.5, "#2b3440", 0, 0.04, 0.12, mirror=True)  # body
+    mbox(g, 0.03, 0.05, 0.62, "#9fb4c4", -0.05, 0.08, 0.6, mirror=True)  # rails
+    mbox(g, 0.03, 0.05, 0.62, "#9fb4c4", 0.05, 0.08, 0.6, mirror=True)
+    mcyl(g, 0.08, 0.08, 0.2, 10, "#4fd2ff", 0, 0.05, 0.28, rx=HP, mirror=True)  # glowing coil
+    mbox(g, 0.07, 0.16, 0.09, DARK, 0, -0.11, 0.02, rx=-0.2, mirror=True)  # grip
+    mbox(g, 0.1, 0.14, 0.26, "#2b3440", 0, 0.02, -0.26, mirror=True)  # stock
 
     for m in out:
         m.centre()

@@ -345,7 +345,9 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 		for i, id in Weapons.order do
 			local def = Weapons.defs[id]
 			local w = c.arsenal:get(id)
-			if not w then
+			if not w and def.merchant == false then
+				continue -- found on high floors only
+			elseif not w then
 				local note = if full and swap
 					then `{def.description}\nSlots full: drops your {Weapons.defs[swap].name}.`
 					else def.description

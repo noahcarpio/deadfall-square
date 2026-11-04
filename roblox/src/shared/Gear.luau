@@ -52,6 +52,9 @@ export type GearDef = {
 	melee: MeleeDef?,
 	armor: ArmorDef?,
 	gadget: GadgetDef?,
+	-- Late-game pieces: earliest floor they roll on, and their lowest rarity.
+	minFloor: number?,
+	minRarity: string?,
 }
 
 local DEFS: { [string]: GearDef } = {}
@@ -72,6 +75,8 @@ for _, id in Weapons.order do
 		description = w.description,
 		weight = if id == "pistol" then 0.6 else 1,
 		price = 0,
+		minFloor = w.minFloor,
+		minRarity = w.minRarity,
 	})
 end
 
@@ -322,12 +327,17 @@ local function roll(rng: RngLike, floor: number, uid: number, kind: string?, min
 	local weights: { [string]: number } = {}
 	for _, id in ORDER do
 		local d = DEFS[id]
-		if (kind == nil or d.kind == kind) and d.weight > 0 then
+		if (kind == nil or d.kind == kind) and d.weight > 0 and floor >= (d.minFloor or 0) then
 			weights[id] = d.weight
 		end
 	end
 	local id = rng:weighted(weights)
 	local rw = rarityWeights(floor)
+	if DEFS[id].minRarity == "unique" or minRarity == "unique" then
+		minRarity = "unique"
+	elseif DEFS[id].minRarity == "rare" then
+		minRarity = "rare"
+	end
 	if minRarity == "rare" then
 		rw.common = 0
 	elseif minRarity == "unique" then

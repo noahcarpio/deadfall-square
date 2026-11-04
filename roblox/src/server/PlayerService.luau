@@ -278,7 +278,17 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 end
 
 -- Length (studs) of the block drawn when a gun has no mesh.
-local GUN_LENGTH = { pistol = 1.0, revolver = 1.2, doublebarrel = 2.6, dmr = 3.0, sniper = 3.4 }
+local GUN_LENGTH = {
+	pistol = 1.0,
+	revolver = 1.2,
+	carbine = 2.2,
+	autoshotgun = 2.4,
+	doublebarrel = 2.6,
+	dmr = 3.0,
+	lmg = 3.0,
+	sniper = 3.4,
+	railgun = 3.4,
+}
 
 -- Rebuilds the visible gun on the character's right hand for the current weapon.
 function PlayerService.updateGunModel(_self, ps: PState)

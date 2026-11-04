@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local PlayerStats = require(Shared.PlayerStats)
+local Weapons = require(Shared.Config.Weapons)
 
 local Context = require(script.Parent.Context)
 local InputController = require(script.Parent.InputController)
@@ -199,6 +200,8 @@ function CharacterController.start()
 				* (if sprinting then BASE.sprintMultiplier else 1)
 				* (if boost > 0 then 1.2 else 1)
 				* (if os.clock() < Context.adrenalUntil then 1.3 else 1)
+				-- Heavy guns (LMG) slow you while held.
+				* (Weapons.defs[Context.arsenal.current].moveSpeed or 1)
 			humanoid.WalkSpeed = speed * S
 		end
 	end)

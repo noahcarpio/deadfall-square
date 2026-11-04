@@ -33,13 +33,15 @@ export type Arsenal = typeof(setmetatable(
 		reloadDuration: number,
 		nextShot: number,
 		rateMul: number,
+		-- Shots fired so far in the current burst (burst guns only).
+		burstIndex: number,
 	},
 	Arsenal
 ))
 
 function Arsenal.new(): Arsenal
 	local self = setmetatable(
-		{ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0, rateMul = 1 },
+		{ owned = {}, current = "pistol", reloadEnd = 0, reloadDuration = 0, nextShot = 0, rateMul = 1, burstIndex = 0 },
 		Arsenal
 	)
 	self:give("pistol")
@@ -169,6 +171,7 @@ function Arsenal.switchTo(self: Arsenal, id: string, now: number): boolean
 	end
 	self.current = id
 	self.reloadEnd = 0
+	self.burstIndex = 0
 	self.nextShot = math.max(self.nextShot, now + 0.18)
 	return true
 end
@@ -200,6 +203,7 @@ function Arsenal.startReload(self: Arsenal, now: number, speed: number): boolean
 	end
 	self.reloadDuration = Weapons.defs[self.current].reloadTime / speed
 	self.reloadEnd = now + self.reloadDuration
+	self.burstIndex = 0
 	return true
 end
 
@@ -234,8 +238,14 @@ function Arsenal.tryFire(
 		return "blocked"
 	end
 	local w = self:currentState()
-	local interval = 1 / (Weapons.fireRateOf(Weapons.defs[w.id], w.upgrades) * self:rateBonus(w))
-	if now < self.nextShot - interval * tolerance then
+	local def = Weapons.defs[w.id]
+	-- One cycle per 1 / fireRate; burst guns fire `burst` shots `burstGap` apart inside it.
+	local cycle = 1 / (Weapons.fireRateOf(def, w.upgrades) * self:rateBonus(w))
+	local burst = def.burst or 1
+	local gap = math.min(def.burstGap or 0, cycle / burst)
+	local interval = if burst > 1 and self.burstIndex > 0 then gap else cycle - gap * (burst - 1)
+	-- Tolerance scales with the whole cycle, so network jitter can't drop shots inside a burst.
+	if now < self.nextShot - (if burst > 1 then cycle else interval) * tolerance then
 		return "blocked"
 	end
 	if w.mag <= 0 then
@@ -244,7 +254,11 @@ function Arsenal.tryFire(
 		return "empty"
 	end
 	w.mag -= 1
-	self.nextShot = math.max(self.nextShot, now - interval) + interval
+	self.burstIndex = (self.burstIndex + 1) % burst
+	local wait = if self.burstIndex > 0 then gap else cycle - gap * (burst - 1)
+	-- Carry over at most a frame of lateness, so holding the trigger keeps the full rate but a shot
+	-- after a pause can't be followed by an instant second one.
+	self.nextShot = math.max(self.nextShot, now - math.min(wait * 0.5, 1 / 60)) + wait
 	if w.mag == 0 then
 		self:startReload(now + interval, reloadSpeed)
 	end

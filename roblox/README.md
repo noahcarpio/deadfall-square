@@ -31,7 +31,7 @@ stylua src tests                                        # format
 
 ### Custom 3D models (optional, one-time import)
 
-The game builds everything from plain Parts out of the box. `assets/` holds a set of matching placeholder meshes made for it: zombie body parts, the ten guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
+The game builds everything from plain Parts out of the box. `assets/` holds a set of matching placeholder meshes made for it: zombie body parts, the fourteen guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
 
 1. Download the repository (**Code → Download ZIP** on GitHub) and unzip it. `DeadfallMeshes.obj`, `DeadfallMeshes.mtl` and `DeadfallPalette.png` must stay together in the same folder.
 2. Open the place in Studio, then use **File → Import 3D** (also on the **Home** or **Avatar** tab) and choose `roblox/assets/DeadfallMeshes.obj`.
@@ -138,12 +138,13 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 
 - **Arena:** the same town square as the browser version — buildings with lit windows and alleys, a low south fence, cars, a crashed bus, crates, fences, sandbags, barriers, dumpsters, barrels, trees, benches, a fountain and street lamps that switch on at night.
 - **Zombies:** Walker, Runner, Brute (knock-back slam), Spitter (acid globs and puddles), Exploder (fuse and chain explosions), and the **Abomination** boss every 5 floors (telegraphed charge that stuns it on walls, shockwave slam you can roll through, runner summons, enrage at half health).
-- **Weapons:** carry the pistol (infinite ammo, always slot 1) plus two more guns. There are ten guns in all, each with damage, fire-rate and magazine upgrades:
+- **Weapons:** carry the pistol (infinite ammo, always slot 1) plus two more guns. There are fourteen guns in all, each with damage, fire-rate and magazine upgrades:
   - **Sidearms:** pistol and .357 revolver (pierces one target).
   - **Shotguns:** pump shotgun and double-barrel.
-  - **Automatics:** SMG and assault rifle.
+  - **Automatics:** SMG, burst carbine (3-round bursts) and assault rifle.
   - **Long range:** marksman rifle and sniper (both pierce).
-  - **Heavy:** flamethrower (burning) and grenade launcher.
+  - **Heavy:** M249 LMG (90-round belt, 15% slower while held), flamethrower (burning) and grenade launcher.
+  - **Late game:** auto shotgun and railgun (hold to charge, pierces everything). These are found only, from floor 12 and floor 18 at Rare and Unique rarity, and the merchant doesn't sell them.
 
   Balance notes and ideas for more guns are in `docs/WEAPON_IDEAS.md`.
 - **Co-op rules:** shared waves that scale with player count; personal coins, score, upgrades and perks; teammates can revive downed players; the run ends when everyone is down; the boss's coin reward is shared.

@@ -371,6 +371,52 @@ test("New guns fit the balance band: pistol < revolver/double-barrel < rifle ~ D
 	eq(ctx.arsenal:inSlot(2), "revolver")
 end)
 
+test("Batch 2 guns: bursts, merchant stock, late-floor rolls, balance band", function()
+	-- The carbine fires three-round bursts: tight gaps inside a burst, a longer pause between.
+	local a = Arsenal.new()
+	a:give("carbine")
+	a:switchTo("carbine", 0)
+	local times = {}
+	local t = 1
+	while t < 2 do
+		if a:tryFire(t, 0, 1) == "fired" then
+			table.insert(times, t)
+		end
+		t += 1 / 240
+	end
+	expect(#times >= 8 and #times <= 9, `carbine fired {#times} shots in 1s`) -- three bursts of 3
+	local def = Weapons.defs.carbine
+	expect(times[2] - times[1] < 0.1 and times[3] - times[2] < 0.1, "shots inside a burst are close")
+	expect(times[4] - times[3] > 0.15, "a pause between bursts")
+	expect(def.burstGap ~= nil and (def.burst or 1) == 3)
+	-- Late-game guns aren't sold; the carbine and LMG are.
+	local ctx = shopContext(5000)
+	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "railgun" }), false)
+	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "autoshotgun" }), false)
+	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "carbine" }), true)
+	-- Gear rolls: no railgun before floor 18; when it rolls, it is Unique.
+	for seed = 1, 400 do
+		expect(Gear.roll(Rng.new(seed), 5, seed).id ~= "railgun", "railgun rolled on floor 5")
+		local late = Gear.roll(Rng.new(seed), 20, seed)
+		if late.id == "railgun" then
+			eq(late.rarity, "unique")
+		elseif late.id == "autoshotgun" then
+			expect(late.rarity ~= "common", "auto shotgun rolled common")
+		end
+	end
+	-- Sustained DPS of the carbine and LMG stays near the rifle's.
+	local function sustained(id: string): number
+		local d = Weapons.defs[id]
+		local shots = d.fireRate * (d.burst or 1)
+		return d.damage * d.pellets * d.magSize / (d.magSize / shots + d.reloadTime)
+	end
+	for _, id in { "carbine", "lmg" } do
+		expect(math.abs(sustained(id) - sustained("rifle")) / sustained("rifle") < 0.15, `{id} out of band`)
+	end
+	expect(Weapons.defs.lmg.moveSpeed ~= nil and Weapons.defs.lmg.moveSpeed < 1)
+	expect(Weapons.defs.railgun.charge ~= nil and Weapons.defs.railgun.charge < 1 / Weapons.defs.railgun.fireRate)
+end)
+
 test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local ctx = shopContext(300)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "smg" }), false)

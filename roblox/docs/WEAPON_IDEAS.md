@@ -1,6 +1,10 @@
 # Weapon ideas, with balancing
 
-**Added so far:** .357 Revolver, Double-Barrel, Marksman Rifle (DMR), Baseball Bat and Spear, with the stats below. Everything else here is still an idea.
+**Added so far:**
+- Batch 1: .357 Revolver, Double-Barrel, Marksman Rifle (DMR), Baseball Bat and Spear.
+- Batch 2: Burst Carbine (3-round bursts), M249 LMG (15% slower while held), Auto Shotgun (Rare+, floor 12+, not sold) and Railgun (0.6 s charge, Unique, floor 18+, not sold).
+
+The stats are below. Everything else here is still an idea.
 
 This is a list of weapons that could be added to Deadfall Square, tuned against the guns already in `src/shared/Config/Weapons.luau`. The stats use the same fields as `WeaponDef`, so an approved row can be pasted in.
 
