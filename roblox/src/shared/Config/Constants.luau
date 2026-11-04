@@ -6,7 +6,7 @@ return {
 	-- 1 m = 3 studs, so a 5-stud Roblox character is ~1.7 m tall.
 	STUDS = 3,
 	ARENA_HALF = 36,
-	WORLD_HALF = 48,
+	WORLD_HALF = 64,
 	-- Bullets fly at this height (m); lower obstacles don't block shots.
 	BULLET_HEIGHT = 1.25,
 	MAX_ZOMBIES = 220,

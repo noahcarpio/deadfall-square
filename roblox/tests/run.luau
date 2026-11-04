@@ -22,6 +22,7 @@ local Zombies = require("../src/shared/Config/Zombies")
 local Weapons = require("../src/shared/Config/Weapons")
 local Net = require("../src/shared/Net")
 local ArenaLayout = require("../src/shared/ArenaLayout")
+local W = require("../src/shared/Config/Constants").WORLD_HALF
 local MeshSizes = require("../src/shared/Config/MeshSizes")
 local Inventory = require("../src/shared/Inventory")
 local Items = require("../src/shared/Config/Items")
@@ -412,14 +413,14 @@ test("Arena layout has spawns, lamps, colliders and a clear player spawn", funct
 	expect(#layout.lamps >= 9)
 	expect(#layout.colliders > 60)
 	expect(#layout.pieces > 300)
-	local col = Collision.new(-48, -48, 48, 48)
+	local col = Collision.new(-W, -W, W, W)
 	for _, c in layout.colliders do
 		col:insert(table.clone(c) :: any)
 	end
 	local s = layout.playerSpawn
 	eq(col:overlapsCircle(s[1], s[3], 0.6), false)
 	-- Every spawn alley must reach the plaza.
-	local grid = NavGrid.new(-48, -48, 48, 48)
+	local grid = NavGrid.new(-W, -W, W, W)
 	grid:rebuild(col.colliders, 0.45, function()
 		return false
 	end)
@@ -540,11 +541,11 @@ test("Grace-period stations and loot spots are placed and reachable", function()
 		names[st.name] = st
 	end
 	expect(names.merchant ~= nil and names.workbench ~= nil and names.bell ~= nil)
-	local col = Collision.new(-48, -48, 48, 48)
+	local col = Collision.new(-W, -W, W, W)
 	for _, c in layout.colliders do
 		col:insert(table.clone(c) :: any)
 	end
-	local grid = NavGrid.new(-48, -48, 48, 48)
+	local grid = NavGrid.new(-W, -W, W, W)
 	grid:rebuild(col.colliders, 0.45, function()
 		return false
 	end)

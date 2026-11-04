@@ -6,7 +6,8 @@
 	from the browser version's arena generator. Produces:
 	  * pieces    - visual parts for ArenaBuilder (server) to instantiate
 	  * colliders - gameplay obstacles (also built as invisible collision parts)
-	  * spawns    - alley entrances zombies emerge from
+	  * spawns    - the far, roofed ends of the alleys zombies emerge from
+	                (out of the top-down camera's sight)
 	  * lamps     - street lamp light positions
 	  * stations  - the merchant, workbench and bell used between waves
 	  * loot      - searchable containers (cars, crates, dumpsters, trash)
@@ -65,6 +66,10 @@ export type Layout = {
 
 local A = Constants.ARENA_HALF
 local H = Constants.WORLD_HALF - 1
+
+-- The south row of buildings behind the vacant lot, and the roofed end of every alley.
+local SOUTH_DEPTH = 15
+local ROOF_LEN = 12
 
 local PALETTE = { "#8a4b3c", "#a3714f", "#6f7a80", "#b59a72", "#5e6b5a", "#7d5a6b", "#9c8b6e", "#5a6578" }
 local TRIM = "#3b3632"
@@ -219,7 +224,7 @@ local function generate(): Layout
 
 	------------------------------------------------------------- buildings
 	local function building(a: number, b: number, side: string)
-		local depth = H - A
+		local depth = if side == "south" then SOUTH_DEPTH else H - A
 		local width = b - a
 		local height = math.floor(rng:range(2, 4) + 0.5) * 3 + rng:range(0, 0.8)
 		local color = rng:pick(PALETTE)
@@ -231,9 +236,12 @@ local function generate(): Layout
 		elseif side == "east" then
 			cx, cz, ry = A + depth / 2, mid, -math.pi / 2
 			colBox(A, a, H, b, height)
-		else
+		elseif side == "west" then
 			cx, cz, ry = -A - depth / 2, mid, math.pi / 2
 			colBox(-H, a, -A, b, height)
+		else
+			cx, cz, ry = mid, H - depth / 2, math.pi
+			colBox(a, H - depth, b, H, height)
 		end
 		withFrame(cx, cz, ry, function()
 			local front = depth / 2
@@ -350,18 +358,21 @@ local function generate(): Layout
 	for _, s in segments(-A, A, westGaps) do
 		buildingRow(s[1], s[2], "west")
 	end
+	for _, s in segments(-H, H, southGaps) do
+		buildingRow(s[1], s[2], "south")
+	end
 
 	for _, g in northGaps do
-		table.insert(spawns, { x = (g[1] + g[2]) / 2, z = -H + 3, dirX = 0, dirZ = 1 })
+		table.insert(spawns, { x = (g[1] + g[2]) / 2, z = -H + 2, dirX = 0, dirZ = 1 })
 	end
 	for _, g in eastGaps do
-		table.insert(spawns, { x = H - 3, z = (g[1] + g[2]) / 2, dirX = -1, dirZ = 0 })
+		table.insert(spawns, { x = H - 2, z = (g[1] + g[2]) / 2, dirX = -1, dirZ = 0 })
 	end
 	for _, g in westGaps do
-		table.insert(spawns, { x = -H + 3, z = (g[1] + g[2]) / 2, dirX = 1, dirZ = 0 })
+		table.insert(spawns, { x = -H + 2, z = (g[1] + g[2]) / 2, dirX = 1, dirZ = 0 })
 	end
 	for _, g in southGaps do
-		table.insert(spawns, { x = (g[1] + g[2]) / 2, z = H - 3, dirX = 0, dirZ = -1 })
+		table.insert(spawns, { x = (g[1] + g[2]) / 2, z = H - 2, dirX = 0, dirZ = -1 })
 	end
 
 	-- Tall wooden fences capping the building alleys.
@@ -391,6 +402,32 @@ local function generate(): Layout
 	end
 	for _, g in westGaps do
 		fenceCap(-H + 0.75, (g[1] + g[2]) / 2, g[2] - g[1], math.pi / 2)
+	end
+	for _, g in southGaps do
+		fenceCap((g[1] + g[2]) / 2, H - 0.75, g[2] - g[1], 0)
+	end
+
+	-- Corrugated roofs over the far end of every alley, so the top-down camera
+	-- never sees where zombies come from. Visual only: no collider.
+	local function alleyRoof(cx: number, cz: number, width: number, ry: number)
+		withFrame(cx, cz, ry, function()
+			box(width + 0.6, 0.12, ROOF_LEN, "#3a3633", "CorrodedMetal", 0, 4.5, 0, 0.04)
+			for i = -1, 1 do
+				box(width + 0.7, 0.18, 0.18, "#2a2725", "Metal", 0, 4.4, i * (ROOF_LEN / 2 - 0.5))
+			end
+		end)
+	end
+	for _, g in northGaps do
+		alleyRoof((g[1] + g[2]) / 2, -H + ROOF_LEN / 2, g[2] - g[1], 0)
+	end
+	for _, g in southGaps do
+		alleyRoof((g[1] + g[2]) / 2, H - ROOF_LEN / 2, g[2] - g[1], 0)
+	end
+	for _, g in eastGaps do
+		alleyRoof(H - ROOF_LEN / 2, (g[1] + g[2]) / 2, g[2] - g[1], math.pi / 2)
+	end
+	for _, g in westGaps do
+		alleyRoof(-H + ROOF_LEN / 2, (g[1] + g[2]) / 2, g[2] - g[1], math.pi / 2)
 	end
 
 	-- South wall: low concrete with chain-link fence.
@@ -785,7 +822,7 @@ local function generate(): Layout
 	-- Rubble in the south lot (low, so the camera sees over it).
 	for _ = 1, 9 do
 		local x = rng:range(-42, 42)
-		local z = rng:range(A + 3, H - 2)
+		local z = rng:range(A + 3, H - SOUTH_DEPTH - 2)
 		if math.abs(x + 18) >= 4 and math.abs(x - 12) >= 4 then
 			local r = rng:range(0.8, 1.6)
 			box(
