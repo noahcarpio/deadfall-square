@@ -3,12 +3,13 @@
 	Parties on the Home page: pure bookkeeping, no Roblox APIs (unit-tested).
 	A player is in at most one party; the first member is the leader, and the
 	next member takes over when the leader leaves. An empty party is removed.
+	The leader picks the difficulty tier, up to the highest they've unlocked.
 ]]
 local PartyRules = {}
 
 PartyRules.MAX = 6
 
-export type Party = { id: number, leader: number, members: { number } }
+export type Party = { id: number, leader: number, members: { number }, tier: number }
 export type State = { parties: { [number]: Party }, of: { [number]: number }, nextId: number }
 
 function PartyRules.new(): State
@@ -41,7 +42,7 @@ end
 function PartyRules.create(state: State, userId: number): Party
 	PartyRules.leave(state, userId)
 	state.nextId += 1
-	local party = { id = state.nextId, leader = userId, members = { userId } }
+	local party = { id = state.nextId, leader = userId, members = { userId }, tier = 1 }
 	state.parties[party.id] = party
 	state.of[userId] = party.id
 	return party
@@ -63,6 +64,22 @@ function PartyRules.join(state: State, userId: number, id: number): (Party?, str
 	table.insert(party.members, userId)
 	state.of[userId] = id
 	return party, nil
+end
+
+-- The leader sets the party's tier, up to `maxTier` (their unlocked tier). Returns a reason on failure.
+function PartyRules.setTier(state: State, userId: number, tier: number, maxTier: number): (boolean, string?)
+	local party = PartyRules.partyOf(state, userId)
+	if not party then
+		return false, "Create or join a party first."
+	end
+	if party.leader ~= userId then
+		return false, "Only the party leader picks the tier."
+	end
+	if tier ~= tier or tier < 1 or tier > maxTier then
+		return false, `Win tier {maxTier} to unlock the next one.`
+	end
+	party.tier = math.floor(tier)
+	return true, nil
 end
 
 -- Only the leader can start; returns the party, or nil and a reason.

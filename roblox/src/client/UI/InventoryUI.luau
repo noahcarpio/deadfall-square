@@ -62,6 +62,15 @@ function InventoryUI.new(gui: ScreenGui)
 		end
 		matsLabel.Text = table.concat(mats, " · ")
 		quickLabel.Text = `[B] Bandage ×{inv:count("bandage")}   [G] Pipe bomb ×{inv:count("pipebomb")}`
+		-- Low on health with a bandage in the bag: say so, in the alarm colour.
+		local p = Context.player
+		local hurt = (p:GetAttribute("HP") or 100) / math.max(1, p:GetAttribute("MaxHP") or 100) < 0.35
+		if hurt and inv:count("bandage") > 0 and p:GetAttribute("Downed") ~= true then
+			quickLabel.Text = `LOW HEALTH — press [B] to bandage (×{inv:count("bandage")})`
+			quickLabel.TextColor3 = T.rust
+		else
+			quickLabel.TextColor3 = T.text
+		end
 	end)
 
 	return self

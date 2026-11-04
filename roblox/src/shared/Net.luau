@@ -39,6 +39,7 @@ Net.EVENTS = {
 	"Melee", -- c->s: aimX, aimZ (one swing)
 	"UseAbility", -- c->s: slot, aimX, aimZ, aimDistance
 	"AbilitySync", -- s->c: { [slot] = ready-at server time }
+	"Emote", -- c->s: emote item id (one of the player's equipped emotes)
 }
 Net.UNRELIABLE = { "Snapshot" }
 Net.FUNCTIONS = { "Purchase", "Place" }

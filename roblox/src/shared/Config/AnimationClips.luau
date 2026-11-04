@@ -13,4 +13,11 @@ return {
 	Roll = { length = 0.42, loop = false, additive = false },
 	Downed = { length = 2.4, loop = true, additive = false },
 	Kneel = { length = 1.6, loop = true, additive = true },
+	Emote_Wave = { length = 2, loop = false, additive = false },
+	Emote_Point = { length = 1.4, loop = false, additive = false },
+	Emote_Salute = { length = 1.6, loop = false, additive = false },
+	Emote_Cheer = { length = 1.6, loop = false, additive = false },
+	Emote_Flex = { length = 1.8, loop = false, additive = false },
+	Emote_Sit = { length = 2.4, loop = true, additive = false },
+	Emote_Dance = { length = 1.2, loop = true, additive = false },
 }

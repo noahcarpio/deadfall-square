@@ -1,12 +1,16 @@
 --[[
-	Home place server: parties and the start teleport.
+	Home place server: parties, the start teleport, and the Locker and crates.
 
 	Players land here first. They create or join a party (PartyRules), invite
-	friends through Roblox's invite prompt, and the leader starts the run:
-	the whole party is teleported into a fresh reserved server of the game
-	place, with the party size in the teleport data so the game knows whom to
-	wait for. Party state is published as attributes on ReplicatedStorage.Parties
-	(one folder per party) and the clients redraw from it.
+	friends through Roblox's invite prompt, and the leader picks a difficulty
+	tier (up to the one they've unlocked) and starts the run: the whole party
+	is teleported into a fresh reserved server of the game place, with the
+	party size and tier in the teleport data. Party state is published as
+	attributes on ReplicatedStorage.Parties (one folder per party) and the
+	clients redraw from it.
+
+	Profiles (Scrip, unlocked tier, cosmetics) come from Profile; crate opens
+	and equips are atomic profile updates using the rules in Cosmetics.
 ]]
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,13 +20,15 @@ local TeleportService = game:GetService("TeleportService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PartyRules = require(Shared.PartyRules)
 local Places = require(Shared.Config.Places)
+local Cosmetics = require(Shared.Cosmetics)
 
 local Leaderboard = require(script.Parent.Leaderboard)
+local Profile = require(script.Parent.Profile)
 
 local remotes = Instance.new("Folder")
 remotes.Name = "HomeRemotes"
 local partyEvent = Instance.new("RemoteEvent")
-partyEvent.Name = "Party" -- c->s: action ("create" | "join" | "leave" | "start"), party id
+partyEvent.Name = "Party" -- c->s: action ("create" | "join" | "leave" | "start" | "tier"), party id / tier
 partyEvent.Parent = remotes
 local noticeEvent = Instance.new("RemoteEvent")
 noticeEvent.Name = "Notice" -- s->c: text
@@ -30,6 +36,12 @@ noticeEvent.Parent = remotes
 local boardFunction = Instance.new("RemoteFunction")
 boardFunction.Name = "GetLeaderboard"
 boardFunction.Parent = remotes
+local profileEvent = Instance.new("RemoteEvent")
+profileEvent.Name = "ProfileSync" -- s->c: profile, offline
+profileEvent.Parent = remotes
+local lockerFunction = Instance.new("RemoteFunction")
+lockerFunction.Name = "Locker" -- c->s: "openCrate" | "equip" (kind, id) | "studioGrant"; returns ok, item / reason
+lockerFunction.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local partiesFolder = Instance.new("Folder")
@@ -67,6 +79,7 @@ local function publish()
 		folder:SetAttribute("Leader", party.leader)
 		folder:SetAttribute("Members", table.concat(members, ","))
 		folder:SetAttribute("Starting", starting[id] == true)
+		folder:SetAttribute("Tier", party.tier)
 	end
 	version += 1
 	partiesFolder:SetAttribute("Version", version)
@@ -74,6 +87,24 @@ end
 
 local function notice(player: Player, text: string)
 	noticeEvent:FireClient(player, text)
+end
+
+------------------------------------------------------------------ profiles
+
+local profiles: { [number]: Cosmetics.Profile } = {}
+
+-- Keeps the client and the player's attributes (title, unlocked tier) in step with the profile.
+local function syncProfile(player: Player, p: Cosmetics.Profile)
+	profiles[player.UserId] = p
+	local title = p.equipped.title
+	player:SetAttribute("Title", if title then Cosmetics.ITEMS[title].name else "")
+	player:SetAttribute("UnlockedTier", Cosmetics.unlockedTier(p))
+	profileEvent:FireClient(player, p, Profile.isOffline())
+end
+
+local function unlockedTier(player: Player): number
+	local p = profiles[player.UserId]
+	return if p then Cosmetics.unlockedTier(p) else 1
 end
 
 local function start(player: Player)
@@ -99,11 +130,13 @@ local function start(player: Player)
 			table.insert(players, p)
 		end
 	end
+	-- Leadership may have passed to someone who hasn't unlocked this tier.
+	party.tier = math.min(party.tier, unlockedTier(player))
 	starting[party.id] = true
 	publish()
 	local options = Instance.new("TeleportOptions")
 	options.ShouldReserveServer = true
-	options:SetTeleportData({ partySize = #players })
+	options:SetTeleportData({ partySize = #players, tier = party.tier })
 	local ok, err = pcall(function()
 		TeleportService:TeleportAsync(Places.GAME_PLACE_ID, players, options)
 	end)
@@ -129,6 +162,11 @@ partyEvent.OnServerEvent:Connect(function(player, action, id)
 	elseif action == "start" then
 		start(player)
 		return
+	elseif action == "tier" and type(id) == "number" then
+		local _, why = PartyRules.setTier(state, player.UserId, id, unlockedTier(player))
+		if why then
+			notice(player, why)
+		end
 	else
 		return
 	end
@@ -147,8 +185,63 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	PartyRules.leave(state, player.UserId)
+	profiles[player.UserId] = nil
 	publish()
 end)
+
+local function onPlayerAdded(player: Player)
+	local p = Profile.load(player.UserId)
+	if player.Parent then
+		syncProfile(player, p)
+	end
+end
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	task.spawn(onPlayerAdded, player)
+end
+
+-- Crates and the Locker. One request at a time per player, so a crate can't be double-spent.
+local busy: { [number]: boolean } = {}
+local random = Random.new()
+local rng = {
+	next = function(_self)
+		return random:NextNumber()
+	end,
+}
+lockerFunction.OnServerInvoke = function(player: Player, action: any, kind: any, id: any)
+	if busy[player.UserId] then
+		return false, "One moment…"
+	end
+	busy[player.UserId] = true
+	local ok, result, saved
+	if action == "openCrate" then
+		ok, result, saved = Profile.update(player.UserId, function(p)
+			local bought, item = Cosmetics.buyCrate(p, rng)
+			if not bought then
+				return false, item
+			end
+			return item ~= nil, item or "You own every item already."
+		end)
+	elseif action == "equip" and type(kind) == "string" and (id == nil or type(id) == "string") then
+		ok, result, saved = Profile.update(player.UserId, function(p)
+			return Cosmetics.equip(p, kind, id), nil
+		end)
+	elseif action == "studioGrant" and RunService:IsStudio() then
+		-- Studio only: Scrip to try crates without winning a climb first.
+		ok, result, saved = Profile.update(player.UserId, function(p)
+			p.scrip += 500
+			return true, nil
+		end)
+	else
+		busy[player.UserId] = nil
+		return false, "Invalid"
+	end
+	busy[player.UserId] = nil
+	if saved and player.Parent then
+		syncProfile(player, saved)
+	end
+	return ok, result
+end
 
 local leaderboard = Leaderboard.new()
 boardFunction.OnServerInvoke = function(_player)

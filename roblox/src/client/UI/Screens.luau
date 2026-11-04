@@ -222,9 +222,26 @@ function Screens.gameOver(gui: ScreenGui)
 		stat(3, "Time played", MathUtil.formatTime(data.timePlayed))
 		stat(4, "Total kills", tostring(totalKills))
 		stat(5, "Accuracy", `{math.floor(data.accuracy * 100 + 0.5)}%`)
-		stat(6, "Best combo", tostring(data.bestCombo))
+		stat(6, "Scrip earned", `+{data.scrip or 0}`, true)
 		stat(7, "Coins earned", tostring(data.coinsEarned))
 		stat(8, "Damage dealt", tostring(data.damageDealt))
+		if data.tier then
+			Builder.label(`TIER {data.tier} · {string.upper(data.tierName or "")}`, 16, {
+				Font = T.head,
+				LayoutOrder = -2,
+				Parent = side,
+			})
+		end
+		if data.unlocked then
+			Builder.label(`Tier {data.unlocked} unlocked: pick it on the Home page.`, 14, {
+				Font = T.type,
+				TextColor3 = T.rust,
+				TextWrapped = true,
+				Size = UDim2.new(1, 0, 0, 34),
+				LayoutOrder = -1,
+				Parent = side,
+			})
+		end
 		Builder.label("KILLS BY TYPE", 16, { Font = T.head, TextColor3 = T.accent, LayoutOrder = 0, Parent = side })
 		for i, t in ZombiesConfig.types do
 			local n = data.kills[t] or 0

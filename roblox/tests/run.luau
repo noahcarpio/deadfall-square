@@ -34,6 +34,8 @@ local Gear = require("../src/shared/Gear")
 local RewardRules = require("../src/shared/RewardRules")
 local MeleeMath = require("../src/shared/MeleeMath")
 local PartyRules = require("../src/shared/PartyRules")
+local Tiers = require("../src/shared/Config/Tiers")
+local Cosmetics = require("../src/shared/Cosmetics")
 local AnimationClips = require("../src/shared/Config/AnimationClips")
 local Animations = require("../src/shared/Config/Animations")
 
@@ -421,7 +423,7 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local ctx = shopContext(300)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "smg" }), false)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "shotgun" }), true)
-	eq(ctx.economy.coins, 40)
+	eq(ctx.economy.coins, 300 - Weapons.defs.shotgun.price)
 	eq(ShopRules.getOffer(ctx, { kind = "buyWeapon", weapon = "shotgun" }).reason, "OWNED")
 	local rich = shopContext(100000)
 	local up = { kind = "weaponUpgrade", weapon = "pistol", upgrade = "magazine" }
@@ -446,18 +448,20 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 end)
 
 ------------------------------------------------------------------- waves
+-- Average over several rolls: a single horde's mix (a few brutes more or less) is noisy.
 local function threat(wave: number): number
-	local comp = WaveComposition.build(wave, Rng.new(wave), 1)
 	local hp = 0
-	for _, t in comp do
-		hp += Zombies.defs[t].hp
+	for seed = 1, 12 do
+		for _, t in WaveComposition.build(wave, Rng.new(wave * 100 + seed), 1) do
+			hp += Zombies.defs[t].hp
+		end
 	end
-	return hp * Waves.hpMultiplier(wave) * Waves.damageMultiplier(wave)
+	return hp / 12 * Waves.hpMultiplier(wave) * Waves.damageMultiplier(wave)
 end
 
 test("Wave 1 is a small group of walkers; types unlock on schedule", function()
 	local w1 = WaveComposition.build(1, Rng.new(1), 1)
-	expect(#w1 >= 10 and #w1 <= 14, `wave 1 size {#w1}`)
+	expect(#w1 >= 13 and #w1 <= 17, `wave 1 size {#w1}`)
 	for _, t in w1 do
 		eq(t, "walker")
 	end
@@ -473,17 +477,69 @@ test("Wave 1 is a small group of walkers; types unlock on schedule", function()
 	end
 end)
 
-test("Difficulty rises: wave 10 >> wave 1, wave 21 >> wave 10", function()
+test("Difficulty rises: floor 11 >> floor 1, floor 21 >> floor 11", function()
 	local last = 0
-	for w = 1, 24 do
+	for w = 1, 29 do
 		if not Waves.isBossWave(w) then
 			local t = threat(w)
 			expect(t > last, `threat not increasing at wave {w}`)
 			last = t
 		end
 	end
-	expect(threat(10) / threat(1) > 10)
-	expect(threat(21) / threat(10) > 3)
+	-- (Floor 10 is a boss floor, whose horde is trimmed to make room for the boss.)
+	expect(threat(11) / threat(1) > 10)
+	expect(threat(21) / threat(11) > 3)
+end)
+
+test("Horde scaling: more zombies every floor, not tougher ones", function()
+	-- Health barely doubles over the climb; walkers always die in a few hits.
+	expect(34 * Waves.hpMultiplier(Floors.FLOORS) < 34 * 2.2, "zombie health balloons late")
+	-- The horde itself grows a lot.
+	local function size(w: number): number
+		local n = 0
+		for seed = 1, 12 do
+			n += #WaveComposition.build(w, Rng.new(w * 100 + seed), 1)
+		end
+		return n / 12
+	end
+	expect(size(29) > size(1) * 10, `floor 29 horde {size(29)} vs floor 1 {size(1)}`)
+	local last = 0
+	for w = 1, Floors.FLOORS do
+		if not Waves.isBossWave(w) then
+			expect(size(w) >= last, `horde shrank on floor {w}`)
+			last = size(w)
+		end
+	end
+	-- Late floors fill the square to the alive cap.
+	eq(Waves.maxAlive(Floors.FLOORS, 220), 220)
+	-- The final boss is a big fight, not an endless sponge.
+	local function boss(w: number): number
+		return Zombies.defs.boss.hp * Waves.hpMultiplier(w) * Waves.bossHpMultiplier(w, 1)
+	end
+	expect(boss(Floors.FLOORS) < boss(5) * 10, "final boss is a sponge")
+end)
+
+test("Gun value: coins per sustained DPS stays in a band, nothing outclasses the rifle", function()
+	local function sustained(id: string): number
+		local d = Weapons.defs[id]
+		local shots = d.fireRate * (d.burst or 1)
+		return d.damage * d.pellets * d.magSize / (d.magSize / shots + d.reloadTime)
+	end
+	local rifle = sustained("rifle")
+	for _, id in Weapons.order do
+		local d = Weapons.defs[id]
+		if d.price > 0 and d.merchant ~= false then
+			local value = d.price / sustained(id)
+			-- The launcher's splash hits many zombies, so its single-target value is low on purpose.
+			if id ~= "launcher" then
+				expect(value >= 3 and value <= 7, `{id}: {value} coins per sustained DPS`)
+			end
+			-- The flamethrower trades its 8 m range for damage.
+			if id ~= "flamer" then
+				expect(sustained(id) <= rifle * 1.15, `{id} outclasses the rifle`)
+			end
+		end
+	end
 end)
 
 test("Co-op scales the horde with player count", function()
@@ -672,7 +728,7 @@ test("Grace-period stations and loot spots are placed and reachable", function()
 	end
 end)
 
-test("The climb has 25 floors, bosses every fifth and a warm-up first floor", function()
+test("The climb has 30 floors, bosses every fifth and a warm-up first floor", function()
 	local a = FloorPlan.build(Rng.new(5))
 	local b = FloorPlan.build(Rng.new(5))
 	eq(#a, Floors.FLOORS)
@@ -778,6 +834,35 @@ test("Melee arcs, combos and timing", function()
 	eq(MeleeMath.comboStep(3, 0.5), 1)
 	eq(MeleeMath.comboStep(1, 2), 1)
 	expect(MeleeMath.interval(2, true) < MeleeMath.interval(2, false))
+end)
+
+test("Melee balance: every weapon reaches its finisher, has a role, and can't stunlock", function()
+	local function dps(id: string): number
+		local m = Gear.defs[id].melee :: any
+		return m.damage * m.rate * (2 + MeleeMath.FINISHER.damage) / 3
+	end
+	for _, id in { "machete", "bat", "spear", "fireaxe", "sledge" } do
+		local m = Gear.defs[id].melee :: any
+		-- Swinging as fast as the weapon allows keeps the combo going to the finisher.
+		local gap = MeleeMath.interval(m.rate, false)
+		local step = 0
+		for _ = 1, 3 do
+			step = MeleeMath.comboStep(step, gap, gap)
+		end
+		eq(step, 3, `{id} never reaches its finisher`)
+		-- Per-target damage stays in one band; melee shouldn't outclass the guns.
+		expect(dps(id) >= 55 and dps(id) <= 110, `{id} melee DPS {dps(id)} out of band`)
+	end
+	-- After any melee stun a zombie gets at least a second to act before the next one.
+	expect(MeleeMath.STUN_IMMUNITY >= 1, "melee stuns can chain into a stunlock")
+	-- Roles: the bat is the cheapest, the spear reaches furthest, the axe cleaves widest,
+	-- and the sledge hits hardest per target.
+	for _, id in { "machete", "spear", "fireaxe", "sledge" } do
+		expect(Gear.defs.bat.price < Gear.defs[id].price)
+		expect(Gear.defs.spear.melee.range >= Gear.defs[id].melee.range)
+		expect(Gear.defs.fireaxe.melee.arc >= Gear.defs[id].melee.arc)
+		expect(dps("sledge") >= dps(id))
+	end
 end)
 
 test("Gun gear survives a sync and powers the gun; gear workbench actions", function()
@@ -988,6 +1073,113 @@ test("Every keyframed clip has an id slot, and every reload clip exists", functi
 		eq(AnimationClips[`Swing_{i}`].length, MeleeMath.SWING_TIME)
 	end
 	eq(AnimationClips.Roll.length, PlayerStats.BASE.rollDuration)
+end)
+
+test("Tiers: bigger, faster hordes with only a small health step; leader picks up to their unlock", function()
+	local one, ten = Tiers.get(1), Tiers.get(Tiers.MAX)
+	expect(ten.count > one.count * 2, "top tier should field a much bigger horde")
+	expect(ten.hp < 1.6, "tiers must not turn zombies into sponges")
+	expect(ten.scripWin > one.scripWin and ten.scripBoss > one.scripBoss)
+	eq(Tiers.get(0).tier, 1)
+	eq(Tiers.get(99).tier, Tiers.MAX)
+	-- Party tier: leader only, capped at their unlocked tier.
+	local st = PartyRules.new()
+	local party = PartyRules.create(st, 1)
+	PartyRules.join(st, 2, party.id)
+	eq(party.tier, 1)
+	expect(not PartyRules.setTier(st, 2, 2, 5), "a member can't pick the tier")
+	expect(not PartyRules.setTier(st, 1, 3, 2), "can't pick a locked tier")
+	expect(PartyRules.setTier(st, 1, 2, 2))
+	eq(party.tier, 2)
+end)
+
+test("Profiles: wins pay Scrip and unlock the next tier; bosses pay a little", function()
+	local p = Cosmetics.newProfile()
+	eq(Cosmetics.unlockedTier(p), 1)
+	eq(Cosmetics.applyBoss(p, 1), Tiers.get(1).scripBoss)
+	eq(Cosmetics.applyWin(p, 1), Tiers.get(1).scripWin)
+	eq(p.wins, 1)
+	eq(Cosmetics.unlockedTier(p), 2)
+	-- Winning a lower tier never lowers your unlock; a carried win unlocks past it.
+	Cosmetics.applyWin(p, 5)
+	Cosmetics.applyWin(p, 2)
+	eq(Cosmetics.unlockedTier(p), 6)
+	-- Junk from storage is repaired.
+	local fixed = Cosmetics.normalize({
+		scrip = -5,
+		highestTier = 99,
+		owned = { nope = true, skinGold = true },
+		equipped = { skin = "skinGold", trail = "trailGhost" },
+	})
+	eq(fixed.scrip, 0)
+	eq(fixed.highestTier, Tiers.MAX)
+	eq(fixed.owned.nope, nil)
+	eq(fixed.equipped.skin, "skinGold")
+	eq(fixed.equipped.trail, nil) -- not owned
+end)
+
+test("Crates: published odds, no duplicates until a rarity is complete, earned Scrip only", function()
+	local total = 0
+	for _, r in Cosmetics.RARITY_ORDER do
+		total += Cosmetics.RARITIES[r].odds
+	end
+	expect(math.abs(total - 1) < 1e-9, "crate odds must sum to 100%")
+	-- Every item can be won.
+	for _, id in Cosmetics.ORDER do
+		local it = Cosmetics.ITEMS[id]
+		expect(Cosmetics.RARITIES[it.rarity] ~= nil, `{id} has an unknown rarity`)
+		if it.kind == "emote" then
+			expect(AnimationClips[it.clip :: string] ~= nil, `{id}: no clip {it.clip}`)
+		end
+	end
+	-- Opening crates until the collection is complete never repeats an item.
+	local p = Cosmetics.newProfile(1000000)
+	local rng = Rng.new(7)
+	local seen = {}
+	for _ = 1, #Cosmetics.ORDER do
+		local ok, id = Cosmetics.buyCrate(p, rng)
+		expect(ok and id ~= nil, "crate should give an item")
+		expect(not seen[id :: string], `duplicate {id}`)
+		seen[id :: string] = true
+	end
+	-- Everything owned: no charge, nothing given.
+	local before = p.scrip
+	local ok, id = Cosmetics.buyCrate(p, rng)
+	expect(ok and id == nil and p.scrip == before)
+	-- Not enough Scrip.
+	local poor = Cosmetics.newProfile(Cosmetics.CRATE_PRICE - 1)
+	expect(not (Cosmetics.buyCrate(poor, rng)))
+	-- Odds are roughly honoured on a fresh collection (many players' first crate).
+	local counts = { common = 0, rare = 0, epic = 0, legendary = 0 }
+	for seed = 1, 4000 do
+		local first = Cosmetics.rollCrate(Rng.new(seed), {}) :: string
+		counts[Cosmetics.ITEMS[first].rarity] += 1
+	end
+	expect(math.abs(counts.common / 4000 - 0.55) < 0.04 and counts.legendary > 40 and counts.legendary < 220)
+end)
+
+test("Locker: equip only what you own; emotes fill four slots", function()
+	local p = Cosmetics.newProfile()
+	expect(not Cosmetics.equip(p, "skin", "skinGold"), "can't equip what you don't own")
+	p.owned.skinGold = true
+	expect(Cosmetics.equip(p, "skin", "skinGold"))
+	eq(p.equipped.skin, "skinGold")
+	expect(Cosmetics.equip(p, "skin", nil))
+	eq(p.equipped.skin, nil)
+	expect(not Cosmetics.equip(p, "trail", "skinGold"), "wrong kind")
+	local emotes = {}
+	for _, id in Cosmetics.ORDER do
+		if Cosmetics.ITEMS[id].kind == "emote" then
+			p.owned[id] = true
+			table.insert(emotes, id)
+		end
+	end
+	for i, id in emotes do
+		eq(Cosmetics.equip(p, "emote", id), i <= Cosmetics.EMOTE_SLOTS)
+	end
+	eq(#p.equipped.emotes, Cosmetics.EMOTE_SLOTS)
+	expect(Cosmetics.equip(p, "emote", emotes[1])) -- toggles off
+	eq(#p.equipped.emotes, Cosmetics.EMOTE_SLOTS - 1)
 end)
 
 print(`\n{passed} passed, {failed} failed`)

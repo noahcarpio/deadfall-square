@@ -134,10 +134,6 @@ end
 
 local setState = ZombieSim.setState
 
-function ZombieSim.isAlive(z): boolean
-	return not z.dying
-end
-
 -- Marks a zombie dead (Combat decides rewards); it is removed after the topple.
 function ZombieSim.markDying(self, z, dirX: number, dirZ: number)
 	if z.dying then

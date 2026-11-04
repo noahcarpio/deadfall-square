@@ -106,12 +106,14 @@ local MODIFIERS: { [string]: Modifier } = {
 }
 
 return {
-	FLOORS = 25,
+	FLOORS = 30,
 	BOSS_EVERY = 5,
 	-- Seconds to survive on a hold-out floor (plus a little per floor).
 	holdoutSeconds = function(floor: number): number
-		return math.min(110, 60 + floor * 2)
+		return math.min(60, 35 + floor)
 	end,
+	-- Defend floors stop sending new zombies after this many seconds.
+	DEFEND_SPAWN_SECONDS = 45,
 	-- The bell's health on a defend floor.
 	bellHp = function(floor: number, players: number): number
 		return math.floor((500 + floor * 45) * (1 + 0.3 * (math.max(1, players) - 1)))
@@ -123,5 +125,5 @@ return {
 	modifiers = MODIFIERS,
 	modifierOrder = { "none", "fog", "bloodMoon", "swarm", "armored", "calm" },
 	-- Seconds to choose a reward after a floor (then the grace period starts).
-	REWARD_SECONDS = 15,
+	REWARD_SECONDS = 10,
 }

@@ -98,15 +98,12 @@ local Context = {
 	placing = false,
 	-- Camera pan while placing structures (studs).
 	panOffset = Vector3.zero,
-	settings = { screenShake = true, damageNumbers = true },
 	trauma = 0,
 	signals = {
 		arsenalChanged = signal(),
 		statsChanged = signal(),
-		shot = signal(),
 		hurt = signal(),
 		notify = signal(),
-		phaseChanged = signal(),
 		inventoryChanged = signal(),
 		gearChanged = signal(),
 		dash = signal(), -- (dirX, dirZ, distance) Charge Strike
@@ -130,9 +127,7 @@ remotes.GearSync.OnClientEvent:Connect(function(data)
 end)
 
 function Context.shake(amount: number)
-	if Context.settings.screenShake then
-		Context.trauma = math.min(1, Context.trauma + amount)
-	end
+	Context.trauma = math.min(1, Context.trauma + amount)
 end
 
 function Context.phase(): string

@@ -146,6 +146,12 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 	end
 	if result ~= "fired" then
 		if result == "empty" then
+			-- Completely out of ammo for this gun: fall back to the pistol instead of dry-firing.
+			local w = ps.arsenal:currentState()
+			if w.id ~= "pistol" and w.mag <= 0 and w.reserve <= 0 and ps.arsenal:switchTo("pistol", now) then
+				W.players:updateGunModel(ps)
+				W.notify(ps.player, `{Weapons.defs[w.id].name} is out of ammo — refill it at the merchant`, "info")
+			end
 			W.players:syncArsenal(ps)
 		end
 		return
@@ -253,7 +259,7 @@ function WeaponService.onMelee(self, ps, aimX: any, aimZ: any)
 		return
 	end
 	ps.nextMelee = now + gap
-	ps.meleeStep = MeleeMath.comboStep(ps.meleeStep or 0, now - (ps.lastMelee or 0))
+	ps.meleeStep = MeleeMath.comboStep(ps.meleeStep or 0, now - (ps.lastMelee or 0), gap)
 	ps.lastMelee = now
 	local finisher = ps.meleeStep == 3
 	local f = MeleeMath.FINISHER
@@ -288,8 +294,10 @@ function WeaponService.onMelee(self, ps, aimX: any, aimZ: any)
 			attacker = ps,
 			gear = item,
 		})
-		if not died and (def.stagger or finisher) and z.type ~= "boss" and not z.dying then
-			z.stunTime = if def.stagger then 0.9 else 0.5
+		local canStun = z.type ~= "boss" and not z.dying and now >= (z.meleeStunImmuneUntil or 0)
+		if not died and (def.stagger or finisher) and canStun then
+			z.stunTime = if def.stagger then MeleeMath.STAGGER_TIME else MeleeMath.FINISHER_STUN
+			z.meleeStunImmuneUntil = now + z.stunTime + MeleeMath.STUN_IMMUNITY
 			W.zombies.setState(z, "stunned")
 		end
 	end

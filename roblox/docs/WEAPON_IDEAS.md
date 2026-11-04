@@ -12,22 +12,24 @@ This is a list of weapons that could be added to Deadfall Square, tuned against 
 
 - **Burst DPS** = damage × pellets × fire rate. This is the damage per second while the trigger is held and the magazine lasts.
 - **Sustained DPS** = damage × pellets × mag ÷ (mag ÷ fire rate + reload time). This is the real output over a long fight, including reloads.
-- **Coins per sustained DPS** is the price ÷ sustained DPS. It measures value for money. Current guns sit between about 3.6 (shotgun) and 6.6 (sniper). The launcher is about 10, but it hits several zombies at once. A new gun should sit near its peers. It should only go above that band if it hits many targets (AoE, pierce, chains).
+- **Coins per sustained DPS** is the price ÷ sustained DPS. It measures value for money. Current guns sit between about 3 (shotgun) and 7 (flamethrower, sniper). The launcher is about 10, but it hits several zombies at once. A new gun should sit near its peers. It should only go above that band if it hits many targets (AoE, pierce, chains).
 - **Breakpoints** are how many hits a gun needs to kill a zombie, and they matter more than raw DPS.
   - On floor 1: Walker 34 HP, Runner 18, Spitter 30, Exploder 26, Brute 240, Abomination 1,900.
-  - Health scales by `Waves.hpMultiplier`: ×1.5 on floor 5, ×2.4 on floor 10, ×5.1 on floor 20 and ×6.9 on floor 25.
-  - Upgrades (+15% damage per tier, up to 5) and gear power push guns past breakpoints. A gun that one-shots Walkers early stops doing so around floor 4–5 unless it is upgraded. That is intended: it creates a reason to upgrade.
+  - Health scales gently by `Waves.hpMultiplier` (1 + 0.035 per floor): ×1.3 on floor 10, ×1.7 on floor 20 and ×2.0 on floor 30. Difficulty comes from the horde size instead.
+  - Upgrades (+15% damage per tier, up to 5) and gear power push guns past breakpoints, so late in a run a well-upgraded rifle one-shots Walkers. That is intended: crowds are the threat, and pierce, pellets and AoE matter more as the horde grows.
 
 ## Current guns (baseline)
+
+After the horde balance pass: shotgun 260 → 220, SMG damage 9 → 10, flamethrower damage 6 → 4 and 720 → 800 (it was the automatic pick), plus revolver 240, DMR 620 and LMG damage 16 in the batches below.
 
 | Gun | Burst DPS | Sustained DPS | Price | Coins / sDPS | Walker hits | Role |
 |---|---|---|---|---|---|---|
 | M9 Pistol (after the nerf: 12 dmg, 3.5/s, 10 mag) | 42 | 31 | free | — | 3 | Fallback, infinite ammo |
-| Pump Shotgun | 101 | 72 | 260 | 3.6 | 1 | Close crowds |
-| Vector SMG | 117 | 75 | 340 | 4.5 | 4 | Spray, ammo hungry |
+| Pump Shotgun | 101 | 72 | 220 | 3.1 | 1 | Close crowds; the cheap first buy |
+| Vector SMG | 130 | 83 | 340 | 4.1 | 4 | Spray, ammo hungry |
 | AR-15 Rifle | 162 | 106 | 520 | 4.9 | 2 | All-rounder |
 | Bolt Sniper | 142 | 97 | 640 | 6.6 | 1 | Pierces 5, lines and elites |
-| Flamethrower | 264 | 179 | 720 | 4.0 | 3 | 8 m range, burn |
+| Flamethrower | 176 | 119 | 800 | 6.7 | 5 | 8 m range, burn, flames pass through the whole crowd |
 | Grenade Launcher | 138 | 87 | 900 | 10.4 | 1 | AoE (r 4.2) |
 
 Gaps this leaves:
@@ -84,17 +86,13 @@ Pipe bomb: 220 damage, radius 4.5, 4 s fuse, crafted.
 ## Before adding more guns
 
 - **Slots: decided.** Players carry the pistol plus **two** guns (`Arsenal.MAX_GUNS`). Any number of guns can exist, and each pick is a real choice, so new guns can be a little stronger than when you could own all of them.
-- **New mechanics, cheapest first:**
-  1. a speed modifier while held (LMG, chainsaw);
-  2. burst fire (carbine);
-  3. charge-up (railgun);
-  4. materials as ammo (nail gun);
-  5. chain hits (arc projector).
+- **Mechanics already built** (optional `WeaponDef` fields): `moveSpeed` (slower while held), `burst`/`burstGap` (burst fire), `charge` (hold to fire), `falloff` (pellet damage drop-off), `merchant = false` with `minFloor`/`minRarity` (found-only late-game guns).
+- **Still to build:** materials as ammo (nail gun) and chain hits (arc projector).
 - **Ammo prices** follow `price / 1200` in `Shop.luau`, so expensive guns automatically cost more to refill. Check the auto shotgun and railgun refills after adding them.
 - **Test** each new gun by playing floors 1, 5, 10 and 20 with it alone. Record time-to-clear and how often it reloads. A gun that clears floor 10 more than 20% faster than the rifle at a similar price is overtuned.
 
-## Recommended first batch
+## What's left
 
-1. **Revolver**, **Double-Barrel** and **DMR**: they need no new code, fill real gaps and are easy to judge.
-2. **Baseball Bat** and **Spear**: also no new code (melee definitions only).
-3. Then the LMG, auto shotgun and railgun (the carry limit is now in place).
+- **Nail Gun** and **Arc Projector**: each needs one new mechanic (above).
+- **Katana** (melee definition only) and **Chainsaw** (hold to cut, uses fuel).
+- **Molotov**, **Flashbang** and **Sticky Bomb** throwables.

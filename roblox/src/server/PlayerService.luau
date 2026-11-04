@@ -1,11 +1,13 @@
 --[[
 	Server-side state for every player: vitals (health/armor, downed & revive),
 	position in simulation metres, arsenal, coins/score, perks, upgrades and
-	run statistics, and the inventory bag. Exposes values to clients through
+	run statistics, the inventory bag, and the player's equipped cosmetics
+	(weapon skin, trail, title, emotes) from their profile. Exposes values to clients through
 	Player attributes and sync remotes; the server is authoritative for all
 	of it.
 ]]
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
@@ -21,6 +23,8 @@ local PerkState = require(Shared.PerkState)
 local PlayerStats = require(Shared.PlayerStats)
 
 local LootService = require(script.Parent.LootService)
+local Profile = require(script.Parent.Profile)
+local Cosmetics = require(Shared.Cosmetics)
 
 local S = Constants.STUDS
 
@@ -73,6 +77,9 @@ export type PState = {
 	revives: number,
 	lastHurtNotify: number,
 	slotNoticeAt: number,
+	scripEarned: number,
+	cosmetics: { skin: string?, trail: string?, title: string?, emotes: { string } },
+	lastEmote: number,
 	connections: { RBXScriptConnection },
 }
 
@@ -95,6 +102,7 @@ local function freshRunState(ps: PState)
 	ps.economy = Economy.new()
 	ps.perks = PerkState.new()
 	ps.tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 }
+	ps.scripEarned = 0 -- Scrip earned this run (bosses, the win)
 	-- Starting kit: a machete and a Charge Strike.
 	ps.nextUid = 1
 	local function uid()
@@ -149,9 +157,19 @@ function PlayerService.add(self, player: Player)
 		lastHurtNotify = 0,
 		slotNoticeAt = 0,
 		connections = {},
+		-- Equipped cosmetics (from the profile, loaded below).
+		cosmetics = { emotes = {} },
+		lastEmote = 0,
 	} :: any
 	freshRunState(ps)
 	self.states[player] = ps
+	task.spawn(function()
+		local profile = Profile.load(player.UserId)
+		if self.states[player] == ps then
+			ps.cosmetics = profile.equipped
+			self:applyCosmetics(ps)
+		end
+	end)
 	table.insert(
 		ps.connections,
 		player.CharacterAdded:Connect(function(character)
@@ -275,6 +293,126 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	self:updateMeleeModel(ps)
 	self:applyMovement(ps)
 	self:syncAll(ps)
+	self:applyCosmetics(ps)
+end
+
+------------------------------------------------------------------ cosmetics
+
+-- Recolours every part of a weapon model with the equipped weapon skin.
+local function applySkin(model: Model, skinId: string?)
+	local skin = skinId and Cosmetics.ITEMS[skinId]
+	if not skin or not skin.color then
+		return
+	end
+	local color = Color3.fromHex(skin.color)
+	local material = (Enum.Material :: any)[skin.material or "Metal"] or Enum.Material.Metal
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			if part:IsA("MeshPart") then
+				part.TextureID = "" -- the palette texture would hide the skin colour
+			end
+			-- Keep a little of the original shading so parts stay readable.
+			part.Color = color:Lerp(part.Color, 0.15)
+			part.Material = material
+		end
+	end
+end
+
+--[[
+	Shows a player's equipped cosmetics on their character: the weapon skin
+	(rebuilds the gun and melee models), the trail, and the title under their
+	name. Also publishes the title and emote list as attributes for the HUD.
+]]
+function PlayerService.applyCosmetics(self, ps: PState)
+	local c = ps.cosmetics
+	local title = c.title and Cosmetics.ITEMS[c.title]
+	ps.player:SetAttribute("Title", if title then title.name else "")
+	ps.player:SetAttribute("Emotes", table.concat(c.emotes or {}, ","))
+	local character = ps.player.Character
+	if not character then
+		return
+	end
+	self:updateGunModel(ps)
+	self:updateMeleeModel(ps)
+
+	-- Trail.
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		for _, name in { "CosmeticTrail", "TrailTop", "TrailBottom" } do
+			local old = root:FindFirstChild(name)
+			if old then
+				old:Destroy()
+			end
+		end
+		local trail = c.trail and Cosmetics.ITEMS[c.trail]
+		if trail and trail.colors then
+			local top = Instance.new("Attachment")
+			top.Name = "TrailTop"
+			top.Position = Vector3.new(0, 0.6, 0)
+			top.Parent = root
+			local bottom = Instance.new("Attachment")
+			bottom.Name = "TrailBottom"
+			bottom.Position = Vector3.new(0, -1.4, 0)
+			bottom.Parent = root
+			local t = Instance.new("Trail")
+			t.Name = "CosmeticTrail"
+			t.Attachment0 = top
+			t.Attachment1 = bottom
+			t.Color =
+				ColorSequence.new(Color3.fromHex(trail.colors[1]), Color3.fromHex(trail.colors[2] or trail.colors[1]))
+			t.Transparency = NumberSequence.new(0.35, 1)
+			t.Lifetime = trail.lifetime or 0.6
+			t.LightEmission = trail.light or 0
+			t.MinLength = 0.05
+			t.FaceCamera = true
+			t.Parent = root
+		end
+	end
+
+	-- Title under the name.
+	local head = character:FindFirstChild("Head")
+	if head then
+		local old = head:FindFirstChild("TitleTag")
+		if old then
+			old:Destroy()
+		end
+		if title then
+			local tag = Instance.new("BillboardGui")
+			tag.Name = "TitleTag"
+			tag.Size = UDim2.fromOffset(220, 22)
+			tag.StudsOffset = Vector3.new(0, 2.6, 0)
+			tag.MaxDistance = 140
+			tag.LightInfluence = 0
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.fromScale(1, 1)
+			label.Text = string.upper(title.name)
+			label.Font = Enum.Font.Oswald
+			label.TextSize = 16
+			label.TextColor3 = Color3.fromHex(Cosmetics.RARITIES[title.rarity].color):Lerp(Color3.new(1, 1, 1), 0.45)
+			label.TextStrokeTransparency = 0.4
+			label.Parent = tag
+			tag.Parent = head
+		end
+	end
+end
+
+-- Plays one of the player's equipped emotes (clients animate it from these attributes).
+function PlayerService.playEmote(_self, ps: PState, id: any)
+	local now = os.clock()
+	if type(id) ~= "string" or now - ps.lastEmote < 0.5 or ps.downed then
+		return
+	end
+	local item = Cosmetics.ITEMS[id]
+	if not item or item.kind ~= "emote" or not table.find(ps.cosmetics.emotes or {}, id) then
+		return
+	end
+	local character = ps.player.Character
+	if character then
+		ps.lastEmote = now
+		character:SetAttribute("EmoteClip", item.clip)
+		character:SetAttribute("EmoteAt", Workspace:GetServerTimeNow())
+	end
 end
 
 -- Length (studs) of the block drawn when a gun has no mesh.
@@ -341,6 +479,7 @@ function PlayerService.updateGunModel(_self, ps: PState)
 	grip.C1 = CFrame.new(0, 0, length / 2 - 0.3)
 	grip.Parent = body
 	model.PrimaryPart = body
+	applySkin(model, ps.cosmetics and ps.cosmetics.skin)
 	model.Parent = character
 	ps.gun = model
 	character:SetAttribute("Weapon", def.id)
@@ -420,6 +559,7 @@ function PlayerService.updateMeleeModel(_self, ps: PState)
 	grip.C1 = CFrame.new(0, 0, -shape[1][2] * S)
 	grip.Parent = handle
 	model.PrimaryPart = handle
+	applySkin(model, ps.cosmetics and ps.cosmetics.skin)
 	model.Parent = character
 end
 

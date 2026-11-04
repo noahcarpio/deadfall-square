@@ -36,6 +36,8 @@ local Waves = require(Shared.Config.Waves)
 local Floors = require(Shared.Config.Floors)
 local Weapons = require(Shared.Config.Weapons)
 local Places = require(Shared.Config.Places)
+local Tiers = require(Shared.Config.Tiers)
+local Cosmetics = require(Shared.Cosmetics)
 local FloorPlan = require(Shared.FloorPlan)
 local Gear = require(Shared.Gear)
 local RewardRules = require(Shared.RewardRules)
@@ -54,6 +56,7 @@ local ArenaBuilder = require(script.Parent.ArenaBuilder)
 local Combat = require(script.Parent.Combat)
 local Hazards = require(script.Parent.Hazards)
 local Leaderboard = require(script.Parent.Leaderboard)
+local Profile = require(script.Parent.Profile)
 local LootService = require(script.Parent.LootService)
 local Pickups = require(script.Parent.Pickups)
 local PlayerService = require(script.Parent.PlayerService)
@@ -85,7 +88,7 @@ function GameServer.start()
 		rng = Rng.new(),
 		arena = arena,
 		spawns = arena.layout.spawns,
-		aliveCap = 160,
+		aliveCap = 220,
 		targets = {},
 	} :: any
 
@@ -157,6 +160,36 @@ function GameServer.start()
 		end)
 		if ok and type(data) == "table" and type(data.partySize) == "number" then
 			partySize = math.clamp(math.floor(data.partySize), 1, Players.MaxPlayers)
+		end
+		-- The difficulty tier the party leader picked on the Home page (Studio: STUDIO_TIER).
+		local tier = if ok
+				and type(data) == "table"
+				and type(data.tier) == "number"
+			then data.tier
+			else Tiers.STUDIO_TIER
+		W.waves.tier = Tiers.get(tier)
+		stateFolder:SetAttribute("Tier", W.waves.tier.tier)
+		stateFolder:SetAttribute("TierName", W.waves.tier.name)
+	end
+
+	-- Scrip: saved to each player's profile straight away; `amount` is shown at game over.
+	local function awardScrip(ps, transform: (Cosmetics.Profile) -> number)
+		task.spawn(function()
+			local ok, amount = Profile.update(ps.userId, function(p)
+				return true, transform(p)
+			end)
+			if ok and ps.player.Parent then
+				W.notify(ps.player, `+{amount} Scrip`, "good")
+			end
+		end)
+	end
+	W.onBossKilled = function()
+		local tier = W.waves.tier.tier
+		for _, ps in W.players:list() do
+			ps.scripEarned += Tiers.get(tier).scripBoss
+			awardScrip(ps, function(p)
+				return Cosmetics.applyBoss(p, tier)
+			end)
 		end
 	end
 	W.onPlayerLeft = function(_ps)
@@ -247,13 +280,19 @@ function GameServer.start()
 		W.players:syncAttributes()
 	end
 
+	-- After the reward pick: the full grace period every GRACE_EVERY floors, otherwise a
+	-- short breather (the countdown to the next floor) so a 30-floor climb stays ~25 minutes.
 	local function startGrace()
 		for _, ps in W.players:list() do
 			if #ps.rewardOffer > 0 then
 				applyReward(ps, ps.rewardOffer[1]) -- didn't choose in time
 			end
 		end
-		setPhase("intermission", Constants.INTERMISSION_SECONDS)
+		if W.waves.wave % Constants.GRACE_EVERY == 0 then
+			setPhase("intermission", Constants.INTERMISSION_SECONDS)
+		else
+			setPhase("countdown", Constants.BREATHER_SECONDS)
+		end
 	end
 
 	local function onWaveCleared()
@@ -263,7 +302,7 @@ function GameServer.start()
 			return
 		end
 		local info = W.waves:floorInfo(floor)
-		local bonus = math.floor(Waves.clearBonus(floor) * W.waves.modifier.coins + 0.5)
+		local bonus = math.floor(Waves.clearBonus(floor) * W.waves.modifier.coins * W.waves.tier.coins + 0.5)
 		local rewarded = not W.waves.bellBroken
 		for _, ps in W.players:list() do
 			ps.economy:addCoins(bonus)
@@ -313,10 +352,22 @@ function GameServer.start()
 		table.sort(team, function(a, b)
 			return a.score > b.score
 		end)
+		local tier = W.waves.tier
 		for _, ps in W.players:list() do
 			leaderboard:submit(ps.userId, ps.economy.score)
+			if victory then
+				-- A win pays Scrip and unlocks the next tier for everyone who was there.
+				ps.scripEarned += tier.scripWin
+				awardScrip(ps, function(p)
+					return Cosmetics.applyWin(p, tier.tier)
+				end)
+			end
 			remotes.GameOver:FireClient(ps.player, {
 				victory = victory,
+				tier = tier.tier,
+				tierName = tier.name,
+				scrip = ps.scripEarned,
+				unlocked = if victory and tier.tier < Tiers.MAX then tier.tier + 1 else nil,
 				score = ps.economy.score,
 				wavesSurvived = if victory then wave else math.max(0, wave - 1),
 				kills = ps.kills,
@@ -394,6 +445,12 @@ function GameServer.start()
 		local ps = stateOf(player)
 		if ps then
 			W.weapons:onSwitch(ps, arg)
+		end
+	end)
+	remotes.Emote.OnServerEvent:Connect(function(player, id)
+		local ps = stateOf(player)
+		if ps then
+			W.players:playEmote(ps, id)
 		end
 	end)
 	remotes.Roll.OnServerEvent:Connect(function(player)
@@ -734,7 +791,19 @@ function GameServer.start()
 				homeBoundAt = nil
 			end
 			local waited = if firstJoin then os.clock() - firstJoin else 0
-			if not homeBoundAt and here > 0 and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS) then
+			-- Start once everyone has a character in the world (a fresh join may still be loading).
+			local spawned = true
+			for _, ps in W.players:list() do
+				if not ps.hasBody then
+					spawned = false
+				end
+			end
+			if
+				not homeBoundAt
+				and here > 0
+				and spawned
+				and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS)
+			then
 				startRun()
 			end
 		elseif phase == "countdown" then
@@ -811,6 +880,8 @@ function GameServer.start()
 		-- Floor objective state for the HUD.
 		local upcoming = W.waves:floorInfo(if phase == "wave" then W.waves.wave else W.waves.wave + 1)
 		stateFolder:SetAttribute("Floors", Floors.FLOORS)
+		stateFolder:SetAttribute("Tier", W.waves.tier.tier)
+		stateFolder:SetAttribute("TierName", W.waves.tier.name)
 		stateFolder:SetAttribute("Objective", if upcoming then upcoming.objective else "clear")
 		stateFolder:SetAttribute("Modifier", if upcoming then upcoming.modifier else "none")
 		stateFolder:SetAttribute("TimeLeft", if phase == "wave" then W.waves:timeLeft() else 0)

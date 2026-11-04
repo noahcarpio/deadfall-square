@@ -93,7 +93,10 @@ type Rig = {
 	gunGripRest: CFrame?,
 	meleeGrip: Motor6D?,
 	meleeGripRest: CFrame?,
-	swingShown: boolean?,
+	-- Which held item shows: "gun", "melee" (while swinging) or "none" (during an emote).
+	shown: string?,
+	-- The emote (its EmoteAt key) that has finished or been cancelled.
+	emoteDone: any,
 	-- How arm poses are applied: 1 = joint offsets (C0 / Attachment0), 2 = Transform in Stepped.
 	strategy: number,
 	badTime: number,
@@ -343,19 +346,28 @@ end
 
 local RELOAD_CLIPS = { "Reload_Rifle", "Reload_Pistol", "Reload_Shotgun" }
 local THROW_TIME = (AnimationClips :: any).Throw.length
+local EMOTE_CLIPS = {}
+for name in AnimationClips :: any do
+	if string.sub(name, 1, 6) == "Emote_" then
+		table.insert(EMOTE_CLIPS, name)
+	end
+end
 
 -- Animation id for a clip: the published id, or (in Studio) a temporary one for the sequence.
 local clipIds: { [string]: string | false } = {}
 local function clipId(name: string): string?
 	local cached = clipIds[name]
 	if cached == nil then
-		cached = false
 		local id = Animations.IDS[name]
 		if id and id ~= "" then
 			cached = id
 		elseif RunService:IsStudio() then
 			local folder = ReplicatedStorage:FindFirstChild("DeadfallAnimations")
-			local seq = folder and folder:FindFirstChild(name)
+			if not folder then
+				return nil -- not replicated yet: try again next frame
+			end
+			cached = false
+			local seq = folder:FindFirstChild(name)
 			if seq and seq:IsA("KeyframeSequence") then
 				local ok, temp = pcall(function()
 					return KeyframeSequenceProvider:RegisterKeyframeSequence(seq)
@@ -364,8 +376,10 @@ local function clipId(name: string): string?
 					cached = temp
 				end
 			end
+		else
+			cached = false
 		end
-		clipIds[name] = cached
+		clipIds[name] = cached :: string | false
 	end
 	return cached or nil
 end
@@ -376,12 +390,15 @@ local function clip(rig: Rig, name: string): AnimationTrack?
 	end
 	local cached = rig.tracks[name]
 	if cached == nil then
-		cached = false
-		local id = clipId(name)
 		local humanoid = rig.character:FindFirstChildOfClass("Humanoid")
 		local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			return nil -- the Animator appears a moment after the character: try again later
+		end
+		cached = false
+		local id = clipId(name)
 		local info = (AnimationClips :: any)[name]
-		if id and animator and info then
+		if id and info then
 			local animation = Instance.new("Animation")
 			animation.AnimationId = id
 			local ok, track = pcall(function()
@@ -398,13 +415,22 @@ local function clip(rig: Rig, name: string): AnimationTrack?
 	return cached or nil
 end
 
+-- Same action? Trigger keys are timestamps; the server's copy of one (e.g. a reload end time
+-- after an ArsenalSync) can differ slightly from the local prediction.
+local function sameKey(a: any, b: any): boolean
+	if type(a) == "number" and type(b) == "number" then
+		return math.abs(a - b) < 0.2
+	end
+	return a == b
+end
+
 -- Plays a one-shot clip once per new `key`, stretched to `duration` seconds; true while it plays.
 local function trigger(rig: Rig, name: string, key: any, duration: number): boolean
 	local track = clip(rig, name)
 	if not track then
 		return false
 	end
-	if key ~= nil and rig.keys[name] ~= key then
+	if key ~= nil and not sameKey(rig.keys[name], key) then
 		rig.keys[name] = key
 		track:Play(0.08, 1, (AnimationClips :: any)[name].length / math.max(0.05, duration))
 	end
@@ -454,19 +480,21 @@ type State = {
 	rollKey: any,
 	throwKey: any,
 	kneeling: boolean,
+	emoteClip: string?, -- the emote clip the player started, while it may still be playing
+	emoteKey: any,
 }
 
--- Shows the melee weapon only while swinging, and hides the gun meanwhile (local view only).
-local function setSwingVisibility(rig: Rig, swinging: boolean)
-	if rig.swingShown == swinging then
+-- Shows the gun, the melee weapon (only while swinging) or neither (during an emote). Local view only.
+local function setHeldVisibility(rig: Rig, mode: string)
+	if rig.shown == mode then
 		return
 	end
-	rig.swingShown = swinging
+	rig.shown = mode
 	local melee = rig.character:FindFirstChild("MeleeWeapon")
 	if melee then
 		for _, p in melee:GetDescendants() do
 			if p:IsA("BasePart") then
-				p.LocalTransparencyModifier = if swinging then 0 else 1
+				p.LocalTransparencyModifier = if mode == "melee" then 0 else 1
 			end
 		end
 	end
@@ -474,7 +502,7 @@ local function setSwingVisibility(rig: Rig, swinging: boolean)
 	if gun then
 		for _, p in gun:GetDescendants() do
 			if p:IsA("BasePart") then
-				p.LocalTransparencyModifier = if swinging then 1 else 0
+				p.LocalTransparencyModifier = if mode == "gun" then 0 else 1
 			end
 		end
 	end
@@ -503,25 +531,49 @@ local function animate(rig: Rig, st: State, dt: number)
 	local downedPlaying = hold(rig, "Downed", st.downed)
 	hold(rig, "Kneel", st.kneeling and not st.downed)
 
+	-- Emotes: a one-shot plays once; a looping one (sit, dance) plays until the player moves or acts.
+	local emoting = false
+	local emoteClip = st.emoteClip
+	if emoteClip and st.emoteKey ~= nil and not sameKey(rig.emoteDone, st.emoteKey) then
+		local info = (AnimationClips :: any)[emoteClip]
+		local busy = st.speed > 2 or swinging or st.reload >= 0 or st.roll >= 0 or st.downed or rig.recoil > 0.05
+		if busy or not info then
+			rig.emoteDone = st.emoteKey
+		elseif info.loop then
+			emoting = hold(rig, emoteClip, true)
+		else
+			emoting = trigger(rig, emoteClip, st.emoteKey, info.length)
+			if not emoting and rig.keys[emoteClip] ~= nil then
+				rig.emoteDone = st.emoteKey -- finished
+			end
+		end
+	end
+	for _, name in EMOTE_CLIPS do
+		local track = rig.tracks[name]
+		if track and track.IsPlaying and not (emoting and name == emoteClip) then
+			track:Stop(0.2)
+		end
+	end
+
 	-- Arms and gun. A reload clip moves the arms itself; the gun still tilts here.
 	local bump = if st.reload >= 0 then math.sin(math.pi * math.clamp(st.reload, 0, 1)) else 0
 	local armBump = if reloadPlaying then 0 else bump
 	local raise = 1 - rig.sprint * 0.65
 	local pitchR = 0.6 + (HALF_PI + 0.05 - 0.6) * raise + rig.recoil * 0.45 - armBump * 0.8
 	local pitchL = 0.6 + (1.45 - 0.6) * raise - armBump * 1.1
-	local armW = rig.aim * (1 - rig.downed)
+	local armW = if emoting then 0 else rig.aim * (1 - rig.downed)
 	-- Weapons can be rebuilt by the server (switching, equipping); re-apply visibility then.
 	local melee = rig.character:FindFirstChild("MeleeWeapon")
 	if melee and melee:GetAttribute("Seen") ~= true then
 		melee:SetAttribute("Seen", true)
-		rig.swingShown = nil
+		rig.shown = nil
 	end
 	local gunModel = rig.character:FindFirstChild("Gun")
 	if gunModel and gunModel:GetAttribute("Seen") ~= true then
 		gunModel:SetAttribute("Seen", true)
-		rig.swingShown = nil
+		rig.shown = nil
 	end
-	setSwingVisibility(rig, swinging)
+	setHeldVisibility(rig, if swinging then "melee" elseif emoting then "none" else "gun")
 	if swinging then
 		-- Ease out: fast start, settling at the end of the arc.
 		local e = 1 - (1 - st.swing) ^ 3
@@ -635,10 +687,22 @@ local function stateFor(player: Player, character: Model): State
 		rollKey = nil,
 		throwKey = nil,
 		kneeling = character:GetAttribute("Kneeling") == true,
+		emoteClip = nil,
+		emoteKey = nil,
 	}
 	local throwAt = character:GetAttribute("ThrowAt")
 	if type(throwAt) == "number" and Workspace:GetServerTimeNow() - throwAt < THROW_TIME then
 		st.throwKey = throwAt
+	end
+	local emoteClip, emoteAt = character:GetAttribute("EmoteClip"), character:GetAttribute("EmoteAt")
+	local emoteInfo = type(emoteClip) == "string" and (AnimationClips :: any)[emoteClip]
+	if emoteInfo and type(emoteAt) == "number" then
+		-- Late joiners don't replay old emotes; a looping one stays live until cancelled.
+		local age = Workspace:GetServerTimeNow() - emoteAt
+		if age < (if emoteInfo.loop then 600 else emoteInfo.length) then
+			st.emoteClip = emoteClip :: string
+			st.emoteKey = emoteAt
+		end
 	end
 	if player == Context.player then
 		st.sprinting = Context.sprinting and speed > 1

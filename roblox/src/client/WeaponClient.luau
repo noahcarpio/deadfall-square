@@ -114,8 +114,9 @@ function WeaponClient.start()
 		if now < nextMelee then
 			return
 		end
-		nextMelee = now + MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
-		meleeStep = MeleeMath.comboStep(meleeStep, now - lastMelee)
+		local gap = MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
+		nextMelee = now + gap
+		meleeStep = MeleeMath.comboStep(meleeStep, now - lastMelee, gap)
 		lastMelee = now
 		Context.swingAt = now
 		Context.swingStep = meleeStep
@@ -196,9 +197,11 @@ function WeaponClient.start()
 			chargeStart = nil
 			Context.charge = 0
 		end
+		-- A started burst always finishes, even if the trigger is let go.
+		local triggered = Context.firing or (arsenal.burstIndex > 0 and not Context.menuOpen)
 		if
 			not root
-			or not Context.firing
+			or not triggered
 			or swinging
 			or Context.rolling
 			or Context.downed()
@@ -215,7 +218,8 @@ function WeaponClient.start()
 			end
 		end
 		local result = arsenal:tryFire(os.clock(), 0, Context.stats.reloadSpeed)
-		if result == "fired" then
+		if result ~= "blocked" then
+			-- Fired, or empty and reloading: the next shot needs a fresh charge.
 			chargeStart = nil
 			Context.charge = 0
 		end

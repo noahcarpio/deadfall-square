@@ -9,7 +9,7 @@ return {
 	WORLD_HALF = 64,
 	-- Bullets fly at this height (m); lower obstacles don't block shots.
 	BULLET_HEIGHT = 1.25,
-	MAX_ZOMBIES = 220,
+	MAX_ZOMBIES = 280,
 	-- Zombie snapshot rate sent to clients.
 	SNAPSHOT_HZ = 15,
 	-- Clients render zombies this far in the past to interpolate smoothly.
@@ -18,6 +18,10 @@ return {
 	REVIVE_SECONDS = 3,
 	-- Grace period between waves: visit the merchant and workbench, loot, build.
 	INTERMISSION_SECONDS = 30,
+	-- The full grace period (stations, building) comes after every GRACE_EVERY-th floor;
+	-- other floors get a short breather before the next one.
+	GRACE_EVERY = 3,
+	BREATHER_SECONDS = 6,
 	-- Stations only serve players standing this close (m).
 	STATION_RANGE = 4.5,
 	COUNTDOWN_SECONDS = 4,

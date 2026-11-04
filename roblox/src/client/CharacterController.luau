@@ -102,7 +102,6 @@ function CharacterController.start()
 		Context.stamina -= Context.stats.rollCost
 		staminaDelay = 0.8
 		Context.remotes.Roll:FireServer()
-		Context.signals.shot:fire("roll")
 	end)
 
 	Context.remotes.Hurt.OnClientEvent:Connect(

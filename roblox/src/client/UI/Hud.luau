@@ -46,7 +46,8 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 		return (v + MAP_HALF) / (MAP_HALF * 2)
 	end
 	-- Static obstacles.
-	for _, c in ArenaLayout.generate().colliders do
+	local layout = ArenaLayout.generate()
+	for _, c in layout.colliders do
 		if math.abs(c.x) <= MAP_HALF + 2 and math.abs(c.z) <= MAP_HALF + 2 then
 			local w = math.max(2 / size, (c.maxX - c.minX) / (MAP_HALF * 2))
 			local h = math.max(2 / size, (c.maxZ - c.minZ) / (MAP_HALF * 2))
@@ -63,7 +64,28 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 			end
 		end
 	end
-	local dots = create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = root })
+	-- The merchant (M), workbench (W) and alarm bell (B).
+	local STATION_MARKS = { merchant = { "M", T.rust }, workbench = { "W", T.accent }, bell = { "B", T.gold } }
+	for _, st in layout.stations do
+		local mark = STATION_MARKS[st.name]
+		if mark then
+			create("TextLabel", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(toUnit(st.px), toUnit(st.pz)),
+				Size = UDim2.fromOffset(13, 13),
+				BackgroundColor3 = mark[2],
+				BorderSizePixel = 0,
+				Text = mark[1],
+				Font = T.mono,
+				TextSize = 10,
+				TextColor3 = T.bg,
+				ZIndex = 2,
+				Parent = root,
+			})
+		end
+	end
+	local dots =
+		create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = root })
 	local pool: { Frame } = {}
 	local timer = 0
 	local function dot(i: number, x: number, z: number, color: Color3, px: number)
@@ -449,6 +471,71 @@ function Hud.start(gui: ScreenGui)
 		end
 	end)
 
+	-------------------------------------------------- downed teammates
+	-- A marker over each downed teammate, pinned to the screen edge when they're off-screen.
+	local downMarks: { [Player]: TextLabel } = {}
+	local function updateDownMarks(show: boolean)
+		local camera = Workspace.CurrentCamera
+		local view = camera.ViewportSize
+		local me = Context.character()
+		local myRoot = if me then me:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+		for _, other in Players:GetPlayers() do
+			local root = other.Character and other.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local mark = downMarks[other]
+			local down = show and other ~= Context.player and other:GetAttribute("Downed") == true and root ~= nil
+			if not down then
+				if mark then
+					mark.Visible = false
+				end
+				continue
+			end
+			if not mark then
+				mark = Builder.night.label("", 13, {
+					Font = T.bold,
+					TextColor3 = T.danger,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					BackgroundColor3 = T.panel,
+					BackgroundTransparency = 0.2,
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromOffset(0, 22),
+					Parent = playerGui,
+				})
+				Builder.padding(4).Parent = mark
+				downMarks[other] = mark
+			end
+			local rootPart = root :: BasePart
+			local pos, onScreen = camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3 * S, 0))
+			local metres = if myRoot then math.floor((myRoot.Position - rootPart.Position).Magnitude / S + 0.5) else 0
+			local x, y = pos.X, pos.Y
+			if pos.Z < 0 then
+				-- Behind the camera: mirror so the marker points the right way.
+				x, y = view.X - x, view.Y - y
+			end
+			local margin = 60
+			local inside = onScreen and pos.Z > 0
+			x, y = math.clamp(x, margin, view.X - margin), math.clamp(y, margin, view.Y - margin)
+			mark.Position = UDim2.fromOffset(x, y)
+			local arrow = ""
+			if not inside then
+				-- Point from the screen centre toward them (8 directions).
+				local angle = math.atan2(y - view.Y / 2, x - view.X / 2)
+				local i = math.floor((angle + math.pi) / (math.pi / 4) + 0.5) % 8
+				arrow = ({ "←", "↖", "↑", "↗", "→", "↘", "↓", "↙" })[i + 1] .. " "
+			end
+			mark.Text = if inside
+				then `{other.DisplayName} — hold F to revive`
+				else `{arrow}{other.DisplayName} DOWN · {metres} m`
+			mark.Visible = true
+		end
+		for other, mark in downMarks do
+			if other.Parent == nil then
+				mark:Destroy()
+				downMarks[other] = nil
+			end
+		end
+	end
+
 	-------------------------------------------------- per-frame update
 	local perkSignature = ""
 	local teamRows: { [Player]: Frame } = {}
@@ -459,6 +546,7 @@ function Hud.start(gui: ScreenGui)
 		for _, f in { vitals, scoreBox, weaponBox, mapRoot, team } do
 			f.Visible = playing
 		end
+		updateDownMarks(playing)
 		waveBox.Visible = phase ~= "gameover"
 
 		local hp, maxHp = p:GetAttribute("HP") or 100, p:GetAttribute("MaxHP") or 100
@@ -480,15 +568,17 @@ function Hud.start(gui: ScreenGui)
 		local objective = Floors.objectives[gs:GetAttribute("Objective") or "clear"] or Floors.objectives.clear
 		local modifier = Floors.modifiers[gs:GetAttribute("Modifier") or "none"] or Floors.modifiers.none
 		local modText = if modifier.name ~= "" then ` · {modifier.name}` else ""
+		local tierNumber = gs:GetAttribute("Tier") or 1
+		local tierText = if tierNumber > 1 then ` · T{tierNumber}` else ""
 		if phase == "waiting" then
 			local here, size = gs:GetAttribute("PartyHere") or 0, gs:GetAttribute("PartySize") or 1
 			waveLabel.Text = "WAITING FOR YOUR PARTY"
 			waveSub.Text = `{here} / {size} here`
 		elseif phase == "countdown" then
-			waveLabel.Text = `FLOOR {wave + 1} / {floors}`
+			waveLabel.Text = `FLOOR {wave + 1} / {floors}{tierText}`
 			waveSub.Text = `{objective.name}{modText} — starting in {secs}`
 		elseif phase == "wave" then
-			waveLabel.Text = `FLOOR {wave} / {floors}`
+			waveLabel.Text = `FLOOR {wave} / {floors}{tierText}`
 			local objectiveId = gs:GetAttribute("Objective")
 			if objectiveId == "holdout" then
 				local t = math.ceil(gs:GetAttribute("TimeLeft") or 0)

@@ -25,6 +25,7 @@ local Hud = require(script.Parent.UI.Hud)
 local AbilityBar = require(script.Parent.UI.AbilityBar)
 local InventoryUI = require(script.Parent.UI.InventoryUI)
 local InventoryScreen = require(script.Parent.UI.InventoryScreen)
+local EmoteMenu = require(script.Parent.UI.EmoteMenu)
 local Placement = require(script.Parent.UI.Placement)
 local Screens = require(script.Parent.UI.Screens)
 local StationUI = require(script.Parent.UI.StationUI)
@@ -85,6 +86,10 @@ InputController.onToggleBag:connect(function()
 	if Context.phase() ~= "waiting" then
 		inventory.toggle()
 	end
+end)
+local emoteMenu = EmoteMenu.new(hudGui)
+InputController.onEmote:connect(function()
+	emoteMenu.toggle(Context.device == "gamepad")
 end)
 
 local screensGui = Builder.screen("DeadfallScreens", 10)
@@ -149,7 +154,6 @@ RunService.RenderStepped:Connect(function()
 	local phase = Context.phase()
 	if phase ~= lastPhase then
 		lastPhase = phase
-		Context.signals.phaseChanged:fire(phase)
 		if phase ~= "reward" then
 			rewards.hide()
 			pendingRewards = nil
