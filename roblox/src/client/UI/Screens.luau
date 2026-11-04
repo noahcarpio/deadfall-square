@@ -81,11 +81,7 @@ function Screens.lobby(gui: ScreenGui)
 	})
 	create("UISizeConstraint", { MinSize = Vector2.new(300, 300), Parent = left })
 	Builder.list(10).Parent = left
-	Builder.label(
-		"CO-OP ZOMBIE SURVIVAL",
-		14,
-		{ Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left }
-	)
+	Builder.label("CO-OP ZOMBIE SURVIVAL", 14, { Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left })
 	Builder.label("DEADFALL", 96, { Font = T.head, LayoutOrder = 2, Parent = left })
 	Builder.label("SQUARE", 56, { Font = T.head, TextColor3 = T.danger, LayoutOrder = 3, Parent = left })
 	Builder.label(

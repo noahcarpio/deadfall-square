@@ -434,7 +434,13 @@ local function animate(rig: Rig, st: State, dt: number)
 			local root = rig.character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root and rig.meleeGripRest then
 				local tilt = if st.swingStep == 3 then 1.3 - 1.8 * e else -0.15
-				aimGrip(mgrip, rig.meleeGripRest, root.CFrame.Rotation * CFrame.Angles(0, yaw, 0) * rx(tilt), Vector3.zero, 1)
+				aimGrip(
+					mgrip,
+					rig.meleeGripRest,
+					root.CFrame.Rotation * CFrame.Angles(0, yaw, 0) * rx(tilt),
+					Vector3.zero,
+					1
+				)
 			end
 		end
 	else

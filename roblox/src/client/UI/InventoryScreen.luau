@@ -468,7 +468,8 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 			return
 		end
 		local inv = Context.inventory
-		header.Text = `● {Context.player:GetAttribute("Coins") or 0}    BAG {string.format("%.1f", inv:weight())}/{inv.capacity} kg    STASH {#Context.gear.stash}/{Gear.STASH_SIZE}`
+		header.Text =
+			`● {Context.player:GetAttribute("Coins") or 0}    BAG {string.format("%.1f", inv:weight())}/{inv.capacity} kg    STASH {#Context.gear.stash}/{Gear.STASH_SIZE}`
 		local now = atMerchant()
 		status.Text = if now then "SELLING OPEN — you're at the merchant" else "Sell at the merchant (open all run)"
 		status.TextColor3 = if now then T.accent else T.muted
@@ -478,12 +479,14 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		end
 	end
 
-	for _, sig in {
-		Context.signals.arsenalChanged,
-		Context.signals.inventoryChanged,
-		Context.signals.gearChanged,
-		Context.signals.statsChanged,
-	} do
+	for _, sig in
+		{
+			Context.signals.arsenalChanged,
+			Context.signals.inventoryChanged,
+			Context.signals.gearChanged,
+			Context.signals.statsChanged,
+		}
+	do
 		sig:connect(function()
 			if self.open then
 				render()
