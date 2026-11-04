@@ -325,6 +325,10 @@ function Pickups.collect(self, p, ps): boolean
 		if res == "full" then
 			return false -- update() keeps full players from pulling it in, and tells them why
 		end
+		-- A new gun goes straight into your hands if you were on the pistol.
+		if res == "new" and ps.arsenal.current == "pistol" and ps.arsenal:switchTo(p.weapon, os.clock()) then
+			W.players:updateGunModel(ps)
+		end
 		W.players:syncArsenal(ps)
 		label = if res == "new" then `NEW: {name}` else `{name} AMMO`
 	end

@@ -114,8 +114,9 @@ function WeaponClient.start()
 		if now < nextMelee then
 			return
 		end
-		nextMelee = now + MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
-		meleeStep = MeleeMath.comboStep(meleeStep, now - lastMelee)
+		local gap = MeleeMath.interval(def.rate, Gear.has(item, "rapid"))
+		nextMelee = now + gap
+		meleeStep = MeleeMath.comboStep(meleeStep, now - lastMelee, gap)
 		lastMelee = now
 		Context.swingAt = now
 		Context.swingStep = meleeStep

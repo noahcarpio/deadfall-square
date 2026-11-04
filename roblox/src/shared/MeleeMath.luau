@@ -8,6 +8,11 @@
 local COMBO_WINDOW = 0.9 -- seconds after a swing in which the next one continues the combo
 local FINISHER = { damage = 1.6, knock = 2, arc = 1.15 }
 local SWING_TIME = 0.32 -- animation length of one swing
+-- Stuns from melee: how long a stagger / finisher stun lasts, and how long a zombie then
+-- shrugs off further melee stuns (so fast stagger weapons can't lock a crowd down forever).
+local STAGGER_TIME = 0.8
+local FINISHER_STUN = 0.5
+local STUN_IMMUNITY = 1.2
 
 -- True if a circle (tx, tz, tr) is inside the swing cone from (ox, oz) toward (dx, dz).
 local function inArc(
@@ -36,8 +41,11 @@ local function inArc(
 end
 
 -- The combo step (1, 2 or 3) of a swing made `sinceLast` seconds after step `previous`.
-local function comboStep(previous: number, sinceLast: number): number
-	if previous <= 0 or previous >= 3 or sinceLast > COMBO_WINDOW then
+-- `interval` (seconds between swings) widens the window for slow weapons, so a sledgehammer
+-- swung as fast as it can go still reaches its finisher.
+local function comboStep(previous: number, sinceLast: number, interval: number?): number
+	local window = math.max(COMBO_WINDOW, (interval or 0) + 0.35)
+	if previous <= 0 or previous >= 3 or sinceLast > window then
 		return 1
 	end
 	return previous + 1
@@ -55,4 +63,7 @@ return {
 	FINISHER = FINISHER,
 	COMBO_WINDOW = COMBO_WINDOW,
 	SWING_TIME = SWING_TIME,
+	STAGGER_TIME = STAGGER_TIME,
+	FINISHER_STUN = FINISHER_STUN,
+	STUN_IMMUNITY = STUN_IMMUNITY,
 }

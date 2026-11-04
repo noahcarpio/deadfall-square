@@ -132,7 +132,17 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
   - **Where it comes from:** elites, bosses and the odd zombie drop gear with a coloured beam, and the merchant sells common pieces.
   - **Using it:** equip from the bag (I → GEAR). The stash holds 10. At the workbench, salvage gear into materials, reinforce it (+power) or re-roll a trait.
 - **Melee and gadgets:**
-  - **Melee:** right click / RB swings the equipped melee weapon in a 3-hit combo whose last hit is a heavy, staggering finisher.
+  - **Melee:** right click / RB swings the equipped melee weapon in a 3-hit combo whose last hit is a heavy, staggering finisher. Each weapon has a role (per-target damage/s over a combo):
+
+    | Weapon | Damage/s | Role |
+    |---|---|---|
+    | Machete | 75 | Fast all-rounder; the starting weapon |
+    | Baseball Bat | 61 | Cheapest (90); every hit staggers |
+    | Spear | 76 | Longest reach (3.3 m) in a narrow line |
+    | Fire Axe | 77 | Widest cleave (150°) |
+    | Sledgehammer | 103 | Hardest hits, slow, every hit staggers |
+
+    A zombie that has just been stunned by melee can't be stunned again by melee for a moment, so stagger weapons control crowds without locking them down forever.
   - **Gadgets** on Z / X / V (cooldowns on the HUD): Charge Strike (dash and smash), Med Burst (heal the team nearby), Shock Beacon (stun), Scrap Drone (15 s turret), Flare (lure and burn) and Adrenal Shot (+30% speed and fire rate).
   - **Starting kit:** a Machete and Charge Strike.
 
@@ -164,7 +174,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
   R15 avatars get everything. R6 avatars get the code-made versions.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.
 - **Home page (separate place):** a Field Manual cover page with your party (leader marked), CREATE PARTY / START RUN / INVITE FRIENDS / LEAVE PARTY, and numbered tabs for open parties to join, how to play, and the best climbs. Up to 6 survivors per party. Code in `src/home/`; party rules in `src/shared/PartyRules.luau`.
-- **UI:** HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
+- **UI:** HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap with M / W / B markers for the merchant, workbench and bell, crosshair, on-screen markers pointing to downed teammates, a low-health bandage cue), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
 
 ## Architecture
 

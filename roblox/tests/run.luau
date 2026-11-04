@@ -780,6 +780,37 @@ test("Melee arcs, combos and timing", function()
 	expect(MeleeMath.interval(2, true) < MeleeMath.interval(2, false))
 end)
 
+test("Melee balance: every weapon reaches its finisher, has a role, and can't stunlock", function()
+	local function dps(id: string): number
+		local m = Gear.defs[id].melee :: any
+		return m.damage * m.rate * (2 + MeleeMath.FINISHER.damage) / 3
+	end
+	for _, id in { "machete", "bat", "spear", "fireaxe", "sledge" } do
+		local m = Gear.defs[id].melee :: any
+		-- Swinging as fast as the weapon allows keeps the combo going to the finisher.
+		local gap = MeleeMath.interval(m.rate, false)
+		local step = 0
+		for _ = 1, 3 do
+			step = MeleeMath.comboStep(step, gap, gap)
+		end
+		eq(step, 3, `{id} never reaches its finisher`)
+		-- Per-target damage stays in one band; melee shouldn't outclass the guns.
+		expect(dps(id) >= 55 and dps(id) <= 110, `{id} melee DPS {dps(id)} out of band`)
+		-- A stagger weapon can't re-stun the same zombie before it recovers and acts again.
+		if m.stagger then
+			expect(MeleeMath.STAGGER_TIME + MeleeMath.STUN_IMMUNITY > gap * 2, `{id} can stunlock`)
+		end
+	end
+	-- Roles: the bat is the cheapest, the spear reaches furthest, the axe cleaves widest,
+	-- and the sledge hits hardest per target.
+	for _, id in { "machete", "spear", "fireaxe", "sledge" } do
+		expect(Gear.defs.bat.price < Gear.defs[id].price)
+		expect(Gear.defs.spear.melee.range >= Gear.defs[id].melee.range)
+		expect(Gear.defs.fireaxe.melee.arc >= Gear.defs[id].melee.arc)
+		expect(dps("sledge") >= dps(id))
+	end
+end)
+
 test("Gun gear survives a sync and powers the gun; gear workbench actions", function()
 	local a = Arsenal.new()
 	a:attune("shotgun", { uid = 9, rarity = "rare", power = 1.4, traits = { "rapid" } })
