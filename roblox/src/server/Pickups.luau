@@ -323,13 +323,7 @@ function Pickups.collect(self, p, ps): boolean
 		local name = Weapons.defs[p.weapon].name
 		local res = ps.arsenal:give(p.weapon)
 		if res == "full" then
-			-- Gun slots full: leave it on the ground, and say how to take it (throttled).
-			local now = os.clock()
-			if now - (ps.slotNoticeAt or 0) > 4 then
-				ps.slotNoticeAt = now
-				W.notify(ps.player, `Gun slots full — drop a gun (I) to take the {name}`, "info")
-			end
-			return false
+			return false -- update() keeps full players from pulling it in, and tells them why
 		end
 		W.players:syncArsenal(ps)
 		label = if res == "new" then `NEW: {name}` else `{name} AMMO`
@@ -354,6 +348,16 @@ function Pickups.update(self, dt: number)
 		for _, ps in W.players:targets() do
 			local d = math.sqrt((ps.x - p.x) ^ 2 + (ps.z - p.z) ^ 2)
 			local locked = p.lockedFor == ps and now < (p.lockUntil or 0)
+			-- A gun nobody has room for stays put (it would sit under them forever), and teammates
+			-- with a free slot can still pull it in. Standing on it explains how to take it.
+			if p.kind == "weapon" and not ps.arsenal:hasRoomFor(p.weapon) then
+				if d < 1.5 and now - (ps.slotNoticeAt or 0) > 4 then
+					ps.slotNoticeAt = now
+					local name = Weapons.defs[p.weapon].name
+					W.notify(ps.player, `Gun slots full — drop a gun (I) to take the {name}`, "info")
+				end
+				continue
+			end
 			if not locked and d < bestD and (self.vacuum or d < ps.stats.magnetRadius) then
 				best, bestD = ps, d
 			end

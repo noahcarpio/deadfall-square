@@ -13,10 +13,6 @@ function MathUtil.clamp(v: number, lo: number, hi: number): number
 	return v
 end
 
-function MathUtil.lerp(a: number, b: number, t: number): number
-	return a + (b - a) * t
-end
-
 -- Frame-rate independent exponential smoothing.
 function MathUtil.damp(current: number, target: number, lambda: number, dt: number): number
 	return current + (target - current) * (1 - math.exp(-lambda * dt))

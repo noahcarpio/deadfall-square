@@ -734,7 +734,19 @@ function GameServer.start()
 				homeBoundAt = nil
 			end
 			local waited = if firstJoin then os.clock() - firstJoin else 0
-			if not homeBoundAt and here > 0 and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS) then
+			-- Start once everyone has a character in the world (a fresh join may still be loading).
+			local spawned = true
+			for _, ps in W.players:list() do
+				if not ps.hasBody then
+					spawned = false
+				end
+			end
+			if
+				not homeBoundAt
+				and here > 0
+				and spawned
+				and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS)
+			then
 				startRun()
 			end
 		elseif phase == "countdown" then

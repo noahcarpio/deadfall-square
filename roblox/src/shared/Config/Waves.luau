@@ -6,7 +6,6 @@
 local Waves = {}
 
 Waves.clearDelay = 3
-Waves.perkEvery = 3
 Waves.bossEvery = 5
 
 function Waves.budget(wave: number): number
@@ -20,10 +19,6 @@ end
 
 function Waves.isBossWave(wave: number): boolean
 	return wave > 0 and wave % Waves.bossEvery == 0
-end
-
-function Waves.isPerkWave(wave: number): boolean
-	return wave > 0 and wave % Waves.perkEvery == 0
 end
 
 function Waves.typeWeights(wave: number): { [string]: number }

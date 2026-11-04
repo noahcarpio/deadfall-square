@@ -149,7 +149,6 @@ RunService.RenderStepped:Connect(function()
 	local phase = Context.phase()
 	if phase ~= lastPhase then
 		lastPhase = phase
-		Context.signals.phaseChanged:fire(phase)
 		if phase ~= "reward" then
 			rewards.hide()
 			pendingRewards = nil

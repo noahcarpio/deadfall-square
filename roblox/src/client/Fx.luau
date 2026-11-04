@@ -68,13 +68,6 @@ local gooAtt, gooEmitter = makeEmitter(
 	NumberRange.new(10, 26),
 	NumberRange.new(0.4, 0.8)
 )
-local sparkAtt, sparkEmitter = makeEmitter(
-	ColorSequence.new(Color3.fromRGB(255, 230, 150), Color3.fromRGB(255, 140, 40)),
-	NumberSequence.new(0.35, 0),
-	NumberRange.new(14, 30),
-	NumberRange.new(0.1, 0.25),
-	1
-)
 local fireAtt, fireEmitter = makeEmitter(
 	ColorSequence.new(Color3.fromRGB(255, 210, 90), Color3.fromRGB(255, 90, 20)),
 	NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 4) }),
@@ -214,10 +207,6 @@ function Fx.splat(x: number, z: number, radius: number)
 			fadeAndRemove(p, 3)
 		end
 	end)
-end
-
-function Fx.sparks(x: number, z: number)
-	emit(sparkAtt, sparkEmitter, x * S, GUN_Y, z * S, 4)
 end
 
 function Fx.explosion(x: number, z: number, radius: number)
@@ -502,16 +491,14 @@ function Fx.start()
 		if kind == "hit" then
 			-- a=x, b=z, c=scale, d=damage, e=crit
 			Fx.goo(a, 1.1 * c, b, if e then 6 else 3)
-			if Context.settings.damageNumbers then
-				Fx.floatText(
-					tostring(d),
-					a,
-					1.9 * c,
-					b,
-					if e then Color3.fromRGB(255, 178, 58) else Color3.new(1, 1, 1),
-					if e then 30 else 22
-				)
-			end
+			Fx.floatText(
+				tostring(d),
+				a,
+				1.9 * c,
+				b,
+				if e then Color3.fromRGB(255, 178, 58) else Color3.new(1, 1, 1),
+				if e then 30 else 22
+			)
 			Audio.play("hit", a, b, 0.6)
 		elseif kind == "death" then
 			-- a=x, b=z, c=type

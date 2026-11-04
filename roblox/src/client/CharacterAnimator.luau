@@ -349,13 +349,16 @@ local clipIds: { [string]: string | false } = {}
 local function clipId(name: string): string?
 	local cached = clipIds[name]
 	if cached == nil then
-		cached = false
 		local id = Animations.IDS[name]
 		if id and id ~= "" then
 			cached = id
 		elseif RunService:IsStudio() then
 			local folder = ReplicatedStorage:FindFirstChild("DeadfallAnimations")
-			local seq = folder and folder:FindFirstChild(name)
+			if not folder then
+				return nil -- not replicated yet: try again next frame
+			end
+			cached = false
+			local seq = folder:FindFirstChild(name)
 			if seq and seq:IsA("KeyframeSequence") then
 				local ok, temp = pcall(function()
 					return KeyframeSequenceProvider:RegisterKeyframeSequence(seq)
@@ -364,8 +367,10 @@ local function clipId(name: string): string?
 					cached = temp
 				end
 			end
+		else
+			cached = false
 		end
-		clipIds[name] = cached
+		clipIds[name] = cached :: string | false
 	end
 	return cached or nil
 end
@@ -376,12 +381,15 @@ local function clip(rig: Rig, name: string): AnimationTrack?
 	end
 	local cached = rig.tracks[name]
 	if cached == nil then
-		cached = false
-		local id = clipId(name)
 		local humanoid = rig.character:FindFirstChildOfClass("Humanoid")
 		local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			return nil -- the Animator appears a moment after the character: try again later
+		end
+		cached = false
+		local id = clipId(name)
 		local info = (AnimationClips :: any)[name]
-		if id and animator and info then
+		if id and info then
 			local animation = Instance.new("Animation")
 			animation.AnimationId = id
 			local ok, track = pcall(function()
@@ -398,13 +406,22 @@ local function clip(rig: Rig, name: string): AnimationTrack?
 	return cached or nil
 end
 
+-- Same action? Trigger keys are timestamps; the server's copy of one (e.g. a reload end time
+-- after an ArsenalSync) can differ slightly from the local prediction.
+local function sameKey(a: any, b: any): boolean
+	if type(a) == "number" and type(b) == "number" then
+		return math.abs(a - b) < 0.2
+	end
+	return a == b
+end
+
 -- Plays a one-shot clip once per new `key`, stretched to `duration` seconds; true while it plays.
 local function trigger(rig: Rig, name: string, key: any, duration: number): boolean
 	local track = clip(rig, name)
 	if not track then
 		return false
 	end
-	if key ~= nil and rig.keys[name] ~= key then
+	if key ~= nil and not sameKey(rig.keys[name], key) then
 		rig.keys[name] = key
 		track:Play(0.08, 1, (AnimationClips :: any)[name].length / math.max(0.05, duration))
 	end

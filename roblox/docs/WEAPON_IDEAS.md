@@ -84,17 +84,13 @@ Pipe bomb: 220 damage, radius 4.5, 4 s fuse, crafted.
 ## Before adding more guns
 
 - **Slots: decided.** Players carry the pistol plus **two** guns (`Arsenal.MAX_GUNS`). Any number of guns can exist, and each pick is a real choice, so new guns can be a little stronger than when you could own all of them.
-- **New mechanics, cheapest first:**
-  1. a speed modifier while held (LMG, chainsaw);
-  2. burst fire (carbine);
-  3. charge-up (railgun);
-  4. materials as ammo (nail gun);
-  5. chain hits (arc projector).
+- **Mechanics already built** (optional `WeaponDef` fields): `moveSpeed` (slower while held), `burst`/`burstGap` (burst fire), `charge` (hold to fire), `falloff` (pellet damage drop-off), `merchant = false` with `minFloor`/`minRarity` (found-only late-game guns).
+- **Still to build:** materials as ammo (nail gun) and chain hits (arc projector).
 - **Ammo prices** follow `price / 1200` in `Shop.luau`, so expensive guns automatically cost more to refill. Check the auto shotgun and railgun refills after adding them.
 - **Test** each new gun by playing floors 1, 5, 10 and 20 with it alone. Record time-to-clear and how often it reloads. A gun that clears floor 10 more than 20% faster than the rifle at a similar price is overtuned.
 
-## Recommended first batch
+## What's left
 
-1. **Revolver**, **Double-Barrel** and **DMR**: they need no new code, fill real gaps and are easy to judge.
-2. **Baseball Bat** and **Spear**: also no new code (melee definitions only).
-3. Then the LMG, auto shotgun and railgun (the carry limit is now in place).
+- **Nail Gun** and **Arc Projector**: each needs one new mechanic (above).
+- **Katana** (melee definition only) and **Chainsaw** (hold to cut, uses fuel).
+- **Molotov**, **Flashbang** and **Sticky Bomb** throwables.
