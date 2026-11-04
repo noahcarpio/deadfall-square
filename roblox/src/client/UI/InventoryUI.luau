@@ -20,15 +20,15 @@ function InventoryUI.new(gui: ScreenGui)
 	local self = {}
 
 	-------------------------------------------------- HUD strip
-	local strip = Builder.panel({
+	local strip = Builder.night.panel({
 		Name = "Bag",
 		Position = UDim2.fromOffset(14, 126),
 		Size = UDim2.fromOffset(250, 82),
 		Parent = gui,
 	})
 	Builder.padding(8).Parent = strip
-	local weightLabel = Builder.label("", 13, { Font = T.bold, Size = UDim2.new(0.6, 0, 0, 16), Parent = strip })
-	local stealthLabel = Builder.label("", 13, {
+	local weightLabel = Builder.night.label("", 13, { Font = T.bold, Size = UDim2.new(0.6, 0, 0, 16), Parent = strip })
+	local stealthLabel = Builder.night.label("", 13, {
 		Font = T.bold,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		AnchorPoint = Vector2.new(1, 0),
@@ -36,16 +36,16 @@ function InventoryUI.new(gui: ScreenGui)
 		Size = UDim2.new(0.5, 0, 0, 16),
 		Parent = strip,
 	})
-	local weightBar, weightFill = Builder.bar(Color3.fromRGB(154, 216, 255), 4)
+	local weightBar, weightFill = Builder.night.bar(T.text, 4)
 	weightBar.Position = UDim2.fromOffset(0, 19)
 	weightBar.Parent = strip
-	local matsLabel = Builder.label("", 12, {
+	local matsLabel = Builder.night.label("", 12, {
 		TextColor3 = T.muted,
 		Position = UDim2.fromOffset(0, 27),
 		Size = UDim2.new(1, 0, 0, 16),
 		Parent = strip,
 	})
-	local quickLabel = Builder.label("", 13, {
+	local quickLabel = Builder.night.label("", 13, {
 		Position = UDim2.fromOffset(0, 46),
 		Size = UDim2.new(1, 0, 0, 16),
 		Parent = strip,
@@ -63,7 +63,7 @@ function InventoryUI.new(gui: ScreenGui)
 		weightLabel.Text = `BAG {string.format("%.1f", weight)}/{inv.capacity} kg`
 		local full = weight / math.max(1, inv.capacity)
 		weightFill.Size = UDim2.fromScale(math.clamp(full, 0, 1), 1)
-		weightFill.BackgroundColor3 = if full > 0.9 then T.warn else Color3.fromRGB(154, 216, 255)
+		weightFill.BackgroundColor3 = if full > 0.9 then T.rust else T.text
 		local mats = {}
 		for _, id in Items.materials do
 			table.insert(mats, `{SHORT[id]} {inv:count(id)}`)

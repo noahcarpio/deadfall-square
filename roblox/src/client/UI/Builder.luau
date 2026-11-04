@@ -1,28 +1,21 @@
 --[[
-	Small declarative helper for building UI in code, plus the shared theme
-	(colours and fonts matching the browser version).
+	Small declarative helper for building UI in code, implementing the
+	"Field Manual" design language (Theme.luau): square corners, ink rules,
+	paper or night surfaces, condensed headings, mono figures.
+
+	Two kits share one API:
+	  Builder.label / panel / button / bar / tabs / stamp   -> paper (menus)
+	  Builder.night.label / panel / button / bar / ...      -> night (HUD)
+	Builder.paper and Builder.theme are the matching token tables
+	(Builder.theme is the night palette, for the HUD modules).
 ]]
+local Theme = require(script.Parent.Theme)
+
 local Builder = {}
 
-Builder.theme = {
-	bg = Color3.fromRGB(11, 14, 20),
-	panel = Color3.fromRGB(16, 21, 27),
-	panelAlpha = 0.16,
-	border = Color3.fromRGB(60, 66, 74),
-	text = Color3.fromRGB(236, 231, 220),
-	muted = Color3.fromRGB(155, 150, 139),
-	accent = Color3.fromRGB(125, 255, 176),
-	danger = Color3.fromRGB(255, 74, 58),
-	warn = Color3.fromRGB(255, 178, 58),
-	gold = Color3.fromRGB(255, 210, 58),
-	blue = Color3.fromRGB(74, 168, 255),
-	boss = Color3.fromRGB(208, 80, 255),
-	head = Enum.Font.Bangers,
-	body = Enum.Font.Gotham,
-	bold = Enum.Font.GothamBold,
-}
-
-local T = Builder.theme
+Builder.Theme = Theme
+Builder.paper = Theme.paper
+Builder.theme = Theme.night
 
 -- create("Frame", { Size = ..., [children] = {...} })
 function Builder.create(className: string, props: { [any]: any }?, children: { Instance }?): any
@@ -47,15 +40,29 @@ end
 
 local create = Builder.create
 
+local function apply(inst: Instance, props: { [any]: any }?)
+	if props then
+		for k, v in props do
+			if k ~= "Parent" then
+				(inst :: any)[k] = v
+			end
+		end
+		if props.Parent then
+			inst.Parent = props.Parent
+		end
+	end
+end
+
+-- Corners are square in this system (2 px at most).
 function Builder.corner(radius: number): UICorner
-	return create("UICorner", { CornerRadius = UDim.new(0, radius) })
+	return create("UICorner", { CornerRadius = UDim.new(0, math.min(radius, Theme.CORNER)) })
 end
 
 function Builder.stroke(color: Color3?, thickness: number?, transparency: number?): UIStroke
 	return create("UIStroke", {
-		Color = color or T.border,
+		Color = color or Theme.paper.border,
 		Thickness = thickness or 1,
-		Transparency = transparency or 0.3,
+		Transparency = transparency or 0,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	})
 end
@@ -63,116 +70,6 @@ end
 function Builder.padding(px: number): UIPadding
 	local u = UDim.new(0, px)
 	return create("UIPadding", { PaddingTop = u, PaddingBottom = u, PaddingLeft = u, PaddingRight = u })
-end
-
-function Builder.panel(props: { [any]: any }?): Frame
-	local p = props or {}
-	local frame = create("Frame", {
-		BackgroundColor3 = T.panel,
-		BackgroundTransparency = T.panelAlpha,
-		BorderSizePixel = 0,
-	})
-	for k, v in p do
-		if k ~= "Parent" then
-			(frame :: any)[k] = v
-		end
-	end
-	Builder.corner(10).Parent = frame
-	Builder.stroke().Parent = frame
-	if p.Parent then
-		frame.Parent = p.Parent
-	end
-	return frame
-end
-
-function Builder.label(text: string, size: number, props: { [any]: any }?): TextLabel
-	local l = create("TextLabel", {
-		BackgroundTransparency = 1,
-		Text = text,
-		TextSize = size,
-		Font = T.body,
-		TextColor3 = T.text,
-		Size = UDim2.new(1, 0, 0, size + 6),
-		TextXAlignment = Enum.TextXAlignment.Left,
-	})
-	if props then
-		for k, v in props do
-			if k ~= "Parent" then
-				(l :: any)[k] = v
-			end
-		end
-		if props.Parent then
-			l.Parent = props.Parent
-		end
-	end
-	return l
-end
-
--- A themed button; `kind` = "primary" | "danger" | "normal".
-function Builder.button(text: string, kind: string?, onClick: (() -> ())?, props: { [any]: any }?): TextButton
-	local primary = kind == "primary"
-	local b = create("TextButton", {
-		Text = text,
-		Font = T.head,
-		TextSize = 24,
-		AutoButtonColor = true,
-		TextColor3 = if primary then Color3.fromRGB(11, 26, 18) else T.text,
-		BackgroundColor3 = if primary
-			then T.accent
-			elseif kind == "danger" then Color3.fromRGB(70, 24, 20)
-			else Color3.fromRGB(32, 38, 46),
-		BackgroundTransparency = 0,
-		Size = UDim2.new(1, 0, 0, 46),
-		BorderSizePixel = 0,
-	})
-	Builder.corner(6).Parent = b
-	if not primary then
-		Builder.stroke().Parent = b
-	end
-	if onClick then
-		b.Activated:Connect(onClick)
-	end
-	if props then
-		for k, v in props do
-			if k ~= "Parent" then
-				(b :: any)[k] = v
-			end
-		end
-		if props.Parent then
-			b.Parent = props.Parent
-		end
-	end
-	return b
-end
-
--- Horizontal bar: returns (root, fill, label).
-function Builder.bar(color: Color3, height: number): (Frame, Frame, TextLabel)
-	local root = create("Frame", {
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.45,
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, height),
-	})
-	Builder.corner(4).Parent = root
-	local fill = create("Frame", {
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		Size = UDim2.fromScale(1, 1),
-		Parent = root,
-	})
-	Builder.corner(4).Parent = fill
-	local label = create("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Font = T.bold,
-		TextSize = math.max(10, height - 4),
-		TextColor3 = Color3.new(1, 1, 1),
-		TextStrokeTransparency = 0.5,
-		Text = "",
-		ZIndex = 2,
-		Parent = root,
-	})
-	return root, fill, label
 end
 
 function Builder.list(padding: number, horizontal: boolean?): UIListLayout
@@ -192,5 +89,210 @@ function Builder.screen(name: string, order: number): ScreenGui
 		DisplayOrder = order,
 	})
 end
+
+-- A kit of components bound to one palette.
+local function kit(P: Theme.Palette)
+	local K = {}
+
+	-- A page / panel: flat surface, 1-px rule (2-px ink border on paper pages).
+	function K.panel(props: { [any]: any }?): Frame
+		local frame = create("Frame", {
+			BackgroundColor3 = P.panel,
+			BackgroundTransparency = P.panelAlpha,
+			BorderSizePixel = 0,
+		})
+		Builder.corner(Theme.CORNER).Parent = frame
+		Builder.stroke(P.border, if P.name == "paper" then 2 else 1, 0).Parent = frame
+		apply(frame, props)
+		return frame
+	end
+
+	function K.label(text: string, size: number, props: { [any]: any }?): TextLabel
+		local l = create("TextLabel", {
+			BackgroundTransparency = 1,
+			Text = text,
+			TextSize = size,
+			Font = P.body,
+			TextColor3 = P.text,
+			Size = UDim2.new(1, 0, 0, size + 6),
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		apply(l, props)
+		return l
+	end
+
+	--[[
+		Buttons: `kind` = "primary" (ink fill), "danger" (rust outline) or nil
+		(ink outline). Text is upper-case Oswald. Unavailable buttons are shown
+		by the caller with the reason as text, in the muted colour.
+	]]
+	function K.button(text: string, kind: string?, onClick: (() -> ())?, props: { [any]: any }?): TextButton
+		local primary = kind == "primary"
+		local danger = kind == "danger"
+		local b = create("TextButton", {
+			Text = string.upper(text),
+			Font = P.head,
+			TextSize = 20,
+			AutoButtonColor = true,
+			TextColor3 = if primary then P.buttonText elseif danger then P.rust else P.text,
+			BackgroundColor3 = if primary then P.buttonFill else P.panel,
+			BackgroundTransparency = if primary then 0 else (if P.name == "paper" then 0 else 0.2),
+			Size = UDim2.new(1, 0, 0, 44),
+			BorderSizePixel = 0,
+		})
+		Builder.corner(Theme.CORNER).Parent = b
+		if not primary then
+			Builder.stroke(if danger then P.rust else P.border, 1, 0).Parent = b
+		end
+		if onClick then
+			b.Activated:Connect(onClick)
+		end
+		apply(b, props)
+		return b
+	end
+
+	-- Horizontal bar with an outline and a flat fill: returns (root, fill, label).
+	function K.bar(color: Color3, height: number): (Frame, Frame, TextLabel)
+		local root = create("Frame", {
+			BackgroundColor3 = P.bg,
+			BackgroundTransparency = if P.name == "paper" then 1 else 0.3,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, height),
+		})
+		Builder.stroke(P.text, 1, 0.35).Parent = root
+		local fill = create("Frame", {
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+			Parent = root,
+		})
+		local label = create("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Font = P.mono,
+			TextSize = math.max(10, height - 4),
+			TextColor3 = P.text,
+			TextStrokeTransparency = 0.6,
+			Text = "",
+			ZIndex = 2,
+			Parent = root,
+		})
+		return root, fill, label
+	end
+
+	--[[
+		A numbered tab index ("01 WEAPONS"): returns the row frame and a
+		select(name) function that underlines the open tab in rust.
+		`tabs` = { { name, title } }, `onPick(name)` runs on a click.
+	]]
+	function K.tabs(parent: Instance, tabs: { { string } }, onPick: (string) -> ()): (Frame, (string) -> ())
+		local row = create("Frame", {
+			Name = "Tabs",
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 36),
+			Parent = parent,
+		}, { Builder.list(24, true) })
+		create("Frame", {
+			Name = "Rule",
+			BackgroundColor3 = P.border,
+			BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 0, 1, 0),
+			Size = UDim2.new(1, 0, 0, 1),
+			Parent = row,
+		})
+		local buttons = {}
+		for i, t in tabs do
+			local b = create("TextButton", {
+				Name = t[1],
+				LayoutOrder = i,
+				Text = `<font face="SpecialElite" size="14">{string.format("%02d", i)}</font>  {string.upper(t[2])}`,
+				RichText = true,
+				Font = P.head,
+				TextSize = 20,
+				BackgroundTransparency = 1,
+				AutomaticSize = Enum.AutomaticSize.X,
+				Size = UDim2.fromOffset(0, 32),
+				TextColor3 = P.muted,
+				Parent = row,
+			})
+			local underline = create("Frame", {
+				Name = "Underline",
+				BackgroundColor3 = P.rust,
+				BorderSizePixel = 0,
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.new(0, 0, 1, 4),
+				Size = UDim2.new(1, 0, 0, 3),
+				Visible = false,
+				Parent = b,
+			})
+			b.Activated:Connect(function()
+				onPick(t[1])
+			end)
+			buttons[t[1]] = { button = b, underline = underline }
+		end
+		local function select(name: string)
+			for key, e in buttons do
+				local on = key == name
+				e.button.TextColor3 = if on then P.text else P.muted
+				e.underline.Visible = on
+			end
+		end
+		return row, select
+	end
+
+	-- A rubber stamp ("RARE", "SOLD"): bordered, slightly rotated, ink only.
+	function K.stamp(text: string, color: Color3, props: { [any]: any }?): TextLabel
+		local l = create("TextLabel", {
+			BackgroundTransparency = 1,
+			Text = string.upper(text),
+			Font = P.mono,
+			TextSize = 12,
+			TextColor3 = color,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, 22),
+			Rotation = -3,
+		}, {
+			create("UIStroke", {
+				Color = color,
+				Thickness = 2,
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			}),
+			create("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }),
+		})
+		apply(l, props)
+		return l
+	end
+
+	-- Stamp colour for a gear rarity.
+	function K.rarityColor(rarity: string): Color3
+		return if rarity == "unique" then P.stampUnique elseif rarity == "rare" then P.stampRare else P.stampCommon
+	end
+
+	-- A thin horizontal rule.
+	function K.rule(props: { [any]: any }?): Frame
+		local f = create("Frame", {
+			BackgroundColor3 = P.rule,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, 1),
+		})
+		apply(f, props)
+		return f
+	end
+
+	return K
+end
+
+local paperKit = kit(Theme.paper)
+Builder.night = kit(Theme.night)
+
+Builder.panel = paperKit.panel
+Builder.label = paperKit.label
+Builder.button = paperKit.button
+Builder.bar = paperKit.bar
+Builder.tabs = paperKit.tabs
+Builder.stamp = paperKit.stamp
+Builder.rarityColor = paperKit.rarityColor
+Builder.rule = paperKit.rule
 
 return Builder

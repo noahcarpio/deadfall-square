@@ -70,6 +70,20 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
    - Name each model like the placeholder it replaces (e.g. `Car_1`, `Gun_rifle`) and put it in `ReplicatedStorage.DeadfallMeshes`. `MeshLibrary` then uses it automatically, at the size in `Config/MeshSizes.luau`.
 6. **Make one model first and check it in game** from the real camera, in daylight and at night, before doing a whole set.
 
+## UI design language: Field Manual
+
+Every menu is a page from a survivor's field manual: paper, ink and a single rust accent, square corners, numbered sections, figures in a mono face, and rarity shown as an ink stamp. Nothing glows. The HUD uses the same system on a dark "night" surface so it stays readable over the game.
+
+- **Spec:** the [Field Manual spec page](https://claude.ai/artifact/4m35jemPnfFSkke6hosMfZ) has every colour, type style, component and a mock-up of each screen. It is private until shared from its Share menu.
+- **In code:** `src/client/UI/Theme.luau` holds the tokens (paper and night palettes, fonts, sizes). `Builder.luau` holds the components: page and panel, label, button, bar, numbered tabs, stamps and rules. `Builder.night.*` gives the same parts for the HUD.
+- **Fonts** (all built into Roblox): Oswald for headings, Special Elite for labels and section numbers, Roboto Mono for figures, Roboto Condensed for body text.
+- **Rules:**
+  - Left-align text.
+  - Show the exact number next to every bar.
+  - Use rust once per screen.
+  - Name an unavailable action by its reason ("Bag full").
+  - No rounded cards, gradients, glows, emoji or comic fonts.
+
 ## Controls
 
 | Action | PC | Controller | Mobile |

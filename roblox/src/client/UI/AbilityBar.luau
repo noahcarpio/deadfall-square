@@ -34,7 +34,7 @@ function AbilityBar.start(gui: ScreenGui)
 	end
 
 	local function slot(order: number, width: number)
-		local f = Builder.panel({ LayoutOrder = order, Size = UDim2.fromOffset(width, 62), Parent = bar })
+		local f = Builder.night.panel({ LayoutOrder = order, Size = UDim2.fromOffset(width, 62), Parent = bar })
 		f.ClipsDescendants = true
 		local fill = create("Frame", {
 			Name = "Cooldown",
@@ -47,7 +47,7 @@ function AbilityBar.start(gui: ScreenGui)
 			ZIndex = 2,
 			Parent = f,
 		})
-		local name = Builder.label("", 13, {
+		local name = Builder.night.label("", 13, {
 			Font = T.bold,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextWrapped = true,
@@ -56,7 +56,7 @@ function AbilityBar.start(gui: ScreenGui)
 			ZIndex = 3,
 			Parent = f,
 		})
-		local key = Builder.label("", 12, {
+		local key = Builder.night.label("", 12, {
 			TextColor3 = T.muted,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			AnchorPoint = Vector2.new(0, 1),
@@ -86,7 +86,7 @@ function AbilityBar.start(gui: ScreenGui)
 		local g = Context.gear
 		local melee = g.melee
 		meleeName.Text = if melee then Gear.defs[melee.id].name else "—"
-		meleeName.TextColor3 = if melee then Color3.fromHex(Gear.rarities[melee.rarity].color) else T.muted
+		meleeName.TextColor3 = if melee then Builder.night.rarityColor(melee.rarity) else T.muted
 		meleeKey.Text = if pad then "RB" elseif touch then "SLASH" else "RIGHT CLICK"
 		meleeFrame.Visible = melee ~= nil
 		local now = Workspace:GetServerTimeNow()
@@ -94,7 +94,7 @@ function AbilityBar.start(gui: ScreenGui)
 			local item = g.gadgets and g.gadgets[i]
 			if item then
 				s.name.Text = Gear.defs[item.id].name
-				s.name.TextColor3 = Color3.fromHex(Gear.rarities[item.rarity].color)
+				s.name.TextColor3 = Builder.night.rarityColor(item.rarity)
 				local left = (Context.abilityReady[i] or 0) - now
 				local frac = math.clamp(left / Gear.cooldownOf(item), 0, 1)
 				s.fill.Size = UDim2.fromScale(1, frac)

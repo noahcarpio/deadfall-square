@@ -162,15 +162,15 @@ local function buildMobileControls(): ScreenGui
 			Text = text,
 			Font = T.head,
 			TextSize = 18,
-			TextColor3 = Color3.new(1, 1, 1),
+			TextColor3 = T.text,
 			BackgroundColor3 = T.panel,
-			BackgroundTransparency = 0.35,
+			BackgroundTransparency = 0.2,
 			Size = UDim2.fromOffset(64, 64),
 			AutoButtonColor = true,
 			Parent = parent or column,
 		})
-		create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
-		Builder.stroke(Color3.new(1, 1, 1), 2, 0.6).Parent = b
+		create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = b })
+		Builder.stroke(T.text, 1, 0.4).Parent = b
 		b.Activated:Connect(onPress)
 		return b
 	end

@@ -105,7 +105,7 @@ function Placement.new(gui: ScreenGui, onDone: () -> ())
 		Parent = nil,
 	})
 
-	local bar = Builder.panel({
+	local bar = Builder.night.panel({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
 		Size = UDim2.fromOffset(640, 76),
@@ -113,8 +113,8 @@ function Placement.new(gui: ScreenGui, onDone: () -> ())
 		Parent = gui,
 	})
 	Builder.padding(10).Parent = bar
-	local label = Builder.label("", 22, { Font = T.head, Size = UDim2.new(1, -330, 0, 26), Parent = bar })
-	local hint = Builder.label("", 13, {
+	local label = Builder.night.label("", 22, { Font = T.head, Size = UDim2.new(1, -330, 0, 26), Parent = bar })
+	local hint = Builder.night.label("", 13, {
 		TextColor3 = T.muted,
 		Position = UDim2.fromOffset(0, 30),
 		Size = UDim2.new(1, -330, 0, 26),
@@ -155,10 +155,10 @@ function Placement.new(gui: ScreenGui, onDone: () -> ())
 		rotated = not rotated
 		Audio.play("uiClick")
 	end
-	Builder.button("ROTATE", nil, rotate, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
+	Builder.night.button("ROTATE", nil, rotate, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
 	local placeButton =
-		Builder.button("PLACE", "primary", confirm, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
-	Builder.button("CANCEL", "danger", finish, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
+		Builder.night.button("PLACE", "primary", confirm, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
+	Builder.night.button("CANCEL", "danger", finish, { Size = UDim2.fromOffset(100, 50), Parent = buttons })
 
 	local function updateGhost(x: number, z: number)
 		gx, gz = snap(stype, rotated, x, z)

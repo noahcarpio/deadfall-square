@@ -36,7 +36,7 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 14, 1, -14),
 		Size = UDim2.fromOffset(size, size),
-		BackgroundColor3 = Color3.fromRGB(20, 24, 22),
+		BackgroundColor3 = T.panel,
 		BackgroundTransparency = 0.18,
 		ClipsDescendants = true,
 		Parent = parent,
@@ -58,7 +58,7 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 				Parent = root,
 			})
 			if c.kind == "circle" then
-				create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = f })
+				create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = f })
 			end
 		end
 	end
@@ -69,7 +69,7 @@ local function minimap(parent: Instance): (Frame, (number) -> ())
 		local f = pool[i]
 		if not f then
 			f = create("Frame", { BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5), Parent = dots })
-			create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = f })
+			create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = f })
 			pool[i] = f
 		end
 		f.Visible = true
@@ -115,7 +115,7 @@ end
 function Hud.start(gui: ScreenGui)
 	local playerGui = gui
 	-------------------------------------------------- vitals
-	local vitals = Builder.panel({
+	local vitals = Builder.night.panel({
 		Name = "Vitals",
 		Position = UDim2.fromOffset(14, 14),
 		Size = UDim2.fromOffset(250, 104),
@@ -125,21 +125,21 @@ function Hud.start(gui: ScreenGui)
 	Builder.list(6).Parent = vitals
 	local function row(name: string, color: Color3, height: number): (Frame, Frame, TextLabel)
 		local r = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height), Parent = vitals })
-		Builder.label(name, 12, {
-			Font = T.bold,
+		Builder.night.label(name, 12, {
+			Font = T.type,
 			TextColor3 = T.muted,
 			Size = UDim2.new(0, 64, 1, 0),
 			Parent = r,
 		})
-		local bar, fill, label = Builder.bar(color, height)
+		local bar, fill, label = Builder.night.bar(color, height)
 		bar.Position = UDim2.fromOffset(66, 0)
 		bar.Size = UDim2.new(1, -66, 1, 0)
 		bar.Parent = r
 		return r, fill, label
 	end
-	local _, hpFill, hpLabel = row("HEALTH", Color3.fromRGB(230, 70, 60), 18)
-	local _, armorFill, armorLabel = row("ARMOR", Color3.fromRGB(74, 160, 255), 14)
-	local _, staminaFill = row("STAMINA", Color3.fromRGB(242, 220, 74), 10)
+	local _, hpFill, hpLabel = row("HEALTH", T.rust, 18)
+	local _, armorFill, armorLabel = row("ARMOR", T.blue, 14)
+	local _, staminaFill = row("STAMINA", T.text, 10)
 	local perkTray = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), Parent = vitals })
 	Builder.list(5, true).Parent = perkTray
 
@@ -151,13 +151,13 @@ function Hud.start(gui: ScreenGui)
 		Size = UDim2.fromOffset(420, 110),
 		Parent = playerGui,
 	})
-	local waveLabel = Builder.label("", 40, {
+	local waveLabel = Builder.night.label("", 40, {
 		Font = T.head,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.5,
 		Parent = waveBox,
 	})
-	local waveSub = Builder.label("", 16, {
+	local waveSub = Builder.night.label("", 16, {
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Position = UDim2.fromOffset(0, 44),
 		TextStrokeTransparency = 0.6,
@@ -170,18 +170,18 @@ function Hud.start(gui: ScreenGui)
 		Visible = false,
 		Parent = waveBox,
 	})
-	Builder.label("THE ABOMINATION", 16, {
+	Builder.night.label("THE ABOMINATION", 16, {
 		Font = T.head,
 		TextColor3 = T.boss,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Parent = bossFrame,
 	})
-	local bossBar, bossFill = Builder.bar(T.boss, 12)
+	local bossBar, bossFill = Builder.night.bar(T.boss, 12)
 	bossBar.Position = UDim2.fromOffset(0, 20)
 	bossBar.Parent = bossFrame
 
 	-------------------------------------------------- score / coins / combo
-	local scoreBox = Builder.panel({
+	local scoreBox = Builder.night.panel({
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14),
 		Size = UDim2.fromOffset(190, 112),
@@ -189,22 +189,22 @@ function Hud.start(gui: ScreenGui)
 	})
 	Builder.padding(10).Parent = scoreBox
 	local scoreLabel =
-		Builder.label("0", 28, { Font = T.head, TextXAlignment = Enum.TextXAlignment.Right, Parent = scoreBox })
-	local coinsLabel = Builder.label("0", 22, {
+		Builder.night.label("0", 28, { Font = T.head, TextXAlignment = Enum.TextXAlignment.Right, Parent = scoreBox })
+	local coinsLabel = Builder.night.label("0", 22, {
 		Font = T.head,
 		TextColor3 = T.gold,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Position = UDim2.fromOffset(0, 32),
 		Parent = scoreBox,
 	})
-	local comboLabel = Builder.label("", 26, {
+	local comboLabel = Builder.night.label("", 26, {
 		Font = T.head,
 		TextColor3 = T.warn,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Position = UDim2.fromOffset(0, 58),
 		Parent = scoreBox,
 	})
-	local comboBar, comboFill = Builder.bar(T.warn, 3)
+	local comboBar, comboFill = Builder.night.bar(T.warn, 3)
 	comboBar.Position = UDim2.new(0, 0, 1, -3)
 	comboBar.Parent = scoreBox
 
@@ -219,26 +219,26 @@ function Hud.start(gui: ScreenGui)
 	Builder.list(4).Parent = team
 
 	-------------------------------------------------- weapon
-	local weaponBox = Builder.panel({
+	local weaponBox = Builder.night.panel({
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -14, 1, -14),
 		Size = UDim2.fromOffset(240, 110),
 		Parent = playerGui,
 	})
 	Builder.padding(10).Parent = weaponBox
-	local weaponName = Builder.label("", 16, {
+	local weaponName = Builder.night.label("", 16, {
 		Font = T.head,
 		TextColor3 = T.muted,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = weaponBox,
 	})
-	local ammoLabel = Builder.label("", 40, {
+	local ammoLabel = Builder.night.label("", 40, {
 		Font = T.head,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Position = UDim2.fromOffset(0, 18),
 		Parent = weaponBox,
 	})
-	local reloadBar, reloadFill = Builder.bar(T.accent, 4)
+	local reloadBar, reloadFill = Builder.night.bar(T.accent, 4)
 	reloadBar.Position = UDim2.fromOffset(0, 66)
 	reloadBar.Parent = weaponBox
 	local slots = create("Frame", {
@@ -255,10 +255,10 @@ function Hud.start(gui: ScreenGui)
 		local l = create("TextLabel", {
 			LayoutOrder = i,
 			Text = tostring(i),
-			Font = T.bold,
+			Font = T.mono,
 			TextSize = 12,
 			Size = UDim2.fromOffset(22, 22),
-			BackgroundColor3 = Color3.fromRGB(30, 36, 42),
+			BackgroundColor3 = T.shade,
 			TextColor3 = T.muted,
 			Parent = slots,
 		}, { Builder.corner(4) })
@@ -274,16 +274,16 @@ function Hud.start(gui: ScreenGui)
 		Size = UDim2.fromOffset(30, 30),
 		Parent = playerGui,
 	}, {
-		create("UICorner", { CornerRadius = UDim.new(1, 0) }),
-		create("UIStroke", { Color = Color3.new(1, 1, 1), Thickness = 2, Transparency = 0.15 }),
+		create("UICorner", { CornerRadius = UDim.new(0, 2) }),
+		create("UIStroke", { Color = T.text, Thickness = 1, Transparency = 0.1 }),
 	})
 	create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(5, 5),
-		BackgroundColor3 = T.accent,
+		BackgroundColor3 = T.rust,
 		Parent = cross,
-	}, { create("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	}, { create("UICorner", { CornerRadius = UDim.new(0, 2) }) })
 
 	-------------------------------------------------- vignette, banner, toasts
 	-- Vignette: four edge strips whose gradients fade toward the centre.
@@ -325,13 +325,13 @@ function Hud.start(gui: ScreenGui)
 		Visible = false,
 		Parent = playerGui,
 	})
-	local bannerTitle = Builder.label("", 72, {
+	local bannerTitle = Builder.night.label("", 56, {
 		Font = T.head,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextStrokeTransparency = 0.4,
 		Parent = banner,
 	})
-	local bannerSub = Builder.label("", 20, {
+	local bannerSub = Builder.night.label("", 20, {
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Position = UDim2.fromOffset(0, 80),
 		TextStrokeTransparency = 0.5,
@@ -360,7 +360,7 @@ function Hud.start(gui: ScreenGui)
 	local TONES = { good = T.accent, bad = T.danger, info = T.blue, boss = T.boss }
 	local function toast(text: string, tone: string)
 		toastOrder -= 1
-		local t = Builder.panel({
+		local t = Builder.night.panel({
 			LayoutOrder = toastOrder,
 			AutomaticSize = Enum.AutomaticSize.X,
 			Size = UDim2.fromOffset(0, 30),
@@ -403,7 +403,7 @@ function Hud.start(gui: ScreenGui)
 					x,
 					if tone == "coin" then 2.4 else 2.6,
 					z,
-					if tone == "coin" then T.gold else Color3.fromRGB(154, 216, 255),
+					if tone == "coin" then T.gold else T.text,
 					if tone == "coin" then 18 else 22
 				)
 			end
@@ -432,7 +432,7 @@ function Hud.start(gui: ScreenGui)
 					3
 				)
 			else
-				showBanner(`FLOOR {data.wave} — {objective.name:upper()}`, sub, Color3.fromRGB(255, 217, 207), 3.2)
+				showBanner(`FLOOR {data.wave} — {objective.name:upper()}`, sub, T.text, 3.2)
 			end
 			Audio.play("waveStart")
 		elseif fxKind == "waveClear" then
@@ -467,8 +467,8 @@ function Hud.start(gui: ScreenGui)
 		armorLabel.Text = `{armor} / {maxArmor}`
 		staminaFill.Size = UDim2.fromScale(math.clamp(Context.stamina / Context.stats.maxStamina, 0, 1), 1)
 		staminaFill.BackgroundColor3 = if Context.exhausted
-			then Color3.fromRGB(106, 100, 64)
-			else Color3.fromRGB(242, 220, 74)
+			then T.muted
+			else T.text
 
 		-- Wave status.
 		local gs = Context.gameState
@@ -541,14 +541,8 @@ function Hud.start(gui: ScreenGui)
 		end
 		for id, l in slotLabels do
 			local owned = arsenal:owns(id)
-			l.BackgroundColor3 = if id == arsenal.current
-				then T.accent
-				elseif owned then Color3.fromRGB(46, 54, 62)
-				else Color3.fromRGB(24, 28, 32)
-			l.TextColor3 = if id == arsenal.current
-				then Color3.fromRGB(11, 26, 18)
-				elseif owned then T.text
-				else Color3.fromRGB(70, 74, 80)
+			l.BackgroundColor3 = if id == arsenal.current then T.text elseif owned then T.shade else T.panel
+			l.TextColor3 = if id == arsenal.current then T.panel elseif owned then T.text else T.rule
 		end
 
 		-- Perks.
@@ -576,7 +570,7 @@ function Hud.start(gui: ScreenGui)
 					BackgroundColor3 = Color3.new(0, 0, 0),
 					BackgroundTransparency = 0.5,
 					Parent = perkTray,
-				}, { create("UICorner", { CornerRadius = UDim.new(1, 0) }), create("UIStroke", { Color = color }) })
+				}, { create("UICorner", { CornerRadius = UDim.new(0, 2) }), create("UIStroke", { Color = color }) })
 			end
 		end
 
@@ -585,14 +579,14 @@ function Hud.start(gui: ScreenGui)
 			if other ~= p then
 				local rowFrame = teamRows[other]
 				if not rowFrame then
-					rowFrame = Builder.panel({ Size = UDim2.new(1, 0, 0, 30), Parent = team })
+					rowFrame = Builder.night.panel({ Size = UDim2.new(1, 0, 0, 30), Parent = team })
 					Builder.padding(6).Parent = rowFrame
-					Builder.label(
+					Builder.night.label(
 						other.DisplayName,
 						13,
 						{ Name = "Name", Font = T.bold, Size = UDim2.new(1, 0, 0, 14), Parent = rowFrame }
 					)
-					local bar, fill = Builder.bar(Color3.fromRGB(230, 70, 60), 4)
+					local bar, fill = Builder.night.bar(T.rust, 4)
 					bar.Name = "Bar"
 					fill.Name = "Fill"
 					bar.Position = UDim2.fromOffset(0, 15)

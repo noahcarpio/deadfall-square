@@ -12,7 +12,7 @@ local Audio = require(script.Parent.Parent.Audio)
 local Builder = require(script.Parent.Builder)
 
 local create = Builder.create
-local T = Builder.theme
+local T = Builder.paper
 
 local Screens = {}
 
@@ -20,8 +20,9 @@ local function backdrop(gui: ScreenGui, name: string): Frame
 	return create("Frame", {
 		Name = name,
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 12),
-		BackgroundTransparency = 0.35,
+		-- Full-screen menus are pages of the field manual.
+		BackgroundColor3 = T.bg,
+		BackgroundTransparency = 0.03,
 		Visible = false,
 		Parent = gui,
 	})
@@ -58,7 +59,7 @@ local function leaderboardList(parent: Instance): (Frame, () -> ())
 		end
 		for i, e in result.entries do
 			Builder.label(string.format("%2d.  %-16s  %d", i, e.name, e.score), 16, {
-				Font = Enum.Font.Code,
+				Font = T.mono,
 				LayoutOrder = i,
 				TextColor3 = if e.name == Context.player.Name then T.accent else T.text,
 				Parent = box,
@@ -72,7 +73,6 @@ end
 
 function Screens.lobby(gui: ScreenGui)
 	local root = backdrop(gui, "Lobby")
-	root.BackgroundTransparency = 0.45
 	local left = create("Frame", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0.06, 0, 0.12, 0),
@@ -81,11 +81,11 @@ function Screens.lobby(gui: ScreenGui)
 	})
 	create("UISizeConstraint", { MinSize = Vector2.new(300, 300), Parent = left })
 	Builder.list(10).Parent = left
-	Builder.label("CO-OP ZOMBIE SURVIVAL", 14, { Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left })
-	Builder.label("DEADFALL", 96, { Font = T.head, LayoutOrder = 2, Parent = left })
-	Builder.label("SQUARE", 56, { Font = T.head, TextColor3 = T.danger, LayoutOrder = 3, Parent = left })
+	Builder.label("CO-OP ZOMBIE SURVIVAL · 1 TO 6 PLAYERS", 14, { Font = T.type, TextColor3 = T.muted, LayoutOrder = 1, Parent = left })
+	Builder.label("DEADFALL", 88, { Font = T.head, LayoutOrder = 2, Parent = left })
+	Builder.label("SQUARE", 56, { Font = T.head, TextColor3 = T.rust, LayoutOrder = 3, Parent = left })
 	Builder.label(
-		"Hold the town square together. Survive the night.",
+		"Climb 25 floors of the town square. Stay quiet, scavenge, trade, and get everyone to the top.",
 		16,
 		{ TextColor3 = T.muted, LayoutOrder = 4, Parent = left }
 	)
@@ -103,7 +103,7 @@ function Screens.lobby(gui: ScreenGui)
 	})
 	Builder.padding(16).Parent = right
 	Builder.list(8).Parent = right
-	local rightTitle = Builder.label("TOP SURVIVORS", 26, { Font = T.head, LayoutOrder = 0, Parent = right })
+	local rightTitle = Builder.label("BEST CLIMBS", 26, { Font = T.head, LayoutOrder = 0, Parent = right })
 	local board, refreshBoard = leaderboardList(right)
 	board.LayoutOrder = 1
 	local how = create("TextLabel", {
@@ -153,7 +153,7 @@ function Screens.lobby(gui: ScreenGui)
 		showingHow = not showingHow
 		how.Visible = showingHow
 		board.Visible = not showingHow
-		rightTitle.Text = if showingHow then "HOW TO PLAY" else "TOP SURVIVORS"
+		rightTitle.Text = if showingHow then "HOW TO PLAY" else "BEST CLIMBS"
 		howButton.Text = if showingHow then "LEADERBOARD" else "HOW TO PLAY"
 		Audio.play("uiClick")
 	end)
@@ -191,7 +191,7 @@ end
 
 function Screens.rewards(gui: ScreenGui)
 	local root = backdrop(gui, "Rewards")
-	local title = Builder.label("CHOOSE A REWARD", 48, {
+	local title = Builder.label("CHOOSE A REWARD", 40, {
 		Font = T.head,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		Position = UDim2.fromScale(0, 0.14),
@@ -225,7 +225,7 @@ function Screens.rewards(gui: ScreenGui)
 		sub.Text = "Pick one. Gear goes to your stash: equip it from the bag (I)."
 		for i, card in cards do
 			local text = RewardRules.describe(card)
-			local color = Color3.fromHex(text.color)
+			-- A file card: tab line naming the kind, the title, notes, and a rarity stamp.
 			local cardButton = create("TextButton", {
 				LayoutOrder = i,
 				Text = "",
@@ -233,39 +233,49 @@ function Screens.rewards(gui: ScreenGui)
 				BackgroundColor3 = T.panel,
 				Size = UDim2.fromOffset(240, 320),
 				Parent = row,
-			}, { Builder.corner(12), Builder.stroke(color, 3, 0.1), Builder.padding(14), Builder.list(6) })
-			Builder.label(text.glyph, 52, {
-				Font = T.head,
-				TextColor3 = color,
-				TextXAlignment = Enum.TextXAlignment.Center,
+			}, { Builder.corner(2), Builder.stroke(T.border, 1, 0), Builder.padding(14), Builder.list(8) })
+			local tabLine = Builder.label(text.footer, 14, {
+				Font = T.type,
+				TextColor3 = T.muted,
 				LayoutOrder = 1,
 				Parent = cardButton,
 			})
-			local name = Builder.label(text.title, 22, {
+			Builder.rule({ LayoutOrder = 2, Parent = cardButton })
+			local name = Builder.label(string.upper(text.title), 22, {
 				Font = T.head,
-				TextColor3 = color,
-				TextXAlignment = Enum.TextXAlignment.Center,
 				TextWrapped = true,
-				Size = UDim2.new(1, 0, 0, 50),
-				LayoutOrder = 2,
-				Parent = cardButton,
-			})
-			name.TextYAlignment = Enum.TextYAlignment.Top
-			local desc = Builder.label(table.concat(text.lines, "\n"), 13, {
-				TextXAlignment = Enum.TextXAlignment.Center,
-				TextWrapped = true,
-				Size = UDim2.new(1, 0, 0, 130),
+				Size = UDim2.new(1, 0, 0, 54),
 				LayoutOrder = 3,
 				Parent = cardButton,
 			})
-			desc.TextYAlignment = Enum.TextYAlignment.Top
-			Builder.label(text.footer, 13, {
-				Font = T.bold,
+			name.TextYAlignment = Enum.TextYAlignment.Top
+			local item = card.item
+			if card.kind == "gear" and item and item.rarity ~= "common" then
+				Builder.stamp(item.rarity, Builder.rarityColor(item.rarity), {
+					LayoutOrder = 4,
+					Parent = cardButton,
+				})
+			end
+			local desc = Builder.label(table.concat(text.lines, "\n"), 14, {
 				TextColor3 = T.muted,
-				TextXAlignment = Enum.TextXAlignment.Center,
-				LayoutOrder = 4,
+				TextWrapped = true,
+				Size = UDim2.new(1, 0, 0, 120),
+				LayoutOrder = 5,
 				Parent = cardButton,
 			})
+			desc.TextYAlignment = Enum.TextYAlignment.Top
+			-- Looks like a primary button; the whole card is the click target.
+			Builder.label("TAKE", 18, {
+				Font = T.head,
+				BackgroundTransparency = 0,
+				BackgroundColor3 = T.buttonFill,
+				TextColor3 = T.buttonText,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				Size = UDim2.new(1, 0, 0, 38),
+				LayoutOrder = 6,
+				Parent = cardButton,
+			})
+			tabLine.Text = string.upper(text.footer)
 			cardButton.Activated:Connect(function()
 				Context.remotes.ChooseReward:FireServer(i)
 				Audio.play("uiBuy")
@@ -339,7 +349,7 @@ function Screens.gameOver(gui: ScreenGui)
 		Builder.label(
 			label:upper(),
 			11,
-			{ Font = T.bold, TextColor3 = T.muted, Position = UDim2.fromOffset(0, 30), Parent = f }
+			{ Font = T.type, TextColor3 = T.muted, Position = UDim2.fromOffset(0, 30), Parent = f }
 		)
 	end
 

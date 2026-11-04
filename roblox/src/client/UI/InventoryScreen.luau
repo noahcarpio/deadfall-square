@@ -23,7 +23,7 @@ local Audio = require(script.Parent.Parent.Audio)
 local Builder = require(script.Parent.Builder)
 
 local create = Builder.create
-local T = Builder.theme
+local T = Builder.paper
 local S = Constants.STUDS
 
 local InventoryScreen = {}
@@ -100,15 +100,16 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 	create("UISizeConstraint", { MaxSize = Vector2.new(1080, 680), Parent = root })
 	Builder.padding(16).Parent = root
 	Builder.label("INVENTORY", 30, { Font = T.head, Parent = root })
-	local header = Builder.label("", 18, {
-		Font = T.head,
-		TextColor3 = T.gold,
+	Builder.rule({ BackgroundColor3 = T.border, Position = UDim2.fromOffset(0, 42), Size = UDim2.new(1, 0, 0, 2), Parent = root })
+	local header = Builder.label("", 16, {
+		Font = T.mono,
+		TextColor3 = T.text,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Size = UDim2.new(1, -120, 0, 24),
 		Parent = root,
 	})
 	local status = Builder.label("", 14, {
-		Font = T.bold,
+		Font = T.type,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Position = UDim2.fromOffset(0, 24),
 		Size = UDim2.new(1, -120, 0, 18),
@@ -163,9 +164,30 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 	-- A card with a coloured title, detail lines and a row of buttons { label, colour, enabled, onClick }.
 	local function card(order: number, title: string, color: Color3, lines: { string }, buttons: { { any } })
 		local f = Builder.panel({ LayoutOrder = order, Parent = body })
-		f.BackgroundColor3 = color:Lerp(T.panel, 0.86)
+		local edge = f:FindFirstChildOfClass("UIStroke")
+		if edge then
+			edge.Thickness = 1
+		end
 		Builder.padding(10).Parent = f
-		Builder.label(title, 19, { Font = T.head, TextColor3 = color, Size = UDim2.new(1, 0, 0, 24), Parent = f })
+		Builder.label(string.upper(title), 19, {
+			Font = T.head,
+			TextColor3 = if color == T.muted then T.muted else T.text,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, -70, 0, 24),
+			Parent = f,
+		})
+		-- Rarity is an ink stamp in the corner, never a coloured card.
+		local rarity = if color == Builder.rarityColor("unique")
+			then "Unique"
+			elseif color == Builder.rarityColor("rare") then "Rare"
+			else nil
+		if rarity then
+			Builder.stamp(rarity, color, {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, 0, 0, 0),
+				Parent = f,
+			})
+		end
 		local text = Builder.label(table.concat(lines, "\n"), 12, {
 			TextColor3 = T.muted,
 			TextWrapped = true,
@@ -222,7 +244,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 			if w then
 				local def = Weapons.defs[id]
 				local gear = w.gear
-				local color = if gear then Color3.fromHex(Gear.rarities[gear.rarity].color) else T.text
+				local color = if gear then Builder.rarityColor(gear.rarity) else T.text
 				local title = if gear then `{Gear.rarities[gear.rarity].name} {def.name}` else def.name
 				local lines = {
 					`Damage {math.floor(Weapons.damageOf(def, w.upgrades) * c.arsenal:powerOf(id) + 0.5)} · {string.format(
@@ -277,7 +299,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 				card(
 					order,
 					`{label}: {Gear.title(item)}`,
-					Color3.fromHex(Gear.rarities[item.rarity].color),
+					Builder.rarityColor(item.rarity),
 					Gear.describe(item),
 					{ { "EQUIPPED", T.muted, false, function() end } }
 				)
@@ -330,7 +352,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 			card(
 				order,
 				`STASH: {Gear.title(item)}`,
-				Color3.fromHex(Gear.rarities[item.rarity].color),
+				Builder.rarityColor(item.rarity),
 				Gear.describe(item),
 				buttons
 			)
@@ -399,7 +421,11 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		end
 		for _, b in tabs:GetChildren() do
 			if b:IsA("TextButton") then
-				b.TextColor3 = if b.Name == tab then T.accent else T.muted
+				b.TextColor3 = if b.Name == tab then T.text else T.muted
+				local underline = b:FindFirstChild("Underline")
+				if underline and underline:IsA("Frame") then
+					underline.Visible = b.Name == tab
+				end
 			end
 		end
 		renderers[tab](context())
@@ -409,13 +435,24 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		local b = create("TextButton", {
 			Name = t[1],
 			LayoutOrder = i,
-			Text = t[2],
+			Text = `<font face="SpecialElite" size="14">{string.format("%02d", i)}</font>  {t[2]}`,
+			RichText = true,
 			Font = T.head,
-			TextSize = 24,
+			TextSize = 20,
 			BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(120, 34),
+			Size = UDim2.fromOffset(120, 32),
 			TextColor3 = T.muted,
 			Parent = tabs,
+		})
+		create("Frame", {
+			Name = "Underline",
+			BackgroundColor3 = T.rust,
+			BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 0, 1, 2),
+			Size = UDim2.new(1, -16, 0, 3),
+			Visible = false,
+			Parent = b,
 		})
 		b.Activated:Connect(function()
 			tab = t[1]

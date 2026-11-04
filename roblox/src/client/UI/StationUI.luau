@@ -26,7 +26,7 @@ local Audio = require(script.Parent.Parent.Audio)
 local Builder = require(script.Parent.Builder)
 
 local create = Builder.create
-local T = Builder.theme
+local T = Builder.paper
 local S = Constants.STUDS
 
 local StationUI = {}
@@ -165,15 +165,16 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	create("UISizeConstraint", { MaxSize = Vector2.new(1040, 640), Parent = root })
 	Builder.padding(16).Parent = root
 	local title = Builder.label("", 30, { Font = T.head, Parent = root })
-	local coins = Builder.label("", 26, {
-		Font = T.head,
-		TextColor3 = T.gold,
+	local coins = Builder.label("", 20, {
+		Font = T.mono,
+		TextColor3 = T.rust,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = root,
 	})
+	Builder.rule({ BackgroundColor3 = T.border, Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 0, 2), Parent = root })
 	local tabs = create("Frame", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 42),
+		Position = UDim2.fromOffset(0, 46),
 		Size = UDim2.new(1, 0, 0, 34),
 		Parent = root,
 	}, { Builder.list(8, true) })
@@ -263,6 +264,10 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 
 	local function card(order: number, titleText: string, desc: string?): Frame
 		local f = Builder.panel({ LayoutOrder = order, Parent = body })
+		local edge = f:FindFirstChildOfClass("UIStroke")
+		if edge then
+			edge.Thickness = 1
+		end
 		Builder.padding(10).Parent = f
 		Builder.list(4).Parent = f
 		Builder.label(titleText, 20, { Font = T.head, LayoutOrder = 0, Parent = f })
@@ -324,7 +329,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 				simpleCard(c, i, `{def.slot}  {def.name}`, def.description, { kind = "buyWeapon", weapon = id }, "BUY")
 			elseif def.reserveMax ~= math.huge then
 				local f = card(i, `{def.slot}  {def.name}`, "Owned. Upgrade it at the workbench.")
-				f.BackgroundColor3 = Color3.fromRGB(20, 32, 26)
+				f.BackgroundColor3 = T.shade
 				local action = { kind = "ammo", weapon = id }
 				rowWith(
 					f,
@@ -336,7 +341,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 				)
 			else
 				local f = card(i, `{def.slot}  {def.name}`, "Owned. Infinite ammo.")
-				f.BackgroundColor3 = Color3.fromRGB(20, 32, 26)
+				f.BackgroundColor3 = T.shade
 			end
 		end
 	end
@@ -361,7 +366,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 		end
 		for order, item in allGear() do
 			local f = card(order, Gear.title(item), table.concat(Gear.describe(item), " · "))
-			f.BackgroundColor3 = Color3.fromHex(Gear.rarities[item.rarity].color):Lerp(T.panel, 0.85)
+			f.BackgroundColor3 = T.panel
 			local reinforce = { kind = "reinforce", uid = item.uid }
 			local ro = ShopRules.getOffer(c, reinforce)
 			rowWith(
@@ -527,7 +532,11 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 		coins.Text = `● {c.economy.coins}`
 		for _, b in tabs:GetChildren() do
 			if b:IsA("TextButton") then
-				b.TextColor3 = if b.Name == tab then T.accent else T.muted
+				b.TextColor3 = if b.Name == tab then T.text else T.muted
+				local underline = b:FindFirstChild("Underline")
+				if underline and underline:IsA("Frame") then
+					underline.Visible = b.Name == tab
+				end
 			end
 		end
 		renderers[tab](c)
@@ -543,13 +552,24 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 			local b = create("TextButton", {
 				Name = t[1],
 				LayoutOrder = i,
-				Text = t[2],
+				Text = `<font face="SpecialElite" size="14">{string.format("%02d", i)}</font>  {t[2]}`,
+				RichText = true,
 				Font = T.head,
-				TextSize = 22,
+				TextSize = 20,
 				BackgroundTransparency = 1,
-				Size = UDim2.fromOffset(130, 34),
+				Size = UDim2.fromOffset(140, 32),
 				TextColor3 = T.muted,
 				Parent = tabs,
+			})
+			create("Frame", {
+				Name = "Underline",
+				BackgroundColor3 = T.rust,
+				BorderSizePixel = 0,
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.new(0, 0, 1, 2),
+				Size = UDim2.new(1, -16, 0, 3),
+				Visible = false,
+				Parent = b,
 			})
 			b.Activated:Connect(function()
 				tab = t[1]
