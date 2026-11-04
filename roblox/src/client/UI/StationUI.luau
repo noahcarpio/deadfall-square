@@ -631,7 +631,8 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 			math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
 		local inv = Context.inventory
 		local timing = if Context.phase() == "intermission" then `next floor in {left}s` else "floor in progress"
-		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · {timing} · walk away or Esc to leave`
+		bag.Text =
+			`Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · {timing} · walk away or Esc to leave`
 		local character = Context.character()
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if rootPart then
