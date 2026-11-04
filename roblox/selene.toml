@@ -1,0 +1,5 @@
+std = "roblox"
+
+[rules]
+# Pure shared modules are also loaded by Lune (tests), where `script` is nil.
+shadowing = "allow"

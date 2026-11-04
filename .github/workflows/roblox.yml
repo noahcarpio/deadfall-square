@@ -1,0 +1,117 @@
+name: Roblox
+
+on:
+  pull_request:
+    paths: ["roblox/**", ".github/workflows/roblox.yml"]
+  push:
+    branches: [main]
+    paths: ["roblox/**", ".github/workflows/roblox.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: roblox
+
+env:
+  ROJO: https://github.com/rojo-rbx/rojo/releases/download/v7.4.4/rojo-7.4.4-linux-x86_64.zip
+  LUNE: https://github.com/lune-org/lune/releases/download/v0.8.9/lune-0.8.9-linux-x86_64.zip
+  SELENE: https://github.com/Kampfkarren/selene/releases/download/0.27.1/selene-0.27.1-linux.zip
+  STYLUA: https://github.com/JohnnyMorganz/StyLua/releases/download/v2.0.2/stylua-linux-x86_64.zip
+  LUAU_LSP: https://github.com/JohnnyMorganz/luau-lsp/releases/download/1.36.0/luau-lsp-linux.zip
+  LUAU_TYPES: https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.36.0/scripts/globalTypes.d.luau
+
+jobs:
+  build:
+    name: Build place file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rojo
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL -o /tmp/rojo.zip "$ROJO" && unzip -oq /tmp/rojo.zip -d "$HOME/bin"
+          chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: rojo build default.project.json -o DeadfallSquare.rbxlx
+      - run: rojo build home.project.json -o DeadfallSquareHome.rbxlx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeadfallSquare-places
+          path: |
+            roblox/DeadfallSquare.rbxlx
+            roblox/DeadfallSquareHome.rbxlx
+
+  test:
+    name: Unit tests (Lune)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lune
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL -o /tmp/lune.zip "$LUNE" && unzip -oq /tmp/lune.zip -d "$HOME/bin"
+          chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: lune run tests/run
+
+  meshes:
+    name: Meshes and animations up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/make_meshes.py --check
+      - run: python3 tools/make_animations.py --check
+
+  lint:
+    name: Lint (Selene)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Selene
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL -o /tmp/selene.zip "$SELENE" && unzip -oq /tmp/selene.zip -d "$HOME/bin"
+          chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: selene src
+
+  typecheck:
+    name: Type check (luau-lsp)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rojo and luau-lsp
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL -o /tmp/rojo.zip "$ROJO" && unzip -oq /tmp/rojo.zip -d "$HOME/bin"
+          curl -sSL -o /tmp/lsp.zip "$LUAU_LSP" && unzip -oq /tmp/lsp.zip -d "$HOME/bin"
+          chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
+          curl -sSL -o globalTypes.d.luau "$LUAU_TYPES"
+      - run: rojo sourcemap default.project.json -o sourcemap.json
+      - run: luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json --ignore="src/home/**" src
+      - name: Type check the Home place
+        run: |
+          rojo sourcemap home.project.json -o home-sourcemap.json
+          luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=home-sourcemap.json src/home
+
+  format:
+    name: Format (StyLua)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install StyLua
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL -o /tmp/stylua.zip "$STYLUA" && unzip -oq /tmp/stylua.zip -d "$HOME/bin"
+          chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
+      - name: Check formatting
+        run: |
+          stylua src tests
+          git diff > stylua.patch
+          if [ -s stylua.patch ]; then
+            echo "Files need formatting: run 'stylua src tests'. Full patch:"
+            cat stylua.patch
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: stylua-patch
+          path: roblox/stylua.patch

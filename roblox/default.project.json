@@ -1,0 +1,58 @@
+{
+  "name": "DeadfallSquare",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "DeadfallAnimations": {
+        "$path": "assets/DeadfallAnimations.rbxmx"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMaxZoomDistance": 400,
+        "CameraMinZoomDistance": 0.5,
+        "CharacterJumpPower": 0,
+        "CharacterUseJumpPower": true,
+        "CharacterWalkSpeed": 16
+      },
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Players": {
+      "$properties": {
+        "MaxPlayers": 6,
+        "RespawnTime": 1
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "Brightness": 2,
+        "ClockTime": 14.5,
+        "GlobalShadows": true,
+        "OutdoorAmbient": [0.5, 0.5, 0.5]
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "Gravity": 196.2
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

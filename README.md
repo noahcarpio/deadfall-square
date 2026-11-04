@@ -4,6 +4,10 @@ A low-poly 3D zombie wave-survival game that runs in the browser. Hold an abando
 
 Built with **Three.js + Vite + TypeScript**. Every model is built from Three.js primitives, every texture is drawn procedurally on a canvas, and every sound (including the music) is synthesised at runtime with the Web Audio API — there are no asset files.
 
+## Roblox version
+
+A co-op (1–6 players) Roblox port lives in [`roblox/`](roblox/README.md). It is built with Rojo into a place file you can open in Roblox Studio and publish — see that README for the steps.
+
 ## Running locally
 
 Requires Node.js 20+ (CI uses 22).
