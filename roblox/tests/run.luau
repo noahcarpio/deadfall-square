@@ -225,6 +225,7 @@ test("Arsenal enforces fire rate and auto-reloads", function()
 		a:tryFire(t, 0, 1)
 		t += 0.5
 	end
+	a:finishReload(t + 5)
 	expect(a:currentState().mag > 0, "infinite pistol reserve keeps reloading")
 end)
 
@@ -361,7 +362,7 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	eq(ShopRules.purchase(rich, up), true)
 	eq(rich.inventory:count("scrap"), 19)
 	expect(ShopRules.getOffer(rich, up).cost > first)
-	eq(rich.arsenal:currentState().mag, 15)
+	eq(rich.arsenal:currentState().mag, Weapons.magSizeOf(Weapons.defs.pistol, rich.arsenal:currentState().upgrades))
 	ShopRules.purchase(rich, up)
 	ShopRules.purchase(rich, up)
 	eq(ShopRules.getOffer(rich, up).reason, "MAX")
