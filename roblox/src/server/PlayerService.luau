@@ -585,6 +585,45 @@ function PlayerService.removeGear(self, ps: PState, uid: number): boolean
 	return false
 end
 
+-- Removes a gun (sold or dropped) and its attuned gear. Returns its gear, if any.
+function PlayerService.removeGun(self, ps: PState, id: string): Gear.Item?
+	if not ps.arsenal:remove(id) then
+		return nil
+	end
+	local gear = ps.gear.guns[id]
+	ps.gear.guns[id] = nil
+	self:syncArsenal(ps)
+	self:updateGunModel(ps)
+	self:syncGear(ps)
+	return gear
+end
+
+-- Drops a gun at the player's feet for anyone to pick up (the pistol stays).
+function PlayerService.dropGun(self, ps: PState, id: string)
+	if id == "pistol" or not ps.arsenal:owns(id) then
+		return
+	end
+	local gear = self:removeGun(ps, id)
+	if gear then
+		self.W.pickups:spawnGear(ps.x, ps.z, nil, nil, gear, ps)
+	else
+		self.W.pickups:spawnGun(ps.x, ps.z, id, ps)
+	end
+end
+
+-- Drops a stash gear piece at the player's feet.
+function PlayerService.dropGear(self, ps: PState, uid: number)
+	local item = nil
+	for _, it in ps.gear.stash do
+		if it.uid == uid then
+			item = it
+		end
+	end
+	if item and self:removeGear(ps, uid) then
+		self.W.pickups:spawnGear(ps.x, ps.z, nil, nil, item, ps)
+	end
+end
+
 -- Equips a stash piece, swapping whatever it replaces back into the stash.
 function PlayerService.equipGear(self, ps: PState, uid: number, slot: number?): boolean
 	local g = ps.gear

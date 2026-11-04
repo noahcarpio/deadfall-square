@@ -24,6 +24,7 @@ local Builder = require(script.Parent.UI.Builder)
 local Hud = require(script.Parent.UI.Hud)
 local AbilityBar = require(script.Parent.UI.AbilityBar)
 local InventoryUI = require(script.Parent.UI.InventoryUI)
+local InventoryScreen = require(script.Parent.UI.InventoryScreen)
 local Placement = require(script.Parent.UI.Placement)
 local Screens = require(script.Parent.UI.Screens)
 local StationUI = require(script.Parent.UI.StationUI)
@@ -62,8 +63,8 @@ Hud.start(hudGui)
 AbilityBar.start(hudGui)
 
 -- Items: bandage heals at once; a pipe bomb is thrown toward the aim point.
-local function useItem(id: string)
-	if Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
+local function useItem(id: string, fromInventory: boolean?)
+	if Context.downed() or (Context.menuOpen and not fromInventory) or Context.phase() == "lobby" then
 		return
 	end
 	if Context.inventory:count(id) <= 0 then
@@ -73,11 +74,16 @@ local function useItem(id: string)
 	Context.remotes.UseItem:FireServer(id, Context.aimX, Context.aimZ, Context.aimDistance)
 	Audio.play("uiClick")
 end
-local bag = InventoryUI.new(hudGui, useItem)
+InventoryUI.new(hudGui)
+local inventoryGui = Builder.screen("DeadfallInventory", 12)
+inventoryGui.Parent = playerGui
+local inventory = InventoryScreen.new(inventoryGui, function(id: string)
+	useItem(id, true)
+end)
 InputController.onUseItem:connect(useItem)
 InputController.onToggleBag:connect(function()
 	if Context.phase() ~= "lobby" then
-		bag.toggle()
+		inventory.toggle()
 	end
 end)
 
@@ -97,9 +103,16 @@ end)
 station = StationUI.new(screensGui, function(stype: string)
 	station.hide()
 	placement.start(stype)
+end, function()
+	-- The merchant's SELL button: open the inventory with selling enabled.
+	station.hide()
+	inventory.show("guns")
 end)
 Context.remotes.OpenStation.OnClientEvent:Connect(function(name: string, x: number, z: number)
-	if Context.phase() == "intermission" and not placement.active and not rewards.open then
+	local phase = Context.phase()
+	-- The merchant trades all run; the workbench only between floors.
+	local open = if name == "merchant" then phase ~= "lobby" and phase ~= "gameover" else phase == "intermission"
+	if open and not placement.active and not rewards.open then
 		lastStation = { name = name, x = x, z = z }
 		station.show(name, x, z)
 		Audio.play("uiClick")
@@ -142,11 +155,11 @@ RunService.RenderStepped:Connect(function()
 			rewards.hide()
 			pendingRewards = nil
 		end
-		if phase ~= "intermission" then
+		if phase ~= "intermission" and (station.station ~= "merchant" or phase == "lobby" or phase == "gameover") then
 			station.hide()
-			if placement.active then
-				placement.stop()
-			end
+		end
+		if phase ~= "intermission" and placement.active then
+			placement.stop()
 		end
 		if phase ~= "gameover" then
 			gameOver.hide()
@@ -174,7 +187,11 @@ RunService.RenderStepped:Connect(function()
 
 	lobby.update()
 	station.update()
-	Context.menuOpen = station.open or rewards.open or gameOver.open or phase == "lobby"
+	inventory.update()
+	if inventory.open and (phase == "lobby" or phase == "gameover" or rewards.open) then
+		inventory.hide()
+	end
+	Context.menuOpen = station.open or rewards.open or gameOver.open or inventory.open or phase == "lobby"
 	-- World prompts (search, trade, revive) hide while a panel covers the screen.
 	ProximityPromptService.Enabled = not Context.menuOpen and not placement.active
 	if controls then

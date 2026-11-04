@@ -735,6 +735,77 @@ test("Gun gear survives a sync and powers the gun; gear workbench actions", func
 	eq(ShopRules.STATION.salvage, "workbench")
 end)
 
+test("Selling: guns, stash gear and items at the merchant; the pistol stays", function()
+	local ctx: any = shopContext(0)
+	eq(ShopRules.STATION.sellGun, "merchant")
+	eq(ShopRules.STATION.sellGear, "merchant")
+	eq(ShopRules.STATION.sellItem, "merchant")
+	-- The pistol can't be sold.
+	eq(ShopRules.getOffer(ctx, { kind = "sellGun", weapon = "pistol" }).available, false)
+	eq(ShopRules.purchase(ctx, { kind = "sellGun", weapon = "pistol" }), false)
+	-- A plain shotgun sells for 40% of its price; holding it switches back to the pistol.
+	ctx.arsenal:give("shotgun")
+	ctx.arsenal:switchTo("shotgun", 0)
+	local price = Weapons.defs.shotgun.price
+	eq(ShopRules.getOffer(ctx, { kind = "sellGun", weapon = "shotgun" }).gain, math.floor(price * 0.4 + 0.5))
+	eq(ShopRules.purchase(ctx, { kind = "sellGun", weapon = "shotgun" }), true)
+	eq(ctx.arsenal:owns("shotgun"), false)
+	eq(ctx.arsenal.current, "pistol")
+	eq(ctx.economy.coins, math.floor(price * 0.4 + 0.5))
+	-- Upgrades and rare gear make a gun worth more.
+	local plain = ShopRules.gunSellValue("rifle", { upgrades = { damage = 0, fireRate = 0, magazine = 0 } })
+	local upgraded = ShopRules.gunSellValue("rifle", { upgrades = { damage = 2, fireRate = 0, magazine = 0 } })
+	local rare = ShopRules.gunSellValue(
+		"rifle",
+		{ upgrades = { damage = 0, fireRate = 0, magazine = 0 }, gear = { rarity = "rare", power = 1.2, traits = {} } }
+	)
+	expect(upgraded > plain and rare > plain)
+	-- Items: one or a stack.
+	ctx.inventory:add("parts", 3)
+	local each = ShopRules.itemSellValue("parts")
+	expect(each > 0)
+	eq(ShopRules.getOffer(ctx, { kind = "sellItem", id = "parts", count = 4 }).available, false)
+	local before = ctx.economy.coins
+	eq(ShopRules.purchase(ctx, { kind = "sellItem", id = "parts", count = 3 }), true)
+	eq(ctx.inventory:count("parts"), 0)
+	eq(ctx.economy.coins, before + each * 3)
+	-- Gear: stash pieces only; rarer is worth more.
+	local stash = { Gear.common("fireaxe", 1) }
+	local equippedPiece = Gear.common("jacket", 2)
+	ctx.gear = {
+		find = function(id)
+			for _, it in stash do
+				if it.uid == id then
+					return it
+				end
+			end
+			return if id == 2 then equippedPiece else nil
+		end,
+		inStash = function(id)
+			return id == 1 and #stash > 0
+		end,
+		remove = function(id)
+			if id == 1 and #stash > 0 then
+				table.remove(stash, 1)
+				return true
+			end
+			return false
+		end,
+		stashFull = function()
+			return false
+		end,
+	}
+	eq(ShopRules.getOffer(ctx, { kind = "sellGear", uid = 2 }).reason, "EQUIPPED")
+	local commonValue = ShopRules.gearSellValue(stash[1])
+	local uniqueAxe = Gear.common("fireaxe", 3)
+	uniqueAxe.rarity = "unique"
+	expect(ShopRules.gearSellValue(uniqueAxe) > commonValue)
+	before = ctx.economy.coins
+	eq(ShopRules.purchase(ctx, { kind = "sellGear", uid = 1 }), true)
+	eq(#stash, 0)
+	eq(ctx.economy.coins, before + commonValue)
+end)
+
 test("Every mesh the game asks for was generated, and props own their fallback pieces", function()
 	local sizes = MeshSizes :: { [string]: { number } }
 	local function has(name: string)

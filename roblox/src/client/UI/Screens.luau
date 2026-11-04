@@ -82,7 +82,7 @@ function Screens.lobby(gui: ScreenGui)
 	create("UISizeConstraint", { MinSize = Vector2.new(300, 300), Parent = left })
 	Builder.list(10).Parent = left
 	Builder.label(
-		"A LOW-POLY CO-OP SURVIVAL HORROR",
+		"CO-OP ZOMBIE SURVIVAL",
 		14,
 		{ Font = T.bold, TextColor3 = T.accent, LayoutOrder = 1, Parent = left }
 	)
@@ -137,12 +137,13 @@ function Screens.lobby(gui: ScreenGui)
 		table.insert(zombieLines, `<b>{ZombiesConfig.defs[t].name}</b> — {blurbs[t]}`)
 	end
 	how.Text = table.concat({
-		"<b>PC:</b> WASD move · mouse aim · hold click shoot · right click melee · Z / X / V gadgets · R reload · Shift sprint · Space roll · C crouch · F use / search · B bandage · G pipe bomb · I bag & gear · 1–7 / wheel / Q / E switch",
+		"<b>PC:</b> WASD move · mouse aim · hold click shoot · right click melee · Z / X / V gadgets · R reload · Shift sprint · Space roll · C crouch · F use / search · B bandage · G pipe bomb · I inventory · 1–7 / wheel / Q / E switch",
 		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · RB melee · LB + X / Y / B gadgets · LB switch · A roll · X reload · B crouch · Y use / search · D-pad up bandage · down pipe bomb · right bag · L3/LT sprint",
 		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · RUN / ROLL / RELOAD / SWAP / SNEAK / HEAL / BOMB / BAG / SLASH / G1–G3 buttons, tap prompts to use",
 		"",
 		"<b>Climb.</b> 25 floors, each with a goal: clear it, hold out, defend the bell or hunt the elite. Every 5th floor has a boss. Modifiers like Thick Fog or Blood Moon change the rules.",
-		"<b>Rewards and gear.</b> After each floor pick 1 of 3 rewards. Gear comes in Common, Rare and Unique with traits; equip it from the bag (I), and salvage, reinforce or re-roll it at the workbench.",
+		"<b>Rewards and gear.</b> After each floor pick 1 of 3 rewards. Gear comes in Common, Rare and Unique with traits; equip, drop or sell it from the inventory (I), and salvage, reinforce or re-roll it at the workbench.",
+		"<b>Merchant.</b> Open the whole climb: buy anything, and sell guns, gear and items from your inventory while you stand at the stall.",
 		"<b>Stay quiet.</b> Zombies wander until they see or hear you. Gunshots carry far, sprinting is loud, crouching is nearly silent and harder to spot. A pipe bomb's beeping lures them in before it blows.",
 		"<b>Scavenge.</b> Search cars, crates, dumpsters and trash for scrap, planks, rags, electronics and gunpowder. Your bag has a weight limit.",
 		"<b>Grace period.</b> After each floor you get 30 seconds: trade coins at the <b>merchant</b>, craft and upgrade at the <b>workbench</b>, build barricades and turrets, or ring the <b>bell</b> to start early.",

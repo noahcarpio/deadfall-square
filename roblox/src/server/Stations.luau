@@ -1,7 +1,8 @@
 --[[
-	The grace-period stations in the plaza: the merchant (coins), the
-	workbench (materials) and the alarm bell (start the next wave early).
-	Each has a proximity prompt that only works between waves; using the
+	The stations in the plaza: the merchant (coins; buy and sell), the
+	workbench (materials) and the alarm bell (start the next floor early).
+	The merchant trades for the whole run, floors included; the workbench
+	and bell only work in the grace period between floors. Using the
 	merchant or workbench opens its panel on that player's screen. Every
 	purchase is re-checked against the player's distance to the station.
 ]]
@@ -13,9 +14,9 @@ local Constants = require(Shared.Config.Constants)
 local S = Constants.STUDS
 
 local INFO = {
-	merchant = { title = "MERCHANT", action = "Trade", object = "Merchant", hold = 0 },
+	merchant = { title = "MERCHANT", action = "Trade / sell", object = "Merchant", hold = 0 },
 	workbench = { title = "WORKBENCH", action = "Craft", object = "Workbench", hold = 0 },
-	bell = { title = "ALARM BELL", action = "Ready up", object = "Start the next wave", hold = 0.5 },
+	bell = { title = "ALARM BELL", action = "Ready up", object = "Start the next floor", hold = 0.5 },
 }
 
 local Stations = {}
@@ -53,7 +54,7 @@ end
 
 -- `onUse(name, player)` runs when a prompt is used while the stations are open.
 function Stations.new(W, layout, onUse: (string, Player) -> ())
-	local self = setmetatable({ W = W, list = {}, byName = {}, open = false }, Stations)
+	local self = setmetatable({ W = W, list = {}, byName = {}, open = {} }, Stations)
 	local folder = Instance.new("Folder")
 	folder.Name = "Stations"
 	folder.Parent = Workspace
@@ -82,23 +83,33 @@ function Stations.new(W, layout, onUse: (string, Player) -> ())
 		local _, sub = billboard(anchor, info.title)
 		local entry = { name = st.name, x = st.px, z = st.pz, prompt = prompt, sub = sub }
 		prompt.Triggered:Connect(function(player: Player)
-			if self.open then
+			if self.open[st.name] then
 				onUse(st.name, player)
 			end
 		end)
 		table.insert(self.list, entry)
 		self.byName[st.name] = entry
 	end
-	self:setOpen(false)
+	self:setPhase("lobby")
 	return self
 end
 
-function Stations.setOpen(self, open: boolean)
-	self.open = open
+-- Opens the right stations for a game phase.
+function Stations.setPhase(self, phase: string)
+	local running = phase ~= "lobby" and phase ~= "gameover"
 	for _, e in self.list do
+		local open = if e.name == "merchant" then running else phase == "intermission"
+		self.open[e.name] = open
 		e.prompt.Enabled = open
-		e.sub.Text = if open then "OPEN — press F" else "opens between waves"
+		e.sub.Text = if open
+			then "OPEN — press F"
+			elseif e.name == "merchant" then "opens when the climb starts"
+			else "opens between floors"
 	end
+end
+
+function Stations.isOpen(self, name: string): boolean
+	return self.open[name] == true
 end
 
 -- True if the player stands close enough to use the named station.

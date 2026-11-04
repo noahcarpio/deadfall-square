@@ -23,7 +23,8 @@ export type Action = {
 	upgrade: string?,
 	id: string?,
 	structure: string?,
-	uid: number?, -- gear piece for salvage / reinforce / reroll
+	uid: number?, -- gear piece for salvage / reinforce / reroll / sell
+	count: number?, -- items to sell
 }
 
 export type Offer = {
@@ -33,6 +34,7 @@ export type Offer = {
 	reason: string,
 	tier: number,
 	maxTier: number,
+	gain: number?, -- coins received (selling)
 }
 
 -- Which station sells each kind of action.
@@ -43,6 +45,9 @@ local STATION: { [string]: string } = {
 	heal = "merchant",
 	buyItem = "merchant",
 	buyGear = "merchant",
+	sellGun = "merchant",
+	sellGear = "merchant",
+	sellItem = "merchant",
 	salvage = "workbench",
 	reinforce = "workbench",
 	reroll = "workbench",
@@ -74,8 +79,53 @@ export type Context = {
 		remove: (number) -> boolean,
 		newUid: () -> number,
 		rng: any,
+		inStash: ((number) -> boolean)?,
 	}?,
+	-- Removes a sold gun (the arsenal and its attuned gear).
+	removeGun: ((string) -> ())?,
 }
+
+-- Selling returns about 40% of what something cost, more for rarer, stronger pieces.
+local SELL_SHARE = 0.4
+local RARITY_SELL: { [string]: number } = { common = 1, rare = 1.6, unique = 2.4 }
+-- Base value of gear kinds the merchant doesn't stock.
+local GEAR_BASE: { [string]: number } = { gun = 200, melee = 200, armor = 200, gadget = 200 }
+local ITEM_SELL_PRICES: { [string]: number } = { pipebomb = 120 }
+
+-- Coins for one item of `id`.
+local function itemSellValue(id: string): number
+	local price = Shop.itemPrices[id] or ITEM_SELL_PRICES[id] or 0
+	return math.floor(price * SELL_SHARE + 0.5)
+end
+
+-- Coins for a gear piece (stash) of the given def id, rarity and power.
+local function gearSellValue(item: GearItem): number
+	local d = Gear.defs[item.id]
+	local base = if d.kind == "gun"
+		then math.max(150, Weapons.defs[item.id].price)
+		elseif d.price > 0 then d.price
+		else GEAR_BASE[d.kind] or 150
+	return math.floor(base * SELL_SHARE * (RARITY_SELL[item.rarity] or 1) * item.power + 0.5)
+end
+
+-- Coins for an owned gun: its price, the upgrades bought for it, and its attuned gear.
+local function gunSellValue(id: string, w: any): number
+	local def = Weapons.defs[id]
+	if def.price <= 0 then
+		return 0 -- the pistol is never sold
+	end
+	local spent = def.price
+	for kind, tier in w.upgrades do
+		for t = 0, tier - 1 do
+			spent += Shop.weaponUpgradeCost(id, kind, t)
+		end
+	end
+	local value = spent * SELL_SHARE
+	if w.gear then
+		value *= (RARITY_SELL[w.gear.rarity] or 1) * w.gear.power
+	end
+	return math.floor(value + 0.5)
+end
 
 local function offer(cost: number, available: boolean, reason: string, tier: number, maxTier: number): Offer
 	return { cost = cost, items = nil, available = available, reason = reason, tier = tier, maxTier = maxTier }
@@ -183,6 +233,44 @@ local function getOffer(ctx: Context, a: Action): Offer
 			o.reason = "BAG FULL"
 		end
 		return o
+	elseif a.kind == "sellGun" then
+		local id = a.weapon :: string
+		local w = ctx.arsenal:get(id)
+		if not w or Weapons.defs[id] == nil then
+			return offer(0, false, "NOT OWNED", 0, 0)
+		end
+		local value = gunSellValue(id, w)
+		if value <= 0 then
+			return offer(0, false, "KEEP", 0, 0)
+		end
+		local o = offer(0, true, "", 0, 0)
+		o.gain = value
+		return o
+	elseif a.kind == "sellGear" then
+		local g = ctx.gear
+		local item = if g and a.uid then g.find(a.uid) else nil
+		if not item then
+			return offer(0, false, "INVALID", 0, 0)
+		end
+		if g and g.inStash and not g.inStash(item.uid) then
+			return offer(0, false, "EQUIPPED", 0, 0)
+		end
+		local o = offer(0, true, "", 0, 0)
+		o.gain = gearSellValue(item)
+		return o
+	elseif a.kind == "sellItem" then
+		local id = a.id :: string
+		local count = math.floor(a.count or 1)
+		local value = itemSellValue(id)
+		if Items.defs[id] == nil or value <= 0 then
+			return offer(0, false, "INVALID", 0, 0)
+		end
+		if count < 1 or ctx.inventory:count(id) < count then
+			return offer(0, false, "NONE", 0, 0)
+		end
+		local o = offer(0, true, "", 0, 0)
+		o.gain = value * count
+		return o
 	elseif a.kind == "buyGear" then
 		local d = Gear.defs[a.id :: string]
 		if d == nil or d.price <= 0 then
@@ -258,6 +346,9 @@ local function purchase(ctx: Context, a: Action): boolean
 		return false
 	end
 	ctx.inventory:take(o.items)
+	if o.gain then
+		ctx.economy:addCoins(o.gain)
+	end
 	if a.kind == "weaponUpgrade" then
 		local id = a.weapon :: string
 		local w = ctx.arsenal:get(id)
@@ -290,6 +381,18 @@ local function purchase(ctx: Context, a: Action): boolean
 	elseif a.kind == "buyGear" then
 		local g = ctx.gear :: any
 		g.give(Gear.common(a.id :: string, g.newUid()))
+	elseif a.kind == "sellGun" then
+		if ctx.removeGun then
+			ctx.removeGun(a.weapon :: string)
+		else
+			ctx.arsenal:remove(a.weapon :: string)
+		end
+	elseif a.kind == "sellGear" then
+		if not (ctx.gear :: any).remove(a.uid) then
+			return false
+		end
+	elseif a.kind == "sellItem" then
+		ctx.inventory:remove(a.id :: string, math.floor(a.count or 1))
 	elseif a.kind == "salvage" then
 		local g = ctx.gear :: any
 		local item = g.find(a.uid) :: GearItem
@@ -324,4 +427,7 @@ return {
 	affordable = affordable,
 	purchase = purchase,
 	payForStructure = payForStructure,
+	itemSellValue = itemSellValue,
+	gearSellValue = gearSellValue,
+	gunSellValue = gunSellValue,
 }

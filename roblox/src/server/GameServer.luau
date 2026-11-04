@@ -139,7 +139,7 @@ function GameServer.start()
 		stateFolder:SetAttribute("Phase", p)
 		stateFolder:SetAttribute("PhaseEnd", phaseEnd)
 		if W.stations then
-			W.stations:setOpen(p == "intermission")
+			W.stations:setPhase(p)
 			W.loot:setActive(p ~= "lobby" and p ~= "gameover")
 		end
 	end
@@ -409,8 +409,13 @@ function GameServer.start()
 	remotes.DiscardItem.OnServerEvent:Connect(function(player, id, count)
 		local ps = stateOf(player)
 		if ps and type(id) == "string" and type(count) == "number" and count >= 1 and count == math.floor(count) then
-			if ps.inventory:remove(id, math.min(count, ps.inventory:count(id))) then
+			local n = math.min(count, ps.inventory:count(id))
+			if n > 0 and ps.inventory:remove(id, n) then
 				W.players:syncInventory(ps)
+				if phase ~= "lobby" and ps.hasBody then
+					-- Dropped items land in a bag at your feet for anyone to pick up.
+					W.pickups:spawnBag(ps.x, ps.z, { [id] = n }, ps)
+				end
 			end
 		end
 	end)
@@ -424,6 +429,19 @@ function GameServer.start()
 		local ps = stateOf(player)
 		if ps and phase == "reward" and type(index) == "number" and ps.rewardOffer[index] then
 			applyReward(ps, ps.rewardOffer[index])
+		end
+	end)
+	-- Dropping works anywhere: the thing lands at your feet for anyone to pick up.
+	remotes.DropGun.OnServerEvent:Connect(function(player, id)
+		local ps = stateOf(player)
+		if ps and phase ~= "lobby" and type(id) == "string" then
+			W.players:dropGun(ps, id)
+		end
+	end)
+	remotes.DropGear.OnServerEvent:Connect(function(player, uid)
+		local ps = stateOf(player)
+		if ps and phase ~= "lobby" and type(uid) == "number" then
+			W.players:dropGear(ps, uid)
 		end
 	end)
 	remotes.EquipGear.OnServerEvent:Connect(function(player, uid, slot)
@@ -475,13 +493,24 @@ function GameServer.start()
 					return W.players:newUid(ps)
 				end,
 				rng = W.rng,
+				inStash = function(uid: number)
+					for _, item in ps.gear.stash do
+						if item.uid == uid then
+							return true
+						end
+					end
+					return false
+				end,
 			},
+			removeGun = function(id: string)
+				W.players:removeGun(ps, id)
+			end,
 		}
 	end
 
 	remotes.Purchase.OnServerInvoke = function(player, action)
 		local ps = stateOf(player)
-		if not ps or phase ~= "intermission" or type(action) ~= "table" or type(action.kind) ~= "string" then
+		if not ps or type(action) ~= "table" or type(action.kind) ~= "string" then
 			return false
 		end
 		local clean = {
@@ -491,9 +520,11 @@ function GameServer.start()
 			id = if type(action.id) == "string" then action.id else nil,
 			structure = if type(action.structure) == "string" then action.structure else nil,
 			uid = if type(action.uid) == "number" then action.uid else nil,
+			count = if type(action.count) == "number" and action.count == action.count then action.count else nil,
 		}
+		-- The merchant trades all run; the workbench only between floors.
 		local station = ShopRules.STATION[clean.kind]
-		if not station or not W.stations:near(ps, station) then
+		if not station or not W.stations:isOpen(station) or not W.stations:near(ps, station) then
 			return false
 		end
 		local ok = ShopRules.purchase(shopContext(ps) :: any, clean)
@@ -502,6 +533,10 @@ function GameServer.start()
 			if clean.uid then
 				-- Reinforced / re-rolled gear may be equipped: refresh everything that reads it.
 				W.players:refreshStats(ps)
+				W.players:syncGear(ps)
+			end
+			if clean.kind == "sellGun" then
+				W.players:updateGunModel(ps)
 				W.players:syncGear(ps)
 			end
 			if clean.kind == "buyWeapon" then
@@ -547,7 +582,7 @@ function GameServer.start()
 
 	local function onStation(name: string, player: Player)
 		local ps = stateOf(player)
-		if not ps or phase ~= "intermission" or not W.stations:near(ps, name) then
+		if not ps or not W.stations:isOpen(name) or not W.stations:near(ps, name) then
 			return
 		end
 		if name == "bell" then

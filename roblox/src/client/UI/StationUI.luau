@@ -150,7 +150,7 @@ local function context()
 	}
 end
 
-function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
+function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ())
 	local self: any = { open = false, station = "merchant" }
 	local stationX, stationZ = 0, 0
 	local root = Builder.panel({
@@ -202,16 +202,28 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 	})
 	local bag = Builder.label("", 14, {
 		TextColor3 = T.muted,
-		Size = UDim2.new(1, -260, 1, 0),
+		Size = UDim2.new(1, -330, 1, 0),
 		TextWrapped = true,
 		Parent = footer,
 	})
 	local leaveButton = Builder.button("LEAVE", "primary", nil, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromOffset(240, 46),
+		Size = UDim2.fromOffset(160, 46),
 		Parent = footer,
 	})
+	-- Merchant only: sell guns, gear and items from the inventory.
+	local sellButton = Builder.button("SELL", nil, nil, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -170, 0, 0),
+		Size = UDim2.fromOffset(140, 46),
+		TextColor3 = T.gold,
+		Parent = footer,
+	})
+	sellButton.Activated:Connect(function()
+		Audio.play("uiClick")
+		onSell()
+	end)
 
 	local tab = "weapons"
 	local render: () -> ()
@@ -562,6 +574,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 		self.station = station
 		stationX, stationZ = x, z
 		title.Text = TITLES[station]
+		sellButton.Visible = station == "merchant"
 		buildTabs()
 		root.Visible = true
 		self.open = true
@@ -591,7 +604,8 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> ())
 		local left =
 			math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
 		local inv = Context.inventory
-		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · next wave in {left}s · Esc to leave`
+		local timing = if Context.phase() == "intermission" then `next floor in {left}s` else "floor in progress"
+		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · {timing} · Esc to leave`
 		local character = Context.character()
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if rootPart then

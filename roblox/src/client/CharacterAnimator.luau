@@ -71,15 +71,26 @@ type Joint = {
 	original: CFrame,
 	rc: CFrame,
 	active: boolean,
+	-- Transform strategy: the pose to apply in Stepped, and what we last wrote / the Animator wrote.
+	pending: CFrame?,
+	lastWritten: CFrame?,
+	lastAnim: CFrame?,
 }
 
 type Rig = {
 	character: Model,
 	r15: boolean,
 	joints: { [string]: Joint },
-	grip: Joint?,
-	meleeGrip: Joint?,
+	gunGrip: Motor6D?,
+	gunGripRest: CFrame?,
+	meleeGrip: Motor6D?,
+	meleeGripRest: CFrame?,
 	swingShown: boolean?,
+	-- How arm poses are applied: 1 = joint offsets (C0 / Attachment0), 2 = Transform in Stepped.
+	strategy: number,
+	badTime: number,
+	strategyReported: boolean,
+	failed: boolean,
 	legLength: number,
 	aim: number,
 	sprint: number,
@@ -91,6 +102,7 @@ type Rig = {
 	firstSeen: number,
 	reported: boolean,
 	warned: boolean,
+	jointSummary: string?,
 }
 
 local CharacterAnimator = {}
@@ -164,12 +176,7 @@ local function scan(rig: Rig)
 		for k in kinds do
 			table.insert(classes, k)
 		end
-		print(
-			`[CharacterAnimator] {rig.character.Name}: {if rig.r15 then "R15" else "R6"}, {count} joints ({table.concat(
-				classes,
-				", "
-			)})`
-		)
+		rig.jointSummary = `{if rig.r15 then "R15" else "R6"}, {count} joints ({table.concat(classes, ", ")})`
 	elseif not rig.joints.rShoulder and not rig.warned and os.clock() - rig.firstSeen > 3 then
 		rig.warned = true
 		local found = {}
@@ -198,8 +205,11 @@ local function rigFor(character: Model): Rig?
 			character = character,
 			r15 = humanoid.RigType == Enum.HumanoidRigType.R15,
 			joints = {},
-			grip = nil,
 			legLength = 2,
+			strategy = 1,
+			badTime = 0,
+			strategyReported = false,
+			failed = false,
 			aim = 0,
 			sprint = 0,
 			crouch = 0,
@@ -229,7 +239,7 @@ end
 	(C0 / Attachment0) is changed rather than its Transform, which the
 	Animator rewrites every frame; at weight 0 the rest offset is restored.
 ]]
-local function poseJoint(j: Joint?, d: CFrame, w: number)
+local function poseJoint(j: Joint?, d: CFrame, w: number, strategy: number)
 	if not j or not j.inst.Parent then
 		return
 	end
@@ -238,17 +248,95 @@ local function poseJoint(j: Joint?, d: CFrame, w: number)
 			setOffset(j, j.original)
 			j.active = false
 		end
+		j.pending = nil
 		return
 	end
 	local target = j.rc:Inverse() * d * j.rc
 	local rest = CFrame.new()
 	local x = if w >= 0.999 then target else rest:Lerp(target, w)
-	setOffset(j, j.original * x)
-	j.active = true
+	if strategy == 1 then
+		setOffset(j, j.original * x)
+		j.active = true
+		j.pending = nil
+	else
+		if j.active then
+			setOffset(j, j.original)
+			j.active = false
+		end
+		j.pending = x
+	end
 end
 
 local function pose(rig: Rig, key: string, d: CFrame, w: number)
-	poseJoint(rig.joints[key], d, w)
+	poseJoint(rig.joints[key], d, w, rig.strategy)
+end
+
+-- Transform strategy: applied after the Animator (Stepped), on top of its pose.
+local function applyTransforms(rig: Rig)
+	for _, j in rig.joints do
+		local inst = j.inst :: any
+		if j.pending and inst.Parent then
+			local current: CFrame = inst.Transform
+			-- If nothing animated this joint since our last write, reuse the Animator's last pose.
+			local anim = if j.lastWritten and current == j.lastWritten then j.lastAnim or CFrame.new() else current
+			j.lastAnim = anim
+			local final = (j.pending :: CFrame) * anim
+			inst.Transform = final
+			j.lastWritten = final
+		end
+	end
+end
+
+-- Points a weapon grip so the weapon's world rotation is `desired`, blended from its rest offset by `w`.
+local function aimGrip(grip: Motor6D, rest: CFrame, desired: CFrame, push: Vector3, w: number)
+	local hand = grip.Part0
+	if not hand then
+		return
+	end
+	local target = CFrame.new(rest.Position) * (hand.CFrame.Rotation:Inverse() * desired) * CFrame.new(push)
+	grip.C0 = if w >= 0.999 then target else rest:Lerp(target, math.max(0, w))
+end
+
+-- Checks the arm really rose; if not, tries the next posing strategy and reports what works.
+local function checkArm(rig: Rig, dt: number)
+	local hand = rig.character:FindFirstChild("RightHand") or rig.character:FindFirstChild("Right Arm")
+	local torso = rig.character:FindFirstChild("UpperTorso") or rig.character:FindFirstChild("Torso")
+	if not hand or not torso or not hand:IsA("BasePart") or not torso:IsA("BasePart") then
+		return
+	end
+	local threshold = if rig.r15 then -0.7 else -0.4
+	local raised = hand.Position.Y > torso.Position.Y + threshold * (torso.Size.Y / 2)
+	if raised then
+		rig.badTime = 0
+		if not rig.strategyReported then
+			rig.strategyReported = true
+			print(
+				`[CharacterAnimator] {rig.character.Name}: arm poses working via {if rig.strategy == 1
+					then "joint offsets"
+					else "Transform"} ({rig.jointSummary or "?"})`
+			)
+		end
+		return
+	end
+	rig.badTime += dt
+	if rig.badTime < 0.6 or rig.failed then
+		return
+	end
+	rig.badTime = 0
+	if rig.strategy == 1 then
+		rig.strategy = 2
+		for _, j in rig.joints do
+			if j.active then
+				setOffset(j, j.original)
+				j.active = false
+			end
+		end
+	else
+		rig.failed = true
+		warn(
+			`[CharacterAnimator] {rig.character.Name}: couldn't raise the arms with joint offsets or Transform ({rig.jointSummary or "no joints found"}). Guns still aim correctly.`
+		)
+	end
 end
 
 local function rx(a: number): CFrame
@@ -336,27 +424,47 @@ local function animate(rig: Rig, st: State, dt: number)
 		pose(rig, "rElbow", rx(0.15), 1)
 		pose(rig, "lElbow", rx(0.6), 1)
 		pose(rig, "waist", CFrame.Angles(0, waistYaw, 0) * rx(waistPitch), 1)
+		-- The blade sweeps through the swing arc in the character's frame, whatever the arm does.
 		local mgrip = melee and melee:FindFirstChild("MeleeGrip", true)
-		if mgrip and (not rig.meleeGrip or rig.meleeGrip.inst ~= mgrip) then
-			rig.meleeGrip = wrap(mgrip)
+		if mgrip and mgrip:IsA("Motor6D") then
+			if rig.meleeGrip ~= mgrip then
+				rig.meleeGrip = mgrip
+				rig.meleeGripRest = mgrip.C0
+			end
+			local root = rig.character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if root and rig.meleeGripRest then
+				local tilt = if st.swingStep == 3 then 1.3 - 1.8 * e else -0.15
+				aimGrip(mgrip, rig.meleeGripRest, root.CFrame.Rotation * CFrame.Angles(0, yaw, 0) * rx(tilt), Vector3.zero, 1)
+			end
 		end
-		-- Blade along the arm.
-		poseJoint(rig.meleeGrip, rx(-HALF_PI), 1)
 	else
 		pose(rig, "rShoulder", CFrame.Angles(0, 0.22, 0) * rx(pitchR) * CFrame.Angles(0, bump * 1.1, 0), armW)
 		pose(rig, "lShoulder", CFrame.Angles(0, -0.55, 0) * rx(pitchL), armW)
 		pose(rig, "rElbow", rx(rig.recoil * 0.25), armW)
 		pose(rig, "lElbow", rx(0.35 + bump * 0.7), armW)
 	end
-	-- The gun's grip (our own Motor6D; rebuilt on every weapon switch).
+	-- The gun's grip (our own Motor6D; rebuilt on every weapon switch). The gun is pointed where the
+	-- character faces in world space, so it never follows a hanging arm toward the floor.
 	local gun = rig.character:FindFirstChild("Gun")
 	local body = gun and gun:FindFirstChild("Body")
 	local grip = body and body:FindFirstChild("GunGrip")
-	if grip and (not rig.grip or rig.grip.inst ~= grip) then
-		rig.grip = wrap(grip)
+	if grip and grip:IsA("Motor6D") then
+		if rig.gunGrip ~= grip then
+			rig.gunGrip = grip
+			rig.gunGripRest = grip.C0
+		end
+		local root = rig.character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root and rig.gunGripRest then
+			local level = (1 - rig.sprint) * 1 + rig.sprint * 0.6 -- muzzle dips while sprinting
+			local desired = root.CFrame.Rotation
+				* rx(rig.recoil * 0.18 - bump * 0.5 - (1 - level) * 0.6)
+				* CFrame.Angles(0, 0, bump * 0.7)
+			aimGrip(grip, rig.gunGripRest, desired, Vector3.new(0, 0, rig.recoil * 0.35), armW)
+		end
 	end
-	-- Turn the gun to run along the raised arm, and kick it back on recoil.
-	poseJoint(rig.grip, CFrame.new(0, rig.recoil * 0.35, 0) * rx(-HALF_PI), armW)
+	if not swinging and armW > 0.9 and rig.sprint < 0.2 and bump < 0.2 and rig.joints.rShoulder then
+		checkArm(rig, dt)
+	end
 
 	-- Legs and torso.
 	if rig.r15 then
@@ -459,6 +567,15 @@ function CharacterAnimator.start()
 		local rig = p and p.Character and rigs[p.Character]
 		if rig then
 			rig.recoil = 1
+		end
+	end)
+
+	-- Transform strategy rigs get their arm poses applied after the Animator, each physics step.
+	RunService.Stepped:Connect(function()
+		for _, rig in rigs do
+			if rig.strategy == 2 then
+				applyTransforms(rig)
+			end
 		end
 	end)
 

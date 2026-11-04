@@ -1,12 +1,14 @@
 --!strict
 --[[
-	Art direction in one place: the "clean stylized" material look and the
-	colour grading / glow that follows the day-night cycle.
+	Art direction in one place. The target look is gritty realistic (see the
+	README); the current art is placeholder.
 
-	Roblox's textured materials (concrete, slate, fabric...) turn into grainy
-	noise from the high top-down camera, so the clean look swaps them for
-	smooth surfaces and gets detail from colour and shape instead. Set
-	CLEAN_MATERIALS = false to compare with the original textured look.
+	  * Colour grading, bloom and sun rays follow the day-night cycle: muted
+	    and desaturated by day, cold and harsh at night.
+	  * CLEAN_MATERIALS: Roblox's built-in textured materials (concrete,
+	    slate, fabric...) turn into grainy noise from the high top-down camera,
+	    so the placeholder look swaps them for smooth surfaces. Turn it off, or
+	    replace them with MaterialVariants, once real PBR textures exist.
 ]]
 local CLEAN_MATERIALS = true
 
@@ -51,11 +53,11 @@ return {
 	COLOR_JITTER = 0.05,
 	-- Colour grading by time of day (n = 0 day ... 1 night).
 	GRADE = {
-		dayTint = Color3.fromRGB(255, 243, 226),
-		nightTint = Color3.fromRGB(196, 214, 255),
-		contrast = { 0.12, 0.2 },
-		saturation = { -0.05, -0.2 },
-		brightness = { 0.02, 0 },
+		dayTint = Color3.fromRGB(245, 238, 226),
+		nightTint = Color3.fromRGB(182, 202, 240),
+		contrast = { 0.18, 0.28 },
+		saturation = { -0.22, -0.35 },
+		brightness = { 0, -0.02 },
 	},
 	BLOOM = { intensity = { 0.35, 0.9 }, size = 22, threshold = { 1.6, 0.95 } },
 	SUN_RAYS = { intensity = 0.06, spread = 0.7 },

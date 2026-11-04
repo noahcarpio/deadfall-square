@@ -27,7 +27,7 @@ stylua src tests                                        # format
 
 ### Custom 3D models (optional, one-time import)
 
-The game builds everything from plain Parts out of the box. `assets/` holds a set of matching low-poly meshes made for it: zombie body parts, the seven guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
+The game builds everything from plain Parts out of the box. `assets/` holds a set of matching placeholder meshes made for it: zombie body parts, the seven guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
 
 1. Download the repository (**Code → Download ZIP** on GitHub) and unzip it. `DeadfallMeshes.obj`, `DeadfallMeshes.mtl` and `DeadfallPalette.png` must stay together in the same folder.
 2. Open the place in Studio, then use **File → Import 3D** (also on the **Home** or **Avatar** tab) and choose `roblox/assets/DeadfallMeshes.obj`.
@@ -40,26 +40,35 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 
 ## Art style and using AI for models
 
-**The look:** stylized low-poly, smooth surfaces, detail from colour and shape rather than texture, muted post-apocalyptic palette (rust, olive, slate, cream) with warm lamps and neon. Everything has to read from a high top-down camera.
+**Status:** everything you see is a **draft / placeholder**: block-built parts and simple generated meshes, so the game is playable while the real art is made.
 
-- `src/shared/Config/Visuals.luau` holds the art direction:
-  - **Clean materials:** Roblox's grainy materials (concrete, slate, fabric, cobblestone...) are swapped for smooth ones.
-  - **Colour variation:** a small per-part brightness variation keeps big flat surfaces from looking plastic.
-  - **Day/night grading:** colour correction, bloom and sun rays blend with the day-night cycle.
-  - **Old look:** set `CLEAN_MATERIALS = false` to get the original textured look back for comparison.
-- The generated meshes have chamfered edges and smoothed normals: bevels and round parts shade softly, square corners stay crisp.
+**Target look: gritty realistic.**
+- Realistic proportions and real-world scale.
+- Worn, dirty, rusted and blood-stained surfaces with proper PBR textures (colour, normal, roughness and metalness maps).
+- A muted, desaturated palette. Overcast days, harsh contrast at night under street lamps and flashlights. Fog and grime rather than bright colours.
+- Everything still has to read from the high top-down camera: clear silhouettes, and no detail that only shows up close.
 
-**Getting good models out of AI 3D tools** (for example Roblox Studio's built-in 3D generation, Meshy, Tripo or Rodin):
+**Where the look lives in code:** `src/shared/Config/Visuals.luau`.
+- **Colour grading:** gritty and desaturated by day, cold blue at night, plus bloom and sun rays, all blended with the day-night cycle.
+- **Placeholder materials:** `CLEAN_MATERIALS` swaps Roblox's built-in textured materials for smooth ones so the draft art isn't grainy from above. Turn it off, or replace the materials with `MaterialVariant`s, once real textures exist.
 
-1. **Use one style prompt for every model,** e.g. *"stylized low-poly game asset, chunky simple shapes, flat colours, no baked lighting or shadows in the texture, slightly bevelled edges, muted post-apocalyptic palette (rust, olive, slate, cream), readable from far above, plain background"*. Add the object at the end.
-2. **Go image → 3D, not text → 3D.** Generate (or sketch) a concept image in that style first, then feed it to the image-to-3D tool. It is far more consistent.
-3. **Ask for game-ready output:** low poly (under ~5k triangles per prop), one 512–1024 px texture, FBX or OBJ, real-world scale, centred.
+**Getting good models out of AI 3D tools** (Roblox Studio's built-in 3D generation, Meshy, Tripo, Rodin, ...):
+
+1. **Use one style prompt for every model,** e.g. *"realistic game-ready 3D asset, post-apocalyptic, worn and dirty, chipped paint, rust and grime, realistic proportions, PBR textures, no baked lighting, neutral studio light, plain background"*, then add the object (e.g. *"abandoned 1990s sedan with a smashed windshield"*).
+2. **Go image → 3D, not text → 3D.** Generate a reference image in that style first and feed it to the image-to-3D tool. It is far more consistent.
+3. **Ask for game-ready output:**
+   - about 10k triangles per prop (less for small items);
+   - PBR maps at 1–2k (colour, normal, roughness, metalness);
+   - FBX, real-world scale, centred.
 4. **Clean up in Blender** (free):
-   - Decimate if it's too dense, then Shade Smooth with Auto Smooth around 40°.
-   - Delete floating junk and apply scale.
+   - Delete floating junk and fix the scale.
+   - Check the normals, and bake if the tool gave you a messy mesh.
    - Export FBX.
-5. **Import with Studio's Import 3D.** Name each model like the generated ones (e.g. `Car_1`, `Gun_rifle`) and put it in `ReplicatedStorage.DeadfallMeshes`. `MeshLibrary` then uses it automatically, at the size in `Config/MeshSizes.luau`.
-6. **Make one model first and check it in game** from the real camera before doing a whole set. Reject anything with realistic textures; they never match.
+5. **Import with Studio's Import 3D:**
+   - Put the PBR maps on the mesh as a `SurfaceAppearance`.
+   - For large surfaces (roads, walls), make `MaterialVariant`s instead.
+   - Name each model like the placeholder it replaces (e.g. `Car_1`, `Gun_rifle`) and put it in `ReplicatedStorage.DeadfallMeshes`. `MeshLibrary` then uses it automatically, at the size in `Config/MeshSizes.luau`.
+6. **Make one model first and check it in game** from the real camera, in daylight and at night, before doing a whole set.
 
 ## Controls
 
@@ -77,7 +86,7 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 | Crouch (quiet, harder to see) | C / Ctrl | B | SNEAK toggle |
 | Use: search, trade, craft, ring bell, revive | F (hold to search / revive) | Y | Tap (and hold) the prompt |
 | Bandage / pipe bomb | B / G (thrown at the cursor) | D-pad up / down | HEAL / BOMB |
-| Bag (items, gear, equip) | I | D-pad right | BAG |
+| Inventory (guns, gear, items: equip, use, drop, sell) | I | D-pad right | BAG |
 | Leave the merchant / workbench | Esc or LEAVE | B | LEAVE |
 | Placement: rotate / cancel / pan | R or right-click / Esc / WASD | — / B / — | ROTATE / CANCEL / drag |
 
@@ -105,7 +114,13 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 - **Co-op rules:** shared waves that scale with player count; personal coins, score, upgrades and perks; teammates can revive downed players; the run ends when everyone is down; the boss's coin reward is shared.
 - **Stealth and noise:** zombies wander, investigate what they hear and only hunt once they see you, get hurt or bump into you. Each gun has its own noise radius (a sniper shot carries 40 m, a flamethrower 10 m). Sprinting is loud, walking is quiet, and crouching is almost silent and roughly halves how far away zombies can see you. Sight is shorter at night. A HIDDEN / SPOTTED eye on the HUD tells you when you've been seen. New arrivals head into the plaza, and zombies that hear nothing for a while drift toward the survivors, so waves still end. Tuning lives in `Config/Stealth.luau`.
 - **Scavenging:** cars, the bus, crate stacks, dumpsters and trash piles hold scrap, planks, rags, electronics, gunpowder, ammo, coins and bandages. Hold F to search. Loot is shared, and whatever doesn't fit stays for a teammate. Containers refill at the start of a run and some refill at every grace period. Searching makes a little noise. The bag has a weight limit (10 kg, +5 per Bigger Backpack).
-- **Grace period (30 s, after the reward pick):** no menus pop up. Walk to the **merchant** (coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next floor early once everyone is ready.
+- **Inventory (I):** a full-screen inventory you can open anywhere, with three tabs.
+  - **Guns:** stats, ammo, upgrades and gear traits. Hold, drop or sell each gun.
+  - **Gear:** what's equipped plus the stash. Equip, drop or sell pieces.
+  - **Items:** use, drop or sell one or all.
+  - **Dropping** leaves the thing on the ground for anyone to pick up. The dropper can't grab it back for 3 s.
+  - **Selling** only works while you stand at the **merchant**, who trades for the whole climb, mid-floor too. It pays about 40% of the price, scaled by rarity, power and upgrades. The pistol can't be sold or dropped.
+- **Grace period (30 s, after the reward pick):** no menus pop up. Walk to the **merchant** (open all climb; buys with coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next floor early once everyone is ready.
 - **Items:** bandages heal 35. Pipe bombs are thrown at the cursor, beep for 4 seconds to lure every zombie in earshot, then explode.
 - **Character animation:** Roblox's default walk/run/idle animations, plus procedural poses everyone sees: gun raised to aim (lowered while sprinting), recoil on each shot, a reload motion, crouch-walking, melee swings (forehand, backhand, overhead finisher), a tumble on the dodge roll, and lying down while downed. R15 avatars get the full set; R6 gets the arm poses, roll and downed pose.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.

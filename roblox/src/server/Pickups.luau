@@ -25,7 +25,11 @@ local COLORS = {
 	armor = Color3.fromHex("#4aa8ff"),
 	weapon = Color3.fromHex("#c070ff"),
 	coins = Color3.fromHex("#ffd23a"),
+	bag = Color3.fromHex("#c8b28a"),
 }
+
+-- Seconds a dropped pickup ignores the player who dropped it (so the magnet doesn't grab it back).
+local DROP_LOCK = 3
 
 local Pickups = {}
 Pickups.__index = Pickups
@@ -102,7 +106,7 @@ local function blockModel(kind: string): BasePart
 end
 
 local function makeModel(kind: string, weapon: string?, gearItem: Gear.Item?): BasePart
-	local meshKind = if kind == "gear" then "weapon" else kind
+	local meshKind = if kind == "gear" then "weapon" elseif kind == "bag" then "ammo" else kind
 	local part: BasePart = MeshLibrary.clone("Pickup_" .. meshKind) or blockModel(meshKind)
 	local color = if gearItem then Color3.fromHex(Gear.rarities[gearItem.rarity].color) else COLORS[kind]
 	part.Name = "Pickup"
@@ -172,9 +176,18 @@ function Pickups.spawn(self, kind: string, x: number, z: number, ps)
 end
 
 -- Drops a gear piece (rolled for the current floor) at (x, z).
-function Pickups.spawnGear(self, x: number, z: number, kind: string?, minRarity: string?)
+-- Drops a gear piece at (x, z): rolled for the current floor, or `item` when a player drops one.
+function Pickups.spawnGear(
+	self,
+	x: number,
+	z: number,
+	kind: string?,
+	minRarity: string?,
+	item: Gear.Item?,
+	dropper: any?
+)
 	local W = self.W
-	local item = Gear.roll(W.rng, math.max(1, W.waves.wave), 0, kind, minRarity)
+	item = item or Gear.roll(W.rng, math.max(1, W.waves.wave), 0, kind, minRarity)
 	local part = makeModel("gear", nil, item)
 	part.Position = Vector3.new(x * S, 1.4 * S, z * S)
 	local beam = part:FindFirstChild("Beam") :: BasePart?
@@ -182,7 +195,50 @@ function Pickups.spawnGear(self, x: number, z: number, kind: string?, minRarity:
 		beam.CFrame = CFrame.new(x * S, 3 * S, z * S) * CFrame.Angles(0, 0, math.pi / 2)
 	end
 	part.Parent = self.folder
-	table.insert(self.list, { kind = "gear", item = item, x = x, z = z, life = 60, part = part })
+	table.insert(self.list, {
+		kind = "gear",
+		item = item,
+		x = x,
+		z = z,
+		life = if dropper then 120 else 60,
+		part = part,
+		lockedFor = dropper,
+		lockUntil = os.clock() + DROP_LOCK,
+	})
+end
+
+-- A dropped gun without gear (gives the gun, or ammo if you have it).
+function Pickups.spawnGun(self, x: number, z: number, weapon: string, dropper: any?)
+	local part = makeModel("weapon", weapon)
+	part.Position = Vector3.new(x * S, 1.4 * S, z * S)
+	part.Parent = self.folder
+	table.insert(self.list, {
+		kind = "weapon",
+		weapon = weapon,
+		x = x,
+		z = z,
+		life = 120,
+		part = part,
+		lockedFor = dropper,
+		lockUntil = os.clock() + DROP_LOCK,
+	})
+end
+
+-- A dropped bag of items ({ [id] = count }); whoever picks it up takes what fits.
+function Pickups.spawnBag(self, x: number, z: number, contents: { [string]: number }, dropper: any?)
+	local part = makeModel("bag")
+	part.Position = Vector3.new(x * S, 1.4 * S, z * S)
+	part.Parent = self.folder
+	table.insert(self.list, {
+		kind = "bag",
+		contents = contents,
+		x = x,
+		z = z,
+		life = 120,
+		part = part,
+		lockedFor = dropper,
+		lockUntil = os.clock() + DROP_LOCK,
+	})
 end
 
 -- Applies a pickup to a player. Returns false if it should stay on the ground.
@@ -209,11 +265,42 @@ function Pickups.collect(self, p, ps): boolean
 		label = "AMMO"
 	elseif p.kind == "gear" then
 		local item = table.clone(p.item)
+		item.traits = table.clone(p.item.traits)
 		item.uid = W.players:newUid(ps)
-		if not W.players:giveGear(ps, item) then
+		if item.kind == "gun" and not ps.arsenal:owns(item.id) then
+			-- A dropped gun with gear: take the gun and its gear straight into the hands.
+			ps.gear.guns[item.id] = item
+			ps.arsenal:attune(item.id, item :: any)
+			ps.arsenal.owned[item.id].gear = item :: any
+			W.players:syncArsenal(ps)
+			W.players:syncGear(ps)
+			label = `{Gear.title(item):upper()}`
+		elseif not W.players:giveGear(ps, item) then
 			return false -- stash full: leave it for someone else
+		else
+			label = `{Gear.title(item):upper()} → STASH`
 		end
-		label = `{Gear.title(item):upper()} → STASH`
+	elseif p.kind == "bag" then
+		local took = {}
+		local left = false
+		for id, n in p.contents do
+			local added = ps.inventory:add(id, n)
+			if added > 0 then
+				table.insert(took, `+{added} {id}`)
+			end
+			if added < n then
+				p.contents[id] = n - added
+				left = true
+			else
+				p.contents[id] = nil
+			end
+		end
+		W.players:syncInventory(ps)
+		if #took == 0 then
+			return false
+		end
+		W.remotes.Notify:FireClient(ps.player, table.concat(took, ", "), "pickup", ps.x, ps.z)
+		return not left
 	elseif p.kind == "coins" then
 		local amount = math.floor(W.rng:int(12, 22) * (1 + W.waves.wave * 0.08) * ps.economy.coinMultiplier + 0.5)
 		ps.economy:addCoins(amount)
@@ -240,9 +327,11 @@ function Pickups.update(self, dt: number)
 		end
 		-- Nearest standing player within magnet range pulls it in.
 		local best, bestD = nil, math.huge
+		local now = os.clock()
 		for _, ps in W.players:targets() do
 			local d = math.sqrt((ps.x - p.x) ^ 2 + (ps.z - p.z) ^ 2)
-			if d < bestD and (self.vacuum or d < ps.stats.magnetRadius) then
+			local locked = p.lockedFor == ps and now < (p.lockUntil or 0)
+			if not locked and d < bestD and (self.vacuum or d < ps.stats.magnetRadius) then
 				best, bestD = ps, d
 			end
 		end

@@ -36,6 +36,8 @@ Net.EVENTS = {
 	"OpenStation", -- s->c: station name (merchant / workbench), prompt position x, z
 	"GearSync", -- s->c: { stash, melee, armor, gadgets, guns }
 	"EquipGear", -- c->s: uid, gadget slot?
+	"DropGun", -- c->s: weaponId (leaves it on the ground for anyone)
+	"DropGear", -- c->s: uid (a stash piece; leaves it on the ground)
 	"Melee", -- c->s: aimX, aimZ (one swing)
 	"UseAbility", -- c->s: slot, aimX, aimZ, aimDistance
 	"AbilitySync", -- s->c: { [slot] = ready-at server time }

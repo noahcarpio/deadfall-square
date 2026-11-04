@@ -213,6 +213,19 @@ function Arsenal.tryFire(
 	return "fired"
 end
 
+-- Removes a gun (sold or dropped). The pistol is never removed; holding it again if needed.
+function Arsenal.remove(self: Arsenal, id: string): boolean
+	if id == "pistol" or not self.owned[id] then
+		return false
+	end
+	self.owned[id] = nil
+	if self.current == id then
+		self.current = "pistol"
+		self.reloadEnd = 0
+	end
+	return true
+end
+
 -- Fire-rate multiplier from the gun's gear ("Rapid") and temporary boosts.
 function Arsenal.rateBonus(self: Arsenal, w: WeaponState): number
 	local k = self.rateMul

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generates Deadfall Square's low-poly 3D models for Roblox, without Blender.
+Generates Deadfall Square's placeholder 3D models for Roblox, without Blender.
 
 Outputs (in roblox/assets/ unless --out is given):
   DeadfallMeshes.obj   one OBJ with a named object per model (import with Studio's "Import 3D")
@@ -10,7 +10,7 @@ And roblox/src/shared/Config/MeshSizes.luau: every model's exact bounding box in
 which the game uses to size the imported MeshParts regardless of importer unit settings.
 
 Every model is built from convex primitives (boxes, tapered boxes, cylinders,
-low-poly spheres). Faces are flat-shaded and wound outward; this is checked.
+simple spheres). Faces are wound outward; this is checked.
 
 Usage:
   python3 roblox/tools/make_meshes.py          # write files
@@ -182,7 +182,7 @@ def cylinder(r_bottom: float, r_top: float, h: float, segments: int = 8):
 
 
 def sphere(r: float, rings: int = 4, segments: int = 7):
-    """Low-poly UV sphere."""
+    """Coarse UV sphere."""
     v: list[Vec] = [(0, r, 0)]
     for ring in range(1, rings):
         phi = math.pi * ring / rings
