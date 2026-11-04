@@ -91,7 +91,7 @@ local Context = {
 	adrenalUntil = 0,
 	exhausted = false,
 	device = "mouse" :: "mouse" | "touch" | "gamepad",
-	-- True while a full-screen UI (merchant/workbench, perk, lobby, game over) is open.
+	-- True while a full-screen UI (merchant/workbench, inventory, reward, game over) is open.
 	menuOpen = false,
 	placing = false,
 	-- Camera pan while placing structures (studs).
@@ -134,7 +134,7 @@ function Context.shake(amount: number)
 end
 
 function Context.phase(): string
-	return Context.gameState:GetAttribute("Phase") or "lobby"
+	return Context.gameState:GetAttribute("Phase") or "waiting"
 end
 
 function Context.character(): Model?

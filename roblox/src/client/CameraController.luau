@@ -1,7 +1,7 @@
 --[[
 	Angled top-down follow camera with aim look-ahead and trauma screen shake.
 	Portrait screens pull the camera back so the play area stays readable.
-	With no character it slowly orbits the plaza (lobby attract mode).
+	With no character it slowly orbits the plaza.
 ]]
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")

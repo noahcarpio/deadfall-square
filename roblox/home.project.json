@@ -1,0 +1,47 @@
+{
+  "name": "DeadfallSquareHome",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Home": {
+        "$path": "src/home/server",
+        "Leaderboard": {
+          "$path": "src/server/Leaderboard.luau"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Home": {
+          "$path": "src/home/client",
+          "UI": {
+            "$className": "Folder",
+            "Builder": {
+              "$path": "src/client/UI/Builder.luau"
+            },
+            "Theme": {
+              "$path": "src/client/UI/Theme.luau"
+            }
+          }
+        }
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false,
+        "MaxPlayers": 30
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 14.5
+      }
+    }
+  }
+}

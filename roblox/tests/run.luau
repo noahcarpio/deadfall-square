@@ -33,6 +33,7 @@ local FloorPlan = require("../src/shared/FloorPlan")
 local Gear = require("../src/shared/Gear")
 local RewardRules = require("../src/shared/RewardRules")
 local MeleeMath = require("../src/shared/MeleeMath")
+local PartyRules = require("../src/shared/PartyRules")
 
 local passed, failed = 0, 0
 local current = ""
@@ -836,6 +837,34 @@ test("Every mesh the game asks for was generated, and props own their fallback p
 		has(prop.name)
 		expect(owned[i] == true, `prop {prop.name} has no fallback pieces`)
 	end
+end)
+
+test("Parties: create, join, leader hand-off, full parties and starting", function()
+	local st = PartyRules.new()
+	local a = PartyRules.create(st, 1)
+	eq(a.leader, 1)
+	local joined, err = PartyRules.join(st, 2, a.id)
+	expect(joined == a and err == nil)
+	eq(#a.members, 2)
+	-- Only the leader can start.
+	expect(PartyRules.canStart(st, 2) == nil)
+	expect(PartyRules.canStart(st, 1) == a)
+	-- The leader leaving hands the party to the next member.
+	PartyRules.leave(st, 1)
+	eq(a.leader, 2)
+	eq(PartyRules.partyOf(st, 1), nil)
+	-- Creating a new party leaves the old one; empty parties disappear.
+	local b = PartyRules.create(st, 2)
+	expect(st.parties[a.id] == nil, "empty party should be removed")
+	eq(PartyRules.partyOf(st, 2), b)
+	-- Full parties refuse new members.
+	for id = 10, 9 + PartyRules.MAX - 1 do
+		expect(PartyRules.join(st, id, b.id) ~= nil)
+	end
+	local full, why = PartyRules.join(st, 99, b.id)
+	expect(full == nil and why ~= nil)
+	expect(PartyRules.join(st, 99, 12345) == nil)
+	expect(PartyRules.canStart(st, 99) == nil)
 end)
 
 print(`\n{passed} passed, {failed} failed`)

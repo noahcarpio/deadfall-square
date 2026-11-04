@@ -1,7 +1,7 @@
 --[[
 	Deadfall Square client bootstrap: starts the controllers and drives which
 	screen is visible from the server's game phase
-	(lobby / countdown / wave / intermission / gameover). During the
+	(waiting / countdown / wave / intermission / gameover). During the
 	intermission (the grace period) nothing pops up: players walk to the
 	merchant or workbench, and the server opens that panel when they use it.
 ]]
@@ -64,7 +64,7 @@ AbilityBar.start(hudGui)
 
 -- Items: bandage heals at once; a pipe bomb is thrown toward the aim point.
 local function useItem(id: string, fromInventory: boolean?)
-	if Context.downed() or (Context.menuOpen and not fromInventory) or Context.phase() == "lobby" then
+	if Context.downed() or (Context.menuOpen and not fromInventory) or Context.phase() == "waiting" then
 		return
 	end
 	if Context.inventory:count(id) <= 0 then
@@ -82,14 +82,13 @@ local inventory = InventoryScreen.new(inventoryGui, function(id: string)
 end)
 InputController.onUseItem:connect(useItem)
 InputController.onToggleBag:connect(function()
-	if Context.phase() ~= "lobby" then
+	if Context.phase() ~= "waiting" then
 		inventory.toggle()
 	end
 end)
 
 local screensGui = Builder.screen("DeadfallScreens", 10)
 screensGui.Parent = playerGui
-local lobby = Screens.lobby(screensGui)
 local rewards = Screens.rewards(screensGui)
 local gameOver = Screens.gameOver(screensGui)
 local station
@@ -111,7 +110,7 @@ end)
 Context.remotes.OpenStation.OnClientEvent:Connect(function(name: string, x: number, z: number)
 	local phase = Context.phase()
 	-- The merchant trades all run; the workbench only between floors.
-	local open = if name == "merchant" then phase ~= "lobby" and phase ~= "gameover" else phase == "intermission"
+	local open = if name == "merchant" then phase ~= "waiting" and phase ~= "gameover" else phase == "intermission"
 	if open and not placement.active and not rewards.open then
 		lastStation = { name = name, x = x, z = z }
 		station.show(name, x, z)
@@ -155,7 +154,7 @@ RunService.RenderStepped:Connect(function()
 			rewards.hide()
 			pendingRewards = nil
 		end
-		if phase ~= "intermission" and (station.station ~= "merchant" or phase == "lobby" or phase == "gameover") then
+		if phase ~= "intermission" and (station.station ~= "merchant" or phase == "waiting" or phase == "gameover") then
 			station.hide()
 		end
 		if phase ~= "intermission" and placement.active then
@@ -164,11 +163,6 @@ RunService.RenderStepped:Connect(function()
 		if phase ~= "gameover" then
 			gameOver.hide()
 			gameOverData = nil
-		end
-		if phase == "lobby" then
-			lobby.show()
-		else
-			lobby.hide()
 		end
 	end
 
@@ -185,16 +179,15 @@ RunService.RenderStepped:Connect(function()
 		gameOver.update(left)
 	end
 
-	lobby.update()
 	station.update()
 	inventory.update()
-	if inventory.open and (phase == "lobby" or phase == "gameover" or rewards.open) then
+	if inventory.open and (phase == "waiting" or phase == "gameover" or rewards.open) then
 		inventory.hide()
 	end
-	Context.menuOpen = station.open or rewards.open or gameOver.open or inventory.open or phase == "lobby"
+	Context.menuOpen = station.open or rewards.open or gameOver.open or inventory.open or phase == "waiting"
 	-- The merchant, workbench and inventory panels let the player keep walking;
-	-- rewards, game over and the lobby cover the screen and hold them still.
-	local modal = rewards.open or gameOver.open or phase == "lobby"
+	-- rewards and game over cover the screen and hold them still.
+	local modal = rewards.open or gameOver.open
 	-- World prompts (search, trade, revive) hide while a panel is open.
 	ProximityPromptService.Enabled = not Context.menuOpen and not placement.active
 	if controls then

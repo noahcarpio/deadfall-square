@@ -8,7 +8,7 @@
 
 	Both palettes share the same keys, so a module picks one and uses
 	T.text, T.muted, T.accent... without caring which surface it's on:
-	  paper - menus: merchant, workbench, inventory, lobby, rewards, game over
+	  paper - menus: merchant, workbench, inventory, Home page, rewards, game over
 	  night - HUD, bag strip, gadget bar, placement bar, toasts
 ]]
 

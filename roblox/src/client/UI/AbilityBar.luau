@@ -77,7 +77,7 @@ function AbilityBar.start(gui: ScreenGui)
 
 	RunService.RenderStepped:Connect(function()
 		local phase = Context.phase()
-		bar.Visible = phase ~= "lobby" and phase ~= "gameover"
+		bar.Visible = phase ~= "waiting" and phase ~= "gameover"
 		if not bar.Visible then
 			return
 		end

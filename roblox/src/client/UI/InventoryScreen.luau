@@ -33,7 +33,7 @@ local TABS = { { "guns", "GUNS" }, { "gear", "GEAR" }, { "items", "ITEMS" } }
 -- True when the player stands at the merchant while it's trading.
 local function atMerchant(): boolean
 	local phase = Context.phase()
-	if phase == "lobby" or phase == "gameover" then
+	if phase == "waiting" or phase == "gameover" then
 		return false
 	end
 	local stations = Workspace:FindFirstChild("Stations")

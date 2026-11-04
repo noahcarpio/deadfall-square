@@ -107,7 +107,7 @@ function WeaponClient.start()
 	InputController.onMelee:connect(function()
 		local item = Context.gear.melee
 		local def = item and Gear.defs[item.id].melee
-		if not def or Context.downed() or Context.rolling or Context.phase() == "lobby" then
+		if not def or Context.downed() or Context.rolling or Context.phase() == "waiting" then
 			return
 		end
 		local now = os.clock()
@@ -127,7 +127,7 @@ function WeaponClient.start()
 	-- Gadgets: cooldowns come from the server (AbilitySync); Charge Strike dashes at once.
 	InputController.onAbility:connect(function(slot: number)
 		local item = Context.gear.gadgets and Context.gear.gadgets[slot]
-		if not item or Context.downed() or Context.menuOpen or Context.phase() == "lobby" then
+		if not item or Context.downed() or Context.menuOpen or Context.phase() == "waiting" then
 			return
 		end
 		if Workspace:GetServerTimeNow() < (Context.abilityReady[slot] or 0) then
@@ -198,7 +198,7 @@ function WeaponClient.start()
 			or swinging
 			or Context.rolling
 			or Context.downed()
-			or Context.phase() == "lobby"
+			or Context.phase() == "waiting"
 		then
 			return
 		end

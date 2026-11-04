@@ -22,4 +22,6 @@ return {
 	STATION_RANGE = 4.5,
 	COUNTDOWN_SECONDS = 4,
 	GAMEOVER_SECONDS = 14,
+	-- How long a party's game server waits for every teleported member.
+	PARTY_WAIT_SECONDS = 20,
 }

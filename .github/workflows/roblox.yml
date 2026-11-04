@@ -32,10 +32,13 @@ jobs:
           curl -sSL -o /tmp/rojo.zip "$ROJO" && unzip -oq /tmp/rojo.zip -d "$HOME/bin"
           chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
       - run: rojo build default.project.json -o DeadfallSquare.rbxlx
+      - run: rojo build home.project.json -o DeadfallSquareHome.rbxlx
       - uses: actions/upload-artifact@v4
         with:
-          name: DeadfallSquare-place
-          path: roblox/DeadfallSquare.rbxlx
+          name: DeadfallSquare-places
+          path: |
+            roblox/DeadfallSquare.rbxlx
+            roblox/DeadfallSquareHome.rbxlx
 
   test:
     name: Unit tests (Lune)
@@ -81,7 +84,11 @@ jobs:
           chmod +x "$HOME/bin/"* && echo "$HOME/bin" >> "$GITHUB_PATH"
           curl -sSL -o globalTypes.d.luau "$LUAU_TYPES"
       - run: rojo sourcemap default.project.json -o sourcemap.json
-      - run: luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json src
+      - run: luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json --ignore="src/home/**" src
+      - name: Type check the Home place
+        run: |
+          rojo sourcemap home.project.json -o home-sourcemap.json
+          luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=home-sourcemap.json src/home
 
   format:
     name: Format (StyLua)

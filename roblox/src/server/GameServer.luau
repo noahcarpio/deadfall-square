@@ -2,12 +2,17 @@
 	Server entry point: builds the arena and every gameplay service, wires the
 	remotes, and runs the co-op game loop:
 
-	  lobby --(everyone ready)--> countdown --> wave (a floor of the climb)
-	    ^                            ^             | floor done
-	    |                            |             v
-	    |                       intermission <-- reward (pick 1 of 3 cards)
-	    |                       (bell/timer)       |
-	    +-- gameover <-- everyone downed, or the top floor is cleared (victory)
+	  waiting --(party arrived)--> countdown --> wave (a floor of the climb)
+	                                  ^             | floor done
+	                                  |             v
+	                             intermission <-- reward (pick 1 of 3 cards)
+	                             (bell/timer)       |
+	  Home place <-- gameover <-- everyone downed, or the top floor is cleared
+
+	Parties form on the Home place (src/home) and are teleported here into a
+	reserved server; the run starts once the whole party is in. After game
+	over everyone is sent back Home. In Studio (or before the place IDs in
+	Config/Places are set) one player is enough and game over starts a new run.
 
 	Each "wave" is a floor of the tower climb (Config/Floors, FloorPlan) with
 	an objective and a modifier. After a floor everyone picks a reward card
@@ -20,6 +25,7 @@
 ]]
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -28,6 +34,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Waves = require(Shared.Config.Waves)
 local Floors = require(Shared.Config.Floors)
+local Places = require(Shared.Config.Places)
 local FloorPlan = require(Shared.FloorPlan)
 local Gear = require(Shared.Gear)
 local RewardRules = require(Shared.RewardRules)
@@ -115,8 +122,8 @@ function GameServer.start()
 		flowDirty = true
 	end
 
-	local toLobby: () -> ()
-	local phase = "lobby"
+	local reset: () -> ()
+	local phase = "waiting"
 	local phaseEnd = 0
 	local runStart = 0
 	local night = 0.55
@@ -129,18 +136,34 @@ function GameServer.start()
 		stateFolder:SetAttribute("PhaseEnd", phaseEnd)
 		if W.stations then
 			W.stations:setPhase(p)
-			W.loot:setActive(p ~= "lobby" and p ~= "gameover")
+			W.loot:setActive(p ~= "waiting" and p ~= "gameover")
 		end
 	end
 
+	-- Waiting for the party: how many the Home page sent, and since when.
+	local partySize = 1
+	local firstJoin: number? = nil
+	local homeBoundAt: number? = nil
+
 	W.onPlayerJoined = function(ps)
-		if phase ~= "lobby" then
+		if phase ~= "waiting" then
 			W.notifyAll(`{ps.player.DisplayName} joined the fight`, "info")
+			return
+		end
+		firstJoin = firstJoin or os.clock()
+		local ok, data = pcall(function()
+			return ps.player:GetJoinData().TeleportData
+		end)
+		if ok and type(data) == "table" and type(data.partySize) == "number" then
+			partySize = math.clamp(math.floor(data.partySize), 1, Players.MaxPlayers)
 		end
 	end
 	W.onPlayerLeft = function(_ps)
-		if W.players and W.players:count() == 0 and phase ~= "lobby" then
-			toLobby()
+		if W.players and W.players:count() == 0 then
+			reset()
+			partySize = 1
+			firstJoin = nil
+			homeBoundAt = nil
 		end
 	end
 
@@ -160,7 +183,7 @@ function GameServer.start()
 
 	------------------------------------------------------------ phases
 
-	toLobby = function()
+	reset = function()
 		W.zombies:clear()
 		W.hazards:clear()
 		W.pickups:clear()
@@ -172,7 +195,7 @@ function GameServer.start()
 		W.players:resetAll()
 		W.throwables:clear()
 		W.loot:clear()
-		setPhase("lobby")
+		setPhase("waiting")
 	end
 
 	local function startRun()
@@ -309,6 +332,20 @@ function GameServer.start()
 		setPhase("gameover", Constants.GAMEOVER_SECONDS)
 	end
 
+	-- Sends everyone back to the Home place. False in Studio or without a place ID.
+	local function sendHome(): boolean
+		if Places.HOME_PLACE_ID == 0 or RunService:IsStudio() then
+			return false
+		end
+		local ok, err = pcall(function()
+			TeleportService:TeleportAsync(Places.HOME_PLACE_ID, Players:GetPlayers())
+		end)
+		if not ok then
+			warn(`[GameServer] Teleport home failed: {err}`)
+		end
+		return ok
+	end
+
 	local function everyoneReady(): boolean
 		local list = W.players:list()
 		if #list == 0 then
@@ -330,19 +367,19 @@ function GameServer.start()
 
 	remotes.Fire.OnServerEvent:Connect(function(player, weaponId, dirs, aimDistance)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" then
+		if ps and phase ~= "waiting" then
 			W.weapons:onFire(ps, weaponId, dirs, aimDistance)
 		end
 	end)
 	remotes.Melee.OnServerEvent:Connect(function(player, aimX, aimZ)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" then
+		if ps and phase ~= "waiting" then
 			W.weapons:onMelee(ps, aimX, aimZ)
 		end
 	end)
 	remotes.UseAbility.OnServerEvent:Connect(function(player, slot, aimX, aimZ, aimDistance)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" and phase ~= "gameover" then
+		if ps and phase ~= "waiting" and phase ~= "gameover" then
 			W.abilities:use(ps, slot, aimX, aimZ, aimDistance)
 		end
 	end)
@@ -371,7 +408,7 @@ function GameServer.start()
 	end)
 	remotes.UseItem.OnServerEvent:Connect(function(player, id, aimX, aimZ, aimDistance)
 		local ps = stateOf(player)
-		if not ps or phase == "lobby" or ps.downed or not ps.hasBody then
+		if not ps or phase == "waiting" or ps.downed or not ps.hasBody then
 			return
 		end
 		if id == "bandage" then
@@ -395,17 +432,11 @@ function GameServer.start()
 			local n = math.min(count, ps.inventory:count(id))
 			if n > 0 and ps.inventory:remove(id, n) then
 				W.players:syncInventory(ps)
-				if phase ~= "lobby" and ps.hasBody then
+				if phase ~= "waiting" and ps.hasBody then
 					-- Dropped items land in a bag at your feet for anyone to pick up.
 					W.pickups:spawnBag(ps.x, ps.z, { [id] = n }, ps)
 				end
 			end
-		end
-	end)
-	remotes.Ready.OnServerEvent:Connect(function(player, value)
-		local ps = stateOf(player)
-		if ps and type(value) == "boolean" then
-			ps.ready = value
 		end
 	end)
 	remotes.ChooseReward.OnServerEvent:Connect(function(player, index)
@@ -417,19 +448,19 @@ function GameServer.start()
 	-- Dropping works anywhere: the thing lands at your feet for anyone to pick up.
 	remotes.DropGun.OnServerEvent:Connect(function(player, id)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" and type(id) == "string" then
+		if ps and phase ~= "waiting" and type(id) == "string" then
 			W.players:dropGun(ps, id)
 		end
 	end)
 	remotes.DropGear.OnServerEvent:Connect(function(player, uid)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" and type(uid) == "number" then
+		if ps and phase ~= "waiting" and type(uid) == "number" then
 			W.players:dropGear(ps, uid)
 		end
 	end)
 	remotes.EquipGear.OnServerEvent:Connect(function(player, uid, slot)
 		local ps = stateOf(player)
-		if ps and phase ~= "lobby" and type(uid) == "number" and (slot == nil or type(slot) == "number") then
+		if ps and phase ~= "waiting" and type(uid) == "number" and (slot == nil or type(slot) == "number") then
 			W.players:equipGear(ps, uid, slot)
 		end
 	end)
@@ -591,10 +622,6 @@ function GameServer.start()
 	end
 	W.stations = Stations.new(W, arena.layout, onStation)
 
-	remotes.GetLeaderboard.OnServerInvoke = function(_player)
-		return leaderboard:top()
-	end
-
 	------------------------------------------------------------ world look
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
@@ -671,14 +698,14 @@ function GameServer.start()
 		end
 	end
 
-	setPhase("lobby")
+	setPhase("waiting")
 	applyNight(night)
 
 	RunService.Heartbeat:Connect(function(frameDt)
 		local dt = math.min(frameDt, 0.1)
 		local now = Workspace:GetServerTimeNow()
 		local wave = W.waves.wave
-		local targetNight = if phase == "lobby"
+		local targetNight = if phase == "waiting"
 			then 0.55
 			elseif phase == "wave" then Waves.night(math.max(1, wave))
 			else Waves.night(math.max(1, wave + 1))
@@ -692,8 +719,21 @@ function GameServer.start()
 			table.insert(W.targets, bell)
 		end
 
-		if phase == "lobby" then
-			if everyoneReady() then
+		if phase == "waiting" then
+			local here = W.players:count()
+			stateFolder:SetAttribute("PartyHere", here)
+			stateFolder:SetAttribute("PartySize", partySize)
+			-- After game over, players are on their way Home; if the teleport
+			-- failed, they're still here after a while, so play again.
+			if homeBoundAt and os.clock() - homeBoundAt > 30 then
+				homeBoundAt = nil
+			end
+			local waited = if firstJoin then os.clock() - firstJoin else 0
+			if
+				not homeBoundAt
+				and here > 0
+				and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS)
+			then
 				startRun()
 			end
 		elseif phase == "countdown" then
@@ -729,11 +769,14 @@ function GameServer.start()
 			end
 		elseif phase == "gameover" then
 			if now >= phaseEnd then
-				toLobby()
+				reset()
+				if sendHome() then
+					homeBoundAt = os.clock()
+				end
 			end
 		end
 
-		if phase ~= "lobby" then
+		if phase ~= "waiting" then
 			updateFlow(dt)
 			W.zombies:update(dt)
 			W.weapons:update(dt)

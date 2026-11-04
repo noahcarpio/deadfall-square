@@ -454,10 +454,11 @@ function Hud.start(gui: ScreenGui)
 	RunService.RenderStepped:Connect(function(dt)
 		local p = Context.player
 		local phase = Context.phase()
-		local playing = phase ~= "lobby" and phase ~= "gameover"
-		for _, f in { vitals, waveBox, scoreBox, weaponBox, mapRoot, team } do
+		local playing = phase ~= "waiting" and phase ~= "gameover"
+		for _, f in { vitals, scoreBox, weaponBox, mapRoot, team } do
 			f.Visible = playing
 		end
+		waveBox.Visible = phase ~= "gameover"
 
 		local hp, maxHp = p:GetAttribute("HP") or 100, p:GetAttribute("MaxHP") or 100
 		hpFill.Size = UDim2.fromScale(math.clamp(hp / maxHp, 0, 1), 1)
@@ -478,7 +479,11 @@ function Hud.start(gui: ScreenGui)
 		local objective = Floors.objectives[gs:GetAttribute("Objective") or "clear"] or Floors.objectives.clear
 		local modifier = Floors.modifiers[gs:GetAttribute("Modifier") or "none"] or Floors.modifiers.none
 		local modText = if modifier.name ~= "" then ` · {modifier.name}` else ""
-		if phase == "countdown" then
+		if phase == "waiting" then
+			local here, size = gs:GetAttribute("PartyHere") or 0, gs:GetAttribute("PartySize") or 1
+			waveLabel.Text = "WAITING FOR YOUR PARTY"
+			waveSub.Text = `{here} / {size} here`
+		elseif phase == "countdown" then
 			waveLabel.Text = `FLOOR {wave + 1} / {floors}`
 			waveSub.Text = `{objective.name}{modText} — starting in {secs}`
 		elseif phase == "wave" then

@@ -90,13 +90,13 @@ function Stations.new(W, layout, onUse: (string, Player) -> ())
 		table.insert(self.list, entry)
 		self.byName[st.name] = entry
 	end
-	self:setPhase("lobby")
+	self:setPhase("waiting")
 	return self
 end
 
 -- Opens the right stations for a game phase.
 function Stations.setPhase(self, phase: string)
-	local running = phase ~= "lobby" and phase ~= "gameover"
+	local running = phase ~= "waiting" and phase ~= "gameover"
 	for _, e in self.list do
 		local open = if e.name == "merchant" then running else phase == "intermission"
 		self.open[e.name] = open

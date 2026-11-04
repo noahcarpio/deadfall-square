@@ -6,20 +6,24 @@ It is written in **Luau** and managed with **[Rojo](https://rojo.space)**, so th
 
 ## Getting it into Roblox (no command line needed)
 
+The game is **two places in one experience**: the **Home** place (the start page where players form parties with friends) and the **game** place (the town square). The Home page teleports a party into its own private game server, and game over sends everyone back Home.
+
 1. Install **Roblox Studio** (free, Windows or Mac) from https://create.roblox.com and sign in.
-2. Download the place file: on GitHub open **Actions → Roblox → the latest successful run → Artifacts → `DeadfallSquare-place`**, and unzip it to get **`DeadfallSquare.rbxlx`**.
-3. Double-click `DeadfallSquare.rbxlx` (or *File → Open from File* in Studio).
-4. Press **Play** to try it alone. For co-op testing use **Test → Clients and Servers → 2 players → Start**.
-5. **File → Publish to Roblox** → create a new experience and give it a name.
-6. In **Game Settings → Security**, turn on **Enable Studio Access to API Services** (needed for the global leaderboard).
-7. In the **Creator Dashboard** (https://create.roblox.com/dashboard/creations): fill in the **Maturity & Compliance questionnaire** (it has zombie violence; blood is drawn as green goo), add an icon and thumbnails, then make the experience **Public**.
+2. Download the place files: on GitHub open **Actions → Roblox → the latest successful run → Artifacts → `DeadfallSquare-places`** and unzip it. You get **`DeadfallSquareHome.rbxlx`** and **`DeadfallSquare.rbxlx`**.
+3. **Try them in Studio.** Open `DeadfallSquare.rbxlx` and press **Play**: the run starts on its own. Use **Test → Clients and Servers → 2 players → Start** for co-op. Open `DeadfallSquareHome.rbxlx` and press **Play** to try the Home page (create, join, leave). Studio can't teleport, so **START RUN** shows a notice there.
+4. **Publish the Home place first:** with `DeadfallSquareHome.rbxlx` open, **File → Publish to Roblox** → create a new experience. The Home place is now its start place.
+5. **Add the game place to the same experience:** in **View → Asset Manager → Places**, right-click → **Add New Place**. Then open `DeadfallSquare.rbxlx`, choose **File → Publish to Roblox As…**, pick the same experience and publish over that new place.
+6. **Link them:** in Asset Manager → Places, right-click each place → **Copy ID**. Paste both into `ReplicatedStorage → Shared → Config → Places` (`HOME_PLACE_ID`, `GAME_PLACE_ID`) **in both places**, or into `src/shared/Config/Places.luau` and rebuild. Then publish both again.
+7. In **Game Settings → Security**, turn on **Enable Studio Access to API Services** (needed for the leaderboard). Teleports between places of one experience need no extra setting.
+8. In the **Creator Dashboard** (https://create.roblox.com/dashboard/creations): fill in the **Maturity & Compliance questionnaire** (it has zombie violence; blood is drawn as green goo), add an icon and thumbnails, then make the experience **Public**.
 
 ### Developing with Rojo (optional)
 
-If you want to edit the code and see changes live in Studio, install [Rokit](https://github.com/rojo-rbx/rokit), run `rokit install` in this folder (versions are pinned in `rokit.toml`), install the Rojo Studio plugin, then run `rojo serve` and click **Connect** in the plugin.
+If you want to edit the code and see changes live in Studio, install [Rokit](https://github.com/rojo-rbx/rokit), run `rokit install` in this folder (versions are pinned in `rokit.toml`), install the Rojo Studio plugin, then run `rojo serve` (game place) or `rojo serve home.project.json` (Home place) and click **Connect** in the plugin.
 
 ```bash
-rojo build default.project.json -o DeadfallSquare.rbxlx   # build the place file
+rojo build default.project.json -o DeadfallSquare.rbxlx       # build the game place
+rojo build home.project.json -o DeadfallSquareHome.rbxlx       # build the Home place
 lune run tests/run                                      # unit tests
 selene src                                              # lint
 stylua src tests                                        # format
@@ -136,7 +140,8 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 - **Items:** bandages heal 35. Pipe bombs are thrown at the cursor, beep for 4 seconds to lure every zombie in earshot, then explode.
 - **Character animation:** Roblox's default walk/run/idle animations, plus procedural poses everyone sees: gun raised to aim (lowered while sprinting), recoil on each shot, a reload motion, melee swings (forehand, backhand, overhead finisher), a tumble on the dodge roll, and lying down while downed. R15 avatars get the full set; R6 gets the arm poses, roll and downed pose.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.
-- **UI:** lobby with ready-up, how-to-play and the global top-10, HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
+- **Home page (separate place):** a Field Manual cover page with your party (leader marked), CREATE PARTY / START RUN / INVITE FRIENDS / LEAVE PARTY, and numbered tabs for open parties to join, how to play, and the best climbs. Up to 6 survivors per party. Code in `src/home/`; party rules in `src/shared/PartyRules.luau`.
+- **UI:** HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
 
 ## Architecture
 
@@ -151,6 +156,8 @@ src/server   (ServerScriptService.Server)  GameServer (state machine), ArenaBuil
 src/client   (StarterPlayerScripts.Client) Camera, Input, Character, CharacterAnimator,
                                            WeaponClient, ZombieView, Fx, Audio,
                                            UI (Hud, StationUI, InventoryUI, Screens, Placement)
+src/home     (Home place: home.project.json) HomeServer (parties, start teleport) and HomeUI;
+                                           reuses Builder/Theme and Leaderboard by path
 tests/                                     Lune unit tests for the shared modules
 tools/, assets/                            mesh generator + generated OBJ/MTL/palette and preview
 ```

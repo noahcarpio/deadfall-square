@@ -15,7 +15,6 @@ Net.EVENTS = {
 	"Reload", -- c->s
 	"Switch", -- c->s: weaponId | cycle direction
 	"Roll", -- c->s
-	"Ready", -- c->s: lobby / intermission ready toggle
 	"ChooseReward", -- c->s: card index (1..3)
 	"ZombieSpawn", -- s->c: { id, type, x, z }
 	"ZombieDeath", -- s->c: { id, dirX, dirZ }
@@ -42,7 +41,7 @@ Net.EVENTS = {
 	"AbilitySync", -- s->c: { [slot] = ready-at server time }
 }
 Net.UNRELIABLE = { "Snapshot" }
-Net.FUNCTIONS = { "Purchase", "Place", "GetLeaderboard" }
+Net.FUNCTIONS = { "Purchase", "Place" }
 
 Net.STATES = {
 	"spawning",

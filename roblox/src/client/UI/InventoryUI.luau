@@ -45,7 +45,7 @@ function InventoryUI.new(gui: ScreenGui)
 
 	RunService.RenderStepped:Connect(function()
 		local phase = Context.phase()
-		local playing = phase ~= "lobby" and phase ~= "gameover"
+		local playing = phase ~= "waiting" and phase ~= "gameover"
 		strip.Visible = playing
 		if not playing then
 			return
