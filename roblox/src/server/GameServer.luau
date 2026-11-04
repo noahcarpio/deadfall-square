@@ -85,7 +85,7 @@ function GameServer.start()
 		rng = Rng.new(),
 		arena = arena,
 		spawns = arena.layout.spawns,
-		aliveCap = 160,
+		aliveCap = 220,
 		targets = {},
 	} :: any
 
@@ -247,13 +247,19 @@ function GameServer.start()
 		W.players:syncAttributes()
 	end
 
+	-- After the reward pick: the full grace period every GRACE_EVERY floors, otherwise a
+	-- short breather (the countdown to the next floor) so a 30-floor climb stays ~25 minutes.
 	local function startGrace()
 		for _, ps in W.players:list() do
 			if #ps.rewardOffer > 0 then
 				applyReward(ps, ps.rewardOffer[1]) -- didn't choose in time
 			end
 		end
-		setPhase("intermission", Constants.INTERMISSION_SECONDS)
+		if W.waves.wave % Constants.GRACE_EVERY == 0 then
+			setPhase("intermission", Constants.INTERMISSION_SECONDS)
+		else
+			setPhase("countdown", Constants.BREATHER_SECONDS)
+		end
 	end
 
 	local function onWaveCleared()

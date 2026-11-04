@@ -1,6 +1,6 @@
 # Deadfall Square — Roblox (co-op)
 
-A co-op survival game for Roblox, grown from the browser game: 1–6 players hold the abandoned town square against waves of zombies. Between waves there's a 30-second grace period. Players walk to the merchant to spend coins and to the workbench to craft and upgrade with scavenged materials, and they build barricades and turrets. Zombies hunt the nearest survivor from the moment they arrive. Players can revive each other.
+A co-op survival game for Roblox, grown from the browser game: 1–6 players hold the abandoned town square against waves of zombies. Between floors there's a short breather, and every third floor a 30-second grace period. Players walk to the merchant to spend coins and to the workbench to craft and upgrade with scavenged materials, and they build barricades and turrets. Zombies hunt the nearest survivor from the moment they arrive. Players can revive each other.
 
 It is written in **Luau** and managed with **[Rojo](https://rojo.space)**, so the code lives in this repository and builds into a Roblox place file.
 
@@ -120,9 +120,10 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 
 ## What's in it
 
-- **Tower climb (25 floors):** each wave is a floor with an objective and maybe a modifier (`Config/Floors.luau`, rolled per run by `FloorPlan.luau`).
+- **Tower climb (30 floors, about 25 minutes):** each wave is a floor with an objective and maybe a modifier (`Config/Floors.luau`, rolled per run by `FloorPlan.luau`).
+  - **Difficulty is the horde, not sponges:** zombie health only doubles by floor 30, but the number of zombies grows from ~15 on floor 1 to ~200, with up to 220 on the square at once (`Config/Waves.luau`).
   - **Objectives:** *clear* every zombie; *hold out* until a timer runs out; *defend the bell* (it has health, zombies go for it, and if it breaks the floor gives no reward); *elite hunt* (a glowing elite leads an endless horde until it dies).
-  - **Bosses:** every 5th floor is a boss floor, and floor 25 is the final boss. Clearing it wins the run.
+  - **Bosses:** every 5th floor is a boss floor, and floor 30 is the final boss. Clearing it wins the run.
   - **Modifiers:** *Thick Fog*, *Blood Moon* (faster zombies, more coins), *Swarm*, *Armored* and *Calm*.
 - **Rewards:** after every floor each player picks 1 of 3 cards (`RewardRules.luau`): a piece of gear, a perk, coins, a supply crate or a full patch-up. Boss floors guarantee rare-or-better gear.
 - **Gear with rarity** (`Gear.luau`):
@@ -165,7 +166,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
   - **Items:** use, drop or sell one or all.
   - **Dropping** leaves the thing on the ground for anyone to pick up. The dropper can't grab it back for 3 s.
   - **Selling** only works while you stand at the **merchant**, who trades for the whole climb, mid-floor too. It pays about 40% of the price, scaled by rarity, power and upgrades. The pistol can't be sold or dropped.
-- **Grace period (30 s, after the reward pick):** no menus pop up. Walk to the **merchant** (open all climb; buys with coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next floor early once everyone is ready.
+- **Between floors:** after the reward pick there's a 6-second breather. After every 3rd floor comes the **grace period (30 s)**: no menus pop up. Walk to the **merchant** (open all climb; buys with coins: weapons, ammo refills, medkit, Vitality/Kevlar/Running Shoes/Endurance/Bigger Backpack, supplies) or the **workbench** (materials: bandages, pipe bombs, hand-loaded ammo, barricades, auto-turrets, repairs, and weapon upgrades for coins plus scrap and electronics). Ring the **alarm bell** to start the next floor early once everyone is ready.
 - **Items:** bandages heal 35. Pipe bombs are thrown at the cursor, beep for 4 seconds to lure every zombie in earshot, then explode.
 - **Character animation:** Roblox's default walk/run/idle animations. On top of those, everyone sees:
   - the gun raised to aim (lowered while sprinting), with recoil on each shot (both done in code);

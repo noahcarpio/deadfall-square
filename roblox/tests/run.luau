@@ -421,7 +421,7 @@ test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local ctx = shopContext(300)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "smg" }), false)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "shotgun" }), true)
-	eq(ctx.economy.coins, 40)
+	eq(ctx.economy.coins, 300 - Weapons.defs.shotgun.price)
 	eq(ShopRules.getOffer(ctx, { kind = "buyWeapon", weapon = "shotgun" }).reason, "OWNED")
 	local rich = shopContext(100000)
 	local up = { kind = "weaponUpgrade", weapon = "pistol", upgrade = "magazine" }
@@ -457,7 +457,7 @@ end
 
 test("Wave 1 is a small group of walkers; types unlock on schedule", function()
 	local w1 = WaveComposition.build(1, Rng.new(1), 1)
-	expect(#w1 >= 10 and #w1 <= 14, `wave 1 size {#w1}`)
+	expect(#w1 >= 13 and #w1 <= 17, `wave 1 size {#w1}`)
 	for _, t in w1 do
 		eq(t, "walker")
 	end
@@ -484,6 +484,54 @@ test("Difficulty rises: wave 10 >> wave 1, wave 21 >> wave 10", function()
 	end
 	expect(threat(10) / threat(1) > 10)
 	expect(threat(21) / threat(10) > 3)
+end)
+
+test("Horde scaling: more zombies every floor, not tougher ones", function()
+	-- Health barely doubles over the climb; walkers always die in a few hits.
+	expect(34 * Waves.hpMultiplier(Floors.FLOORS) < 34 * 2.2, "zombie health balloons late")
+	-- The horde itself grows a lot.
+	local function size(w: number): number
+		return #WaveComposition.build(w, Rng.new(w), 1)
+	end
+	expect(size(29) > size(1) * 10, `floor 29 horde {size(29)} vs floor 1 {size(1)}`)
+	local last = 0
+	for w = 1, Floors.FLOORS do
+		if not Waves.isBossWave(w) then
+			-- (A floor with a few more brutes can field slightly fewer bodies.)
+			expect(size(w) >= last * 0.9, `horde shrank on floor {w}`)
+			last = size(w)
+		end
+	end
+	-- Late floors fill the square to the alive cap.
+	eq(Waves.maxAlive(Floors.FLOORS, 220), 220)
+	-- The final boss is a big fight, not an endless sponge.
+	local function boss(w: number): number
+		return Zombies.defs.boss.hp * Waves.hpMultiplier(w) * Waves.bossHpMultiplier(w, 1)
+	end
+	expect(boss(Floors.FLOORS) < boss(5) * 10, "final boss is a sponge")
+end)
+
+test("Gun value: coins per sustained DPS stays in a band, nothing outclasses the rifle", function()
+	local function sustained(id: string): number
+		local d = Weapons.defs[id]
+		local shots = d.fireRate * (d.burst or 1)
+		return d.damage * d.pellets * d.magSize / (d.magSize / shots + d.reloadTime)
+	end
+	local rifle = sustained("rifle")
+	for _, id in Weapons.order do
+		local d = Weapons.defs[id]
+		if d.price > 0 and d.merchant ~= false then
+			local value = d.price / sustained(id)
+			-- The launcher's splash hits many zombies, so its single-target value is low on purpose.
+			if id ~= "launcher" then
+				expect(value >= 3 and value <= 7, `{id}: {value} coins per sustained DPS`)
+			end
+			-- The flamethrower trades its 8 m range for damage.
+			if id ~= "flamer" then
+				expect(sustained(id) <= rifle * 1.15, `{id} outclasses the rifle`)
+			end
+		end
+	end
 end)
 
 test("Co-op scales the horde with player count", function()
@@ -672,7 +720,7 @@ test("Grace-period stations and loot spots are placed and reachable", function()
 	end
 end)
 
-test("The climb has 25 floors, bosses every fifth and a warm-up first floor", function()
+test("The climb has 30 floors, bosses every fifth and a warm-up first floor", function()
 	local a = FloorPlan.build(Rng.new(5))
 	local b = FloorPlan.build(Rng.new(5))
 	eq(#a, Floors.FLOORS)

@@ -52,7 +52,7 @@ Builder.label("CO-OP ZOMBIE SURVIVAL · 1 TO 6 PLAYERS", 14, {
 })
 Builder.label("DEADFALL", 80, { Font = T.head, LayoutOrder = 2, Parent = left })
 Builder.label("SQUARE", 52, { Font = T.head, TextColor3 = T.rust, LayoutOrder = 3, Parent = left })
-Builder.label("Climb 25 floors of the town square. Scavenge, trade, and get everyone to the top.", 16, {
+Builder.label("Climb 30 floors of the town square. Scavenge, trade, and get everyone to the top.", 16, {
 	TextColor3 = T.muted,
 	TextWrapped = true,
 	Size = UDim2.new(1, 0, 0, 40),
@@ -174,12 +174,12 @@ create("TextLabel", {
 		"<b>Controller:</b> left stick move · right stick aim (push fully to fire) · RT fire · RB melee · LB + X / Y / B gadgets · LB switch · A roll · X reload · B close menu · Y use / search · D-pad up bandage · down pipe bomb · right bag · L3/LT sprint",
 		"<b>Mobile:</b> left thumbstick move · right side drag to aim & fire · on-screen buttons for the rest, tap prompts to use",
 		"",
-		"<b>Climb.</b> 25 floors, each with a goal: clear it, hold out, defend the bell or hunt the elite. Every 5th floor has a boss. Modifiers like Thick Fog or Blood Moon change the rules.",
+		"<b>Climb.</b> 30 floors, each with a goal: clear it, hold out, defend the bell or hunt the elite. Every 5th floor has a boss. Modifiers like Thick Fog or Blood Moon change the rules.",
 		"<b>Two gun slots.</b> The pistol is always slot 1; carry up to two more guns. Buying a third swaps out the one in your hands; drop a gun (I) to pick up another.",
 		"<b>Rewards and gear.</b> After each floor pick 1 of 3 rewards. Gear comes in Common, Rare and Unique with traits; equip, drop or sell it from the inventory (I), and salvage, reinforce or re-roll it at the workbench.",
 		"<b>Merchant.</b> Open the whole climb: buy anything, and sell from your inventory while you stand at the stall. Walk away to close any menu.",
 		"<b>Scavenge.</b> Search cars, crates, dumpsters and trash for scrap, planks, rags, electronics and gunpowder. Your bag has a weight limit.",
-		"<b>Grace period.</b> After each floor you get 30 seconds to trade, craft, build barricades and turrets, or ring the <b>bell</b> to start early.",
+		"<b>Grace period.</b> Every third floor you get 30 seconds to trade, craft, build barricades and turrets, or ring the <b>bell</b> to start early. Other floors give a short breather; the merchant is open all climb.",
 		"If a teammate goes down, stand next to them and <b>hold F</b> to revive. The run ends when everyone is down.",
 		"",
 		table.concat(zombieLines, "\n"),

@@ -1,7 +1,10 @@
 --!strict
 --[[
-	Wave difficulty curves (same as the browser version) plus co-op scaling.
-	Wave 1 is a trickle of walkers; wave 10 is challenging; 20+ is very hard.
+	Wave (floor) difficulty curves plus co-op scaling. Difficulty comes from
+	the size of the horde, not from tougher zombies: health and damage grow
+	slowly and linearly, while the number of zombies (and how many are on the
+	square at once) grows fast. Floor 1 is a trickle of walkers; floor 30 is a
+	flood of ~200.
 ]]
 local Waves = {}
 
@@ -9,7 +12,7 @@ Waves.clearDelay = 3
 Waves.bossEvery = 5
 
 function Waves.budget(wave: number): number
-	return 8 + 4 * wave + 0.35 * wave * wave
+	return 10 + 5 * wave + 0.3 * wave * wave
 end
 
 -- Extra horde per additional player (a full lobby of 6 faces ~3.75x the zombies).
@@ -31,13 +34,13 @@ function Waves.typeWeights(wave: number): { [string]: number }
 	}
 end
 
+-- Zombie health: ×2 by floor 30, so a walker always dies in a few hits.
 function Waves.hpMultiplier(wave: number): number
-	local w = wave - 1
-	return 1 + 0.1 * w + 0.006 * w * w
+	return 1 + 0.035 * (wave - 1)
 end
 
 function Waves.damageMultiplier(wave: number): number
-	return 1 + 0.055 * (wave - 1)
+	return 1 + 0.04 * (wave - 1)
 end
 
 function Waves.speedMultiplier(wave: number): number
@@ -49,26 +52,27 @@ function Waves.spawnInterval(wave: number): number
 end
 
 function Waves.spawnGroupSize(wave: number): number
-	return 1 + wave // 4
+	return 1 + wave // 3
 end
 
 function Waves.maxAlive(wave: number, cap: number): number
-	return math.min(cap, 16 + 6 * wave)
+	return math.min(cap, 24 + 9 * wave)
 end
 
--- Boss health multiplier; also scales with the number of players.
+-- Boss health on top of the floor's hpMultiplier: each boss is half again
+-- tougher than the last; also scales with the number of players.
 function Waves.bossHpMultiplier(wave: number, players: number): number
 	local k = math.max(1, wave // Waves.bossEvery)
-	return (1 + 0.75 * (k - 1)) * (1 + 0.6 * (math.max(1, players) - 1))
+	return (1 + 0.5 * (k - 1)) * (1 + 0.6 * (math.max(1, players) - 1))
 end
 
 function Waves.clearBonus(wave: number): number
-	return 25 + 6 * wave
+	return 40 + 8 * wave
 end
 
--- Night factor 0 (day) .. 1 (deep night): dusk by wave 5, full night from 11.
+-- Night factor 0 (day) .. 1 (deep night): dusk by floor 7, full night from 13.
 function Waves.night(wave: number): number
-	return math.clamp((wave - 1) / 10, 0, 1)
+	return math.clamp((wave - 1) / 12, 0, 1)
 end
 
 return Waves

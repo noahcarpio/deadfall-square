@@ -214,7 +214,7 @@ function WaveDirector.update(self, dt: number): boolean
 		if boss then
 			boss.maxHp *= Waves.bossHpMultiplier(self.wave, self.players)
 			if self.wave >= Floors.FLOORS then
-				boss.maxHp *= 1.5 -- the top of the climb
+				boss.maxHp *= 1.25 -- the top of the climb
 			end
 			boss.hp = boss.maxHp
 			self.boss = boss
@@ -240,7 +240,7 @@ function WaveDirector.update(self, dt: number): boolean
 	-- Endless floors keep the horde coming.
 	local endless = self.objective == "holdout"
 		or (self.objective == "elite" and (self.elite or self.elitePending))
-		or (self.objective == "defend" and self.elapsed < 70)
+		or (self.objective == "defend" and self.elapsed < Floors.DEFEND_SPAWN_SECONDS)
 	if #self.queue == 0 and endless then
 		self.queue = self:compose(self.players)
 	end
@@ -275,7 +275,7 @@ function WaveDirector.update(self, dt: number): boolean
 	elseif self.objective == "elite" then
 		done = not self.elitePending and self.elite == nil
 	else
-		-- clear / boss / defend (defend stops spawning after 70 s, then clear the rest)
+		-- clear / boss / defend (defend stops spawning after DEFEND_SPAWN_SECONDS, then clear the rest)
 		done = #self.queue == 0 and not self.bossPending and W.zombies.aliveCount == 0
 	end
 	if done then
