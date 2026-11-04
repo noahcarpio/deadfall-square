@@ -27,7 +27,9 @@ return {
 	-- Which reload clip each weapon uses (anything else: Reload_Rifle).
 	RELOAD = {
 		pistol = "Reload_Pistol",
+		revolver = "Reload_Pistol",
 		shotgun = "Reload_Shotgun",
+		doublebarrel = "Reload_Shotgun",
 		launcher = "Reload_Shotgun",
 	} :: { [string]: string },
 }

@@ -346,6 +346,31 @@ test("Arsenal carries the pistol plus two guns; buying a third swaps the one in 
 	eq(ctx.arsenal:gunCount(), Arsenal.MAX_GUNS)
 end)
 
+test("New guns fit the balance band: pistol < revolver/double-barrel < rifle ~ DMR", function()
+	local function sustained(id: string): number
+		local d = Weapons.defs[id]
+		local perMag = d.damage * d.pellets * d.magSize
+		return perMag / (d.magSize / d.fireRate + d.reloadTime)
+	end
+	local pistol, rifle = sustained("pistol"), sustained("rifle")
+	for _, id in { "revolver", "doublebarrel" } do
+		expect(sustained(id) > pistol and sustained(id) < rifle, `{id} sustained DPS {sustained(id)} out of band`)
+	end
+	expect(math.abs(sustained("dmr") - rifle) / rifle < 0.15, "DMR should sit near the rifle")
+	-- One-shot breakpoints the guns are built around (floor 1 Walker: 34 HP).
+	expect(Weapons.defs.revolver.damage >= 34 and Weapons.defs.dmr.damage >= 34)
+	-- Pellet guns lose damage with range; single-shot guns don't.
+	eq(Weapons.defs.doublebarrel.falloff, Weapons.defs.shotgun.falloff)
+	eq(Weapons.defs.dmr.falloff, nil)
+	-- The new melee weapons exist and are cheaper or reach further than the machete.
+	expect(Gear.defs.bat.price < Gear.defs.machete.price)
+	expect(Gear.defs.spear.melee.range > Gear.defs.machete.melee.range)
+	-- And the merchant sells the revolver.
+	local ctx = shopContext(1000)
+	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "revolver" }), true)
+	eq(ctx.arsenal:inSlot(2), "revolver")
+end)
+
 test("Shop buys weapons, escalates upgrade prices, caps tiers", function()
 	local ctx = shopContext(300)
 	eq(ShopRules.purchase(ctx, { kind = "buyWeapon", weapon = "smg" }), false)

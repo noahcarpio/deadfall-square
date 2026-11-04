@@ -1,6 +1,8 @@
 # Weapon ideas, with balancing
 
-This is a list of weapons that could be added to Deadfall Square, tuned against the guns already in `src/shared/Config/Weapons.luau`. Nothing here is implemented yet. The stats use the same fields as `WeaponDef`, so an approved row can be pasted in.
+**Added so far:** .357 Revolver, Double-Barrel, Marksman Rifle (DMR), Baseball Bat and Spear, with the stats below. Everything else here is still an idea.
+
+This is a list of weapons that could be added to Deadfall Square, tuned against the guns already in `src/shared/Config/Weapons.luau`. The stats use the same fields as `WeaponDef`, so an approved row can be pasted in.
 
 ## How to read the numbers
 

@@ -367,6 +367,20 @@ def guns(p: Palette) -> list[Model]:
     mbox(g, 0.08, 0.17, 0.09, DARK, 0, -0.07, -0.02, rx=-0.25, mirror=True)
     mbox(g, 0.02, 0.03, 0.02, DARK, 0, 0.14, 0.24, mirror=True)  # sight
 
+    g = gun("revolver")
+    mbox(g, 0.08, 0.1, 0.18, METAL, 0, 0.06, 0.12, mirror=True)  # frame
+    mcyl(g, 0.065, 0.065, 0.1, 8, "#45494f", 0, 0.06, 0.12, rx=HP, mirror=True)  # cylinder
+    mcyl(g, 0.022, 0.022, 0.24, 6, METAL, 0, 0.09, 0.3, rx=HP, mirror=True)  # barrel
+    mbox(g, 0.07, 0.17, 0.09, WOOD, 0, -0.07, -0.02, rx=-0.35, mirror=True)  # grip
+    mbox(g, 0.015, 0.03, 0.02, DARK, 0, 0.12, 0.4, mirror=True)  # front sight
+
+    g = gun("doublebarrel")
+    mcyl(g, 0.032, 0.032, 0.62, 6, METAL, -0.034, 0.07, 0.34, rx=HP, mirror=True)
+    mcyl(g, 0.032, 0.032, 0.62, 6, METAL, 0.034, 0.07, 0.34, rx=HP, mirror=True)
+    mbox(g, 0.12, 0.1, 0.18, "#45494f", 0, 0.04, 0.02, mirror=True)  # breech
+    mbox(g, 0.12, 0.07, 0.26, WOOD, 0, 0.0, 0.24, mirror=True)  # fore-end
+    mbox(g, 0.1, 0.16, 0.4, WOOD, 0, -0.02, -0.22, rx=0.22, mirror=True)  # stock
+
     g = gun("shotgun")
     mbox(g, 0.11, 0.12, 0.62, METAL, 0, 0.06, 0.28, mirror=True)
     mcyl(g, 0.035, 0.035, 0.5, 6, DARK, 0, -0.02, 0.32, rx=HP, mirror=True)
@@ -387,6 +401,13 @@ def guns(p: Palette) -> list[Model]:
     mbox(g, 0.09, 0.15, 0.3, "#3b3f36", 0, 0.02, -0.2, mirror=True)
     mbox(g, 0.05, 0.06, 0.16, DARK, 0, 0.17, 0.18, mirror=True)  # carry handle / optic
     mbox(g, 0.11, 0.09, 0.2, "#2f322b", 0, 0.03, 0.4, mirror=True)  # handguard
+
+    g = gun("dmr")
+    mbox(g, 0.09, 0.13, 0.6, "#3d4146", 0, 0.05, 0.2, mirror=True)
+    mcyl(g, 0.022, 0.022, 0.38, 6, DARK, 0, 0.07, 0.68, rx=HP, mirror=True)
+    mcyl(g, 0.04, 0.04, 0.24, 8, DARK, 0, 0.17, 0.18, rx=HP, mirror=True)  # scope
+    mbox(g, 0.06, 0.18, 0.08, DARK, 0, -0.1, 0.16, rx=0.12, mirror=True)  # magazine
+    mbox(g, 0.08, 0.14, 0.32, "#3d4146", 0, 0.01, -0.22, rx=0.12, mirror=True)  # stock
 
     g = gun("sniper")
     mbox(g, 0.1, 0.13, 0.7, "#4a4632", 0, 0.05, 0.22, mirror=True)

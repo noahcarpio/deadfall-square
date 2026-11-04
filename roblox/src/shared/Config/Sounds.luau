@@ -15,6 +15,9 @@ end
 return {
 	pistol = s(0.6),
 	shotgun = s(0.8),
+	revolver = s(0.75),
+	doublebarrel = s(0.9),
+	dmr = s(0.75),
 	smg = s(0.45),
 	rifle = s(0.6),
 	sniper = s(0.9),

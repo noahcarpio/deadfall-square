@@ -21,6 +21,8 @@ export type WeaponDef = {
 	price: number,
 	color: string,
 	blastRadius: number?,
+	-- Damage multiplier at the edge of range (pellet guns); nil = no falloff.
+	falloff: number?,
 	projectileSpeed: number?,
 	description: string,
 }
@@ -68,6 +70,7 @@ local WEAPONS: { [string]: WeaponDef } = {
 		shake = 0.28,
 		price = 260,
 		color = "#ffbe6b",
+		falloff = 0.35,
 		description = "Devastating up close. Wide spread.",
 	},
 	smg = {
@@ -155,6 +158,70 @@ local WEAPONS: { [string]: WeaponDef } = {
 		projectileSpeed = 13,
 		description = "Sets crowds ablaze. Burning damage over time.",
 	},
+	revolver = {
+		id = "revolver",
+		name = ".357 Revolver",
+		kind = "hitscan",
+		damage = 46,
+		pellets = 1,
+		fireRate = 1.9,
+		spread = 0.015,
+		moveSpread = 0.05,
+		magSize = 6,
+		reserveMax = 72,
+		startReserve = 36,
+		reloadTime = 2.0,
+		range = 42,
+		pierce = 1,
+		knockback = 4,
+		shake = 0.18,
+		price = 300,
+		color = "#ffc46a",
+		description = "Six heavy rounds. One-shots Walkers early and punches through one.",
+	},
+	doublebarrel = {
+		id = "doublebarrel",
+		name = "Double-Barrel",
+		kind = "hitscan",
+		damage = 12,
+		pellets = 10,
+		fireRate = 3.0,
+		spread = 0.24,
+		moveSpread = 0.04,
+		magSize = 2,
+		reserveMax = 40,
+		startReserve = 20,
+		reloadTime = 2.3,
+		range = 12,
+		pierce = 0,
+		knockback = 6,
+		shake = 0.35,
+		price = 380,
+		color = "#ffb35a",
+		falloff = 0.35,
+		description = "Two shells, both barrels. Shreds a Brute up close, then a long reload.",
+	},
+	dmr = {
+		id = "dmr",
+		name = "Marksman Rifle",
+		kind = "hitscan",
+		damage = 58,
+		pellets = 1,
+		fireRate = 2.6,
+		spread = 0.008,
+		moveSpread = 0.04,
+		magSize = 12,
+		reserveMax = 96,
+		startReserve = 48,
+		reloadTime = 2.0,
+		range = 60,
+		pierce = 1,
+		knockback = 3,
+		shake = 0.16,
+		price = 700,
+		color = "#d6e8ff",
+		description = "Semi-auto precision. Long range, pierces one target.",
+	},
 	launcher = {
 		id = "launcher",
 		name = "Grenade Launcher",
@@ -180,7 +247,8 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 }
 
-local ORDER = { "pistol", "shotgun", "smg", "rifle", "sniper", "flamer", "launcher" }
+local ORDER =
+	{ "pistol", "revolver", "shotgun", "doublebarrel", "smg", "rifle", "dmr", "sniper", "flamer", "launcher" }
 
 local UPGRADE_LIMITS = { damage = 5, fireRate = 4, magazine = 3 }
 

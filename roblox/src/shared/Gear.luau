@@ -102,6 +102,24 @@ def({
 	price = 380,
 	melee = { damage = 82, rate = 0.95, range = 2.3, arc = math.rad(120), knock = 12, stagger = true },
 })
+def({
+	id = "bat",
+	kind = "melee",
+	name = "Baseball Bat",
+	description = "Cheap and sturdy. Heavy hits knock zombies off balance.",
+	weight = 1.1,
+	price = 90,
+	melee = { damage = 30, rate = 1.9, range = 2.2, arc = math.rad(120), knock = 6, stagger = true },
+})
+def({
+	id = "spear",
+	kind = "melee",
+	name = "Spear",
+	description = "Long reach in a narrow line. Keep them at arm's length.",
+	weight = 0.9,
+	price = 240,
+	melee = { damage = 40, rate = 1.5, range = 3.3, arc = math.rad(50), knock = 3, stagger = false },
+})
 
 def({
 	id = "jacket",

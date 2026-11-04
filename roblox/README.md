@@ -31,7 +31,7 @@ stylua src tests                                        # format
 
 ### Custom 3D models (optional, one-time import)
 
-The game builds everything from plain Parts out of the box. `assets/` holds a set of matching placeholder meshes made for it: zombie body parts, the seven guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
+The game builds everything from plain Parts out of the box. `assets/` holds a set of matching placeholder meshes made for it: zombie body parts, the ten guns, pickups, the barricade and turret, and the arena props (cars, bus, crates, barrels, dumpsters, benches, barriers). `assets/preview.png` shows all of them. Importing them makes the game look more detailed. Nothing else changes, and if you skip this step nothing breaks.
 
 1. Download the repository (**Code → Download ZIP** on GitHub) and unzip it. `DeadfallMeshes.obj`, `DeadfallMeshes.mtl` and `DeadfallPalette.png` must stay together in the same folder.
 2. Open the place in Studio, then use **File → Import 3D** (also on the **Home** or **Avatar** tab) and choose `roblox/assets/DeadfallMeshes.obj`.
@@ -127,7 +127,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 - **Rewards:** after every floor each player picks 1 of 3 cards (`RewardRules.luau`): a piece of gear, a perk, coins, a supply crate or a full patch-up. Boss floors guarantee rare-or-better gear.
 - **Gear with rarity** (`Gear.luau`):
   - **Rarities and power:** Common, Rare (1 trait) and Unique (2 traits). Power grows with the floor the gear was found on.
-  - **Kinds:** guns (gear attunes to that gun), melee (Machete, Fire Axe, Sledgehammer), armor (Leather Jacket, Riot Vest, Hazmat Suit) and three gadget slots.
+  - **Kinds:** guns (gear attunes to that gun), melee (Machete, Baseball Bat, Spear, Fire Axe, Sledgehammer), armor (Leather Jacket, Riot Vest, Hazmat Suit) and three gadget slots.
   - **Traits:** Serrated (bleed), Hollow-Point (crits), Rapid, Heavy, Leeching, Volatile, Chilling, Padded, Light, Lucky, Scavenger, Quick Recharge, Amplified.
   - **Where it comes from:** elites, bosses and the odd zombie drop gear with a coloured beam, and the merchant sells common pieces.
   - **Using it:** equip from the bag (I → GEAR). The stash holds 10. At the workbench, salvage gear into materials, reinforce it (+power) or re-roll a trait.
@@ -138,7 +138,14 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 
 - **Arena:** the same town square as the browser version — buildings with lit windows and alleys, a low south fence, cars, a crashed bus, crates, fences, sandbags, barriers, dumpsters, barrels, trees, benches, a fountain and street lamps that switch on at night.
 - **Zombies:** Walker, Runner, Brute (knock-back slam), Spitter (acid globs and puddles), Exploder (fuse and chain explosions), and the **Abomination** boss every 5 floors (telegraphed charge that stuns it on walls, shockwave slam you can roll through, runner summons, enrage at half health).
-- **Weapons:** pistol (infinite ammo), shotgun, SMG, assault rifle, sniper (piercing), flamethrower (burning), grenade launcher, with per-weapon damage, fire-rate and magazine upgrades.
+- **Weapons:** carry the pistol (infinite ammo, always slot 1) plus two more guns. There are ten guns in all, each with damage, fire-rate and magazine upgrades:
+  - **Sidearms:** pistol and .357 revolver (pierces one target).
+  - **Shotguns:** pump shotgun and double-barrel.
+  - **Automatics:** SMG and assault rifle.
+  - **Long range:** marksman rifle and sniper (both pierce).
+  - **Heavy:** flamethrower (burning) and grenade launcher.
+
+  Balance notes and ideas for more guns are in `docs/WEAPON_IDEAS.md`.
 - **Co-op rules:** shared waves that scale with player count; personal coins, score, upgrades and perks; teammates can revive downed players; the run ends when everyone is down; the boss's coin reward is shared.
 - **Scavenging:** cars, the bus, crate stacks, dumpsters and trash piles hold scrap, planks, rags, electronics, gunpowder, ammo, coins and bandages. Hold F to search. Loot is shared, and whatever doesn't fit stays for a teammate. Containers refill at the start of a run and some refill at every grace period. The bag has a weight limit (10 kg, +5 per Bigger Backpack).
 - **Inventory (I):** a panel docked to the right that you can open anywhere, even while walking, with three tabs.

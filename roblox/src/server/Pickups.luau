@@ -17,7 +17,8 @@ local S = Constants.STUDS
 local LIFETIME = 22
 local BASE_DROP_CHANCE = 0.085
 
-local WEAPON_DROP_WAVE = { shotgun = 2, smg = 3, rifle = 4, sniper = 6, flamer = 7, launcher = 8 }
+local WEAPON_DROP_WAVE =
+	{ revolver = 2, shotgun = 2, doublebarrel = 3, smg = 3, rifle = 4, dmr = 5, sniper = 6, flamer = 7, launcher = 8 }
 
 local COLORS = {
 	ammo = Color3.fromHex("#e0c050"),

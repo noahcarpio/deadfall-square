@@ -447,6 +447,11 @@ function Fx.start()
 	local remotes = Context.remotes
 
 	-- Shots by other players and turrets (our own are drawn instantly by WeaponClient).
+	-- Piercing shots (sniper, revolver, DMR) draw a thicker tracer; turrets have no def.
+	local function pierceOf(weaponId: string): number
+		local def = Weapons.defs[weaponId]
+		return if def and def.kind == "hitscan" then def.pierce else 0
+	end
 	remotes.Shot.OnClientEvent:Connect(function(_userId: number, weaponId: string, ox: number, oz: number, ends)
 		local color = Fx.weaponColor(weaponId)
 		if weaponId == "flamer" then
@@ -455,7 +460,7 @@ function Fx.start()
 			return
 		end
 		for _, e in ends do
-			Fx.tracer(ox * S, GUN_Y, oz * S, e[1], e[2], color, if weaponId == "sniper" then 0.35 else 0.18)
+			Fx.tracer(ox * S, GUN_Y, oz * S, e[1], e[2], color, if pierceOf(weaponId) >= 1 then 0.35 else 0.18)
 		end
 		Audio.play(weaponId, ox, oz, 0.7)
 	end)

@@ -176,7 +176,7 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 				knock = def.knockback,
 				source = def.id,
 				attacker = ps,
-				falloff = if def.id == "shotgun" then 0.35 else 1,
+				falloff = def.falloff or 1,
 				critChance = Weapons.CRIT_CHANCE,
 				allowIncendiary = true,
 				gear = gunGear,

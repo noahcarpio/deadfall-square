@@ -277,6 +277,9 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	self:syncAll(ps)
 end
 
+-- Length (studs) of the block drawn when a gun has no mesh.
+local GUN_LENGTH = { pistol = 1.0, revolver = 1.2, doublebarrel = 2.6, dmr = 3.0, sniper = 3.4 }
+
 -- Rebuilds the visible gun on the character's right hand for the current weapon.
 function PlayerService.updateGunModel(_self, ps: PState)
 	local character = ps.player.Character
@@ -300,7 +303,7 @@ function PlayerService.updateGunModel(_self, ps: PState)
 		body = mesh
 		body.Anchored = false
 	else
-		local length = if def.id == "pistol" then 1.0 elseif def.id == "sniper" then 3.4 else 2.4
+		local length = GUN_LENGTH[def.id] or 2.4
 		local block = Instance.new("Part")
 		block.Size = Vector3.new(0.35, 0.45, length)
 		block.Color = if def.id == "flamer" then Color3.fromRGB(122, 42, 34) else Color3.fromRGB(44, 47, 51)
@@ -346,6 +349,14 @@ local MELEE_SHAPES = {
 	sledge = {
 		{ Vector3.new(0.07, 0.07, 1.0), -0.42, Color3.fromRGB(96, 72, 48), Enum.Material.Wood },
 		{ Vector3.new(0.22, 0.22, 0.36), -0.92, Color3.fromRGB(74, 78, 84), Enum.Material.Metal },
+	},
+	bat = {
+		{ Vector3.new(0.06, 0.06, 0.4), -0.15, Color3.fromRGB(150, 112, 70), Enum.Material.Wood },
+		{ Vector3.new(0.1, 0.1, 0.55), -0.62, Color3.fromRGB(176, 136, 88), Enum.Material.Wood },
+	},
+	spear = {
+		{ Vector3.new(0.05, 0.05, 1.6), -0.55, Color3.fromRGB(110, 84, 56), Enum.Material.Wood },
+		{ Vector3.new(0.04, 0.09, 0.26), -1.45, Color3.fromRGB(160, 164, 168), Enum.Material.Metal },
 	},
 }
 

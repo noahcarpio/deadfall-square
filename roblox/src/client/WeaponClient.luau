@@ -244,10 +244,10 @@ function WeaponClient.start()
 		local color = Fx.weaponColor(def.id)
 		Context.shake(def.shake)
 		if def.kind == "hitscan" then
-			Fx.muzzle(muzzle, color, def.id == "shotgun" or def.id == "sniper")
+			Fx.muzzle(muzzle, color, def.knockback >= 4)
 			for _, d in dirs do
 				local ex, ez = predictEnd(px, pz, d[1], d[2], def.range)
-				Fx.tracer(muzzle.X, muzzle.Y, muzzle.Z, ex, ez, color, if def.id == "sniper" then 0.35 else 0.18)
+				Fx.tracer(muzzle.X, muzzle.Y, muzzle.Z, ex, ez, color, if def.pierce >= 1 then 0.35 else 0.18)
 			end
 			Audio.play(def.id)
 		elseif def.kind == "flame" then
