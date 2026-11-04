@@ -3,6 +3,7 @@
 	(no collision), invisible collision parts that exactly match the gameplay
 	colliders, street lamp lights and the player spawn.
 ]]
+local MaterialService = game:GetService("MaterialService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -50,15 +51,12 @@ local function pieceCFrame(piece: ArenaLayout.Piece): CFrame
 end
 
 --[[
-	Places an imported mesh for a prop. The mesh pivot is its bounding-box
+	Places imported art for a prop: a replacement Model from ArtAssets (fitted
+	to the fallback's bounds and stood on its base), or else a single mesh. The mesh pivot is its bounding-box
 	centre, so it goes at the centre of the block fallback's bounds measured in
 	the prop's own frame (the generator models each prop to the same bounds).
 ]]
 local function placePropMesh(prop: ArenaLayout.Prop, parts: { ArenaLayout.Piece }, parent: Instance)
-	local mesh = MeshLibrary.clone(prop.name)
-	if not mesh then
-		return false
-	end
 	local frame = CFrame.new(prop.x * S, prop.y * S, prop.z * S) * CFrame.Angles(0, prop.ry, 0)
 	local lo = Vector3.one * math.huge
 	local hi = -lo
@@ -74,6 +72,18 @@ local function placePropMesh(prop: ArenaLayout.Prop, parts: { ArenaLayout.Piece 
 				end
 			end
 		end
+	end
+	if #parts > 0 then
+		local model = MeshLibrary.model(prop.name, hi - lo)
+		if model then
+			model:PivotTo(frame * CFrame.new((lo.X + hi.X) / 2, lo.Y, (lo.Z + hi.Z) / 2))
+			model.Parent = parent
+			return true
+		end
+	end
+	local mesh = MeshLibrary.clone(prop.name)
+	if not mesh then
+		return false
 	end
 	local centre = if #parts > 0 then (lo + hi) / 2 else Vector3.new(0, mesh.Size.Y / 2, 0)
 	mesh.CFrame = frame * CFrame.new(centre)
@@ -92,6 +102,27 @@ local function jitter(color: Color3, index: number, material: string): Color3
 	return if k > 0 then color:Lerp(Color3.new(1, 1, 1), k) else color:Lerp(Color3.new(0, 0, 0), -k)
 end
 
+--[[
+	A MaterialVariant in MaterialService (e.g. a realistic PBR brick from the
+	Creator Store) for this base material, if you've added one. Parts using a
+	variant keep their real material instead of the clean placeholder swap.
+]]
+local variants: { [string]: string | false } = {}
+local function variantFor(name: string): string?
+	local cached = variants[name]
+	if cached == nil then
+		cached = false
+		for _, v in MaterialService:GetDescendants() do
+			if v:IsA("MaterialVariant") and v.BaseMaterial == MATERIALS[name] then
+				cached = v.Name
+				break
+			end
+		end
+		variants[name] = cached
+	end
+	return cached or nil
+end
+
 local function makePart(piece: ArenaLayout.Piece, index: number): BasePart
 	local p = Instance.new("Part")
 	p.Anchored = true
@@ -100,8 +131,15 @@ local function makePart(piece: ArenaLayout.Piece, index: number): BasePart
 	p.CanTouch = false
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Color = jitter(Color3.fromHex(piece.color), index, piece.material)
-	p.Material = MATERIALS[Visuals.material(piece.material)] or Enum.Material.SmoothPlastic
+	local variant = variantFor(piece.material)
+	if variant then
+		p.Color = Color3.fromHex(piece.color)
+		p.Material = MATERIALS[piece.material]
+		p.MaterialVariant = variant
+	else
+		p.Color = jitter(Color3.fromHex(piece.color), index, piece.material)
+		p.Material = MATERIALS[Visuals.material(piece.material)] or Enum.Material.SmoothPlastic
+	end
 	local sx, sy, sz = piece.size[1] * S, piece.size[2] * S, piece.size[3] * S
 	local base = pieceCFrame(piece)
 	if piece.shape == "Cylinder" then

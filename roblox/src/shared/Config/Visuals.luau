@@ -7,8 +7,9 @@
 	    and desaturated by day, cold and harsh at night.
 	  * CLEAN_MATERIALS: Roblox's built-in textured materials (concrete,
 	    slate, fabric...) turn into grainy noise from the high top-down camera,
-	    so the placeholder look swaps them for smooth surfaces. Turn it off, or
-	    replace them with MaterialVariants, once real PBR textures exist.
+	    so the placeholder look swaps them for smooth surfaces. Add a
+	    MaterialVariant to MaterialService (e.g. a realistic brick) and every
+	    part of that base material uses it instead (ArenaBuilder.variantFor).
 ]]
 local CLEAN_MATERIALS = true
 
@@ -53,13 +54,13 @@ return {
 	COLOR_JITTER = 0.05,
 	-- Colour grading by time of day (n = 0 day ... 1 night).
 	GRADE = {
-		dayTint = Color3.fromRGB(245, 238, 226),
+		dayTint = Color3.fromRGB(250, 236, 214),
 		nightTint = Color3.fromRGB(182, 202, 240),
-		contrast = { 0.18, 0.28 },
-		saturation = { -0.22, -0.35 },
+		contrast = { 0.22, 0.3 },
+		saturation = { -0.3, -0.42 },
 		brightness = { 0, -0.02 },
 	},
 	BLOOM = { intensity = { 0.35, 0.9 }, size = 22, threshold = { 1.6, 0.95 } },
-	SUN_RAYS = { intensity = 0.06, spread = 0.7 },
+	SUN_RAYS = { intensity = 0.03, spread = 0.7 },
 	LIGHTING = { shadowSoftness = 0.25, environmentDiffuse = 0.6, environmentSpecular = 0.5 },
 }

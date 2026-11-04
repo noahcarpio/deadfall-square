@@ -54,7 +54,18 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 
 **Where the look lives in code:** `src/shared/Config/Visuals.luau`.
 - **Colour grading:** gritty and desaturated by day, cold blue at night, plus bloom and sun rays, all blended with the day-night cycle.
-- **Placeholder materials:** `CLEAN_MATERIALS` swaps Roblox's built-in textured materials for smooth ones so the draft art isn't grainy from above. Turn it off, or replace the materials with `MaterialVariant`s, once real textures exist.
+- **Placeholder materials:** `CLEAN_MATERIALS` swaps Roblox's built-in textured materials for smooth ones so the draft art isn't grainy from above. Add a realistic `MaterialVariant` to **MaterialService** (e.g. a PBR brick or asphalt from the Creator Store) and every arena part of that base material uses it automatically.
+
+**Swapping in real art (no code changes):** create a folder named **`ArtAssets`** in **ReplicatedStorage** and drop models into it, named after what they replace. Anything missing keeps the draft look.
+
+| Put in `ArtAssets` | Name(s) | What happens |
+|---|---|---|
+| A **Model** (any number of parts) | `Car_1` … `Car_7`, `Car_burnt`, `Bus`, `Bench`, `Crate`, `Dumpster`, `Barrier`, `Barrel_red` / `_yellow` / `_blue` / `_green` | Replaces that arena prop: scaled to fit its footprint, stood on the ground, no collision (the game's own obstacles still apply). |
+| A **MeshPart** (with a `SurfaceAppearance` for PBR) | `Gun_pistol`, `Gun_smg`, `Gun_shotgun`, `Gun_rifle`, `Gun_sniper`, `Gun_flamer`, `Gun_launcher` | Replaces the gun model in players' hands. |
+| A **MeshPart** | `ZombieHead`, `ZombieTorso`, `ZombieArm`, `ZombieLeg` | Replaces the zombie body parts (tinted per zombie type). |
+| A **MeshPart** | `Barricade`, `TurretBase`, `TurretHead`, `Pickup_ammo` / `_armor` / `_coins` / `_health` / `_weapon` | Replaces structures and pickups. |
+
+MeshParts are resized to the sizes in `Config/MeshSizes.luau`, so model them facing the same way as the placeholder (guns: barrel toward −Z; everything else: front toward +Z).
 
 **Getting good models out of AI 3D tools** (Roblox Studio's built-in 3D generation, Meshy, Tripo, Rodin, ...):
 
@@ -71,7 +82,7 @@ The meshes come from a script, `tools/make_meshes.py`. It uses only Python's sta
 5. **Import with Studio's Import 3D:**
    - Put the PBR maps on the mesh as a `SurfaceAppearance`.
    - For large surfaces (roads, walls), make `MaterialVariant`s instead.
-   - Name each model like the placeholder it replaces (e.g. `Car_1`, `Gun_rifle`) and put it in `ReplicatedStorage.DeadfallMeshes`. `MeshLibrary` then uses it automatically, at the size in `Config/MeshSizes.luau`.
+   - Name each model like the placeholder it replaces (see the table above) and put it in `ReplicatedStorage.ArtAssets`.
 6. **Make one model first and check it in game** from the real camera, in daylight and at night, before doing a whole set.
 
 ## UI design language: Field Manual
