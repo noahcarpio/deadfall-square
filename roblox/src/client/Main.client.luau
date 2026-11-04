@@ -106,7 +106,7 @@ station = StationUI.new(screensGui, function(stype: string)
 end, function()
 	-- The merchant's SELL button: open the inventory with selling enabled.
 	station.hide()
-	inventory.show("guns")
+	inventory.show("guns", true)
 end)
 Context.remotes.OpenStation.OnClientEvent:Connect(function(name: string, x: number, z: number)
 	local phase = Context.phase()
@@ -132,7 +132,7 @@ rewards.onChosen = function()
 	pendingRewards = nil
 end
 
--- Default movement controls are disabled while a menu covers the screen.
+-- Default movement controls are disabled while a full-screen menu or placement is up.
 local controls = nil
 task.spawn(function()
 	local ok, module = pcall(function()
@@ -192,10 +192,13 @@ RunService.RenderStepped:Connect(function()
 		inventory.hide()
 	end
 	Context.menuOpen = station.open or rewards.open or gameOver.open or inventory.open or phase == "lobby"
-	-- World prompts (search, trade, revive) hide while a panel covers the screen.
+	-- The merchant, workbench and inventory panels let the player keep walking;
+	-- rewards, game over and the lobby cover the screen and hold them still.
+	local modal = rewards.open or gameOver.open or phase == "lobby"
+	-- World prompts (search, trade, revive) hide while a panel is open.
 	ProximityPromptService.Enabled = not Context.menuOpen and not placement.active
 	if controls then
-		if Context.menuOpen or placement.active then
+		if modal or placement.active then
 			controls:Disable()
 		else
 			controls:Enable()

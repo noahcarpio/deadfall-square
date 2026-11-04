@@ -1,5 +1,6 @@
 --[[
-	The merchant and workbench panels, opened by walking up to them in the
+	The merchant and workbench panels, docked to the right so the player can
+	keep walking (walking away closes them). Opened by walking up to them in the
 	plaza during the grace period. Offers are computed with the same shared
 	ShopRules the server uses (so prices always match); every action is sent
 	to the server, which checks the player's distance and applies it.
@@ -155,14 +156,14 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	local stationX, stationZ = 0, 0
 	local root = Builder.panel({
 		Name = "Station",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.52),
-		Size = UDim2.new(0.9, 0, 0.78, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -16, 0.5, 0),
+		Size = UDim2.new(0.48, 0, 0.86, 0),
 		BackgroundTransparency = 0.06,
 		Visible = false,
 		Parent = gui,
 	})
-	create("UISizeConstraint", { MaxSize = Vector2.new(1040, 640), Parent = root })
+	create("UISizeConstraint", { MinSize = Vector2.new(360, 0), MaxSize = Vector2.new(640, 720), Parent = root })
 	Builder.padding(16).Parent = root
 	local title = Builder.label("", 30, { Font = T.head, Parent = root })
 	local coins = Builder.label("", 20, {
@@ -194,7 +195,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 		Parent = root,
 	})
 	local grid = create("UIGridLayout", {
-		CellSize = UDim2.new(0.25, -8, 0, 168),
+		CellSize = UDim2.new(0.5, -8, 0, 168),
 		CellPadding = UDim2.fromOffset(8, 8),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = body,
@@ -326,7 +327,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	local renderers = {}
 
 	function renderers.weapons(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 150)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 150)
 		for i, id in Weapons.order do
 			local def = Weapons.defs[id]
 			local w = c.arsenal:get(id)
@@ -352,7 +353,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.gearShop(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 160)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 160)
 		local order = 0
 		for _, id in Gear.order do
 			local d = Gear.defs[id]
@@ -364,7 +365,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.gearBench(c)
-		grid.CellSize = UDim2.new(0.33, -8, 0, 186)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 186)
 		local stashed = {}
 		for _, item in Context.gear.stash do
 			stashed[item.uid] = true
@@ -407,7 +408,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.survivor(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 140)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 140)
 		simpleCard(
 			c,
 			0,
@@ -425,7 +426,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.supplies(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 140)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 140)
 		for i, id in Shop.itemShopOrder do
 			local def = Items.defs[id]
 			simpleCard(
@@ -440,7 +441,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.craft(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 170)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 170)
 		for i, id in Shop.recipeOrder do
 			local recipe = Shop.recipes[id]
 			local def = Items.defs[recipe.item]
@@ -472,7 +473,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.build(c)
-		grid.CellSize = UDim2.new(0.25, -8, 0, 170)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 170)
 		for i, stype in Shop.structureOrder do
 			local def = Shop.structures[stype]
 			local action = { kind = "structure", structure = stype }
@@ -500,7 +501,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 	end
 
 	function renderers.upgrade(c)
-		grid.CellSize = UDim2.new(0.33, -8, 0, 176)
+		grid.CellSize = UDim2.new(0.5, -8, 0, 176)
 		local order = 0
 		for _, id in Weapons.order do
 			local def = Weapons.defs[id]
@@ -630,7 +631,7 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 			math.max(0, math.ceil((Context.gameState:GetAttribute("PhaseEnd") or 0) - Workspace:GetServerTimeNow()))
 		local inv = Context.inventory
 		local timing = if Context.phase() == "intermission" then `next floor in {left}s` else "floor in progress"
-		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · {timing} · Esc to leave`
+		bag.Text = `Bag {string.format("%.1f", inv:weight())}/{inv.capacity} kg · {timing} · walk away or Esc to leave`
 		local character = Context.character()
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if rootPart then

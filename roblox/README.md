@@ -100,7 +100,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 | Use: search, trade, craft, ring bell, revive | F (hold to search / revive) | Y | Tap (and hold) the prompt |
 | Bandage / pipe bomb | B / G (thrown at the cursor) | D-pad up / down | HEAL / BOMB |
 | Inventory (guns, gear, items: equip, use, drop, sell) | I | D-pad right | BAG |
-| Leave the merchant / workbench | Esc or LEAVE | B | LEAVE |
+| Leave the merchant / workbench (or just walk away) | Esc or LEAVE | B | LEAVE |
 | Placement: rotate / cancel / pan | R or right-click / Esc / WASD | — / B / — | ROTATE / CANCEL / drag |
 
 ## What's in it
@@ -126,7 +126,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 - **Weapons:** pistol (infinite ammo), shotgun, SMG, assault rifle, sniper (piercing), flamethrower (burning), grenade launcher, with per-weapon damage, fire-rate and magazine upgrades.
 - **Co-op rules:** shared waves that scale with player count; personal coins, score, upgrades and perks; teammates can revive downed players; the run ends when everyone is down; the boss's coin reward is shared.
 - **Scavenging:** cars, the bus, crate stacks, dumpsters and trash piles hold scrap, planks, rags, electronics, gunpowder, ammo, coins and bandages. Hold F to search. Loot is shared, and whatever doesn't fit stays for a teammate. Containers refill at the start of a run and some refill at every grace period. The bag has a weight limit (10 kg, +5 per Bigger Backpack).
-- **Inventory (I):** a full-screen inventory you can open anywhere, with three tabs.
+- **Inventory (I):** a panel docked to the right that you can open anywhere, even while walking, with three tabs.
   - **Guns:** stats, ammo, upgrades and gear traits. Hold, drop or sell each gun.
   - **Gear:** what's equipped plus the stash. Equip, drop or sell pieces.
   - **Items:** use, drop or sell one or all.
@@ -136,7 +136,7 @@ Every menu is a page from a survivor's field manual: paper, ink and a single rus
 - **Items:** bandages heal 35. Pipe bombs are thrown at the cursor, beep for 4 seconds to lure every zombie in earshot, then explode.
 - **Character animation:** Roblox's default walk/run/idle animations, plus procedural poses everyone sees: gun raised to aim (lowered while sprinting), recoil on each shot, a reload motion, melee swings (forehand, backhand, overhead finisher), a tumble on the dodge roll, and lying down while downed. R15 avatars get the full set; R6 gets the arm poses, roll and downed pose.
 - **Feel:** procedurally animated zombies with hit flash, knockback, topple-and-fade deaths, goo bursts and splats, explosions with light flashes, screen shake, floating damage numbers, combo multiplier, day-to-night cycle by wave with fog, lamps and per-player flashlights.
-- **UI:** lobby with ready-up, how-to-play and the global top-10, HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant and workbench panels, bag and gear panel, reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
+- **UI:** lobby with ready-up, how-to-play and the global top-10, HUD (health, armor, stamina, bag and materials, ammo, weapon slots, wave, zombies left, boss bar, score, coins, combo, perks, teammates, minimap, crosshair), floor objective and progress, gadget cooldowns, merchant, workbench and inventory panels docked to the right (you can keep walking; walking away closes them), reward cards, victory / game-over stats (floors cleared, kills by type, accuracy, time, best combo, coins, damage, revives).
 
 ## Architecture
 

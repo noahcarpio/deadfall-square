@@ -90,14 +90,14 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 	local self: any = { open = false }
 	local root = Builder.panel({
 		Name = "Inventory",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.52),
-		Size = UDim2.new(0.92, 0, 0.82, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -16, 0.5, 0),
+		Size = UDim2.new(0.48, 0, 0.86, 0),
 		BackgroundTransparency = 0.04,
 		Visible = false,
 		Parent = gui,
 	})
-	create("UISizeConstraint", { MaxSize = Vector2.new(1080, 680), Parent = root })
+	create("UISizeConstraint", { MinSize = Vector2.new(360, 0), MaxSize = Vector2.new(640, 720), Parent = root })
 	Builder.padding(16).Parent = root
 	Builder.label("INVENTORY", 30, { Font = T.head, Parent = root })
 	Builder.rule({
@@ -143,7 +143,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		Parent = root,
 	})
 	create("UIGridLayout", {
-		CellSize = UDim2.new(0.333, -8, 0, 170),
+		CellSize = UDim2.new(0.5, -8, 0, 170),
 		CellPadding = UDim2.fromOffset(8, 8),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = body,
@@ -151,6 +151,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 
 	local tab = "guns"
 	local selling = false
+	local openedAtMerchant = false
 	local render: () -> ()
 
 	local function sell(action)
@@ -460,13 +461,15 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		end)
 	end
 
-	function self.show(startTab: string?)
+	-- `fromMerchant`: opened with the merchant's SELL button, so it closes when the player walks off.
+	function self.show(startTab: string?, fromMerchant: boolean?)
 		if startTab then
 			tab = startTab
 		end
 		root.Visible = true
 		self.open = true
 		selling = atMerchant()
+		openedAtMerchant = fromMerchant == true
 		render()
 		ContextActionService:BindActionAtPriority("DeadfallCloseInventory", function(_, state)
 			if state == Enum.UserInputState.Begin then
@@ -509,6 +512,10 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 		local now = atMerchant()
 		status.Text = if now then "SELLING OPEN — you're at the merchant" else "Sell at the merchant (open all run)"
 		status.TextColor3 = if now then T.accent else T.muted
+		if openedAtMerchant and not now then
+			self.hide()
+			return
+		end
 		if now ~= selling then
 			selling = now
 			render()
