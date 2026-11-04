@@ -69,7 +69,6 @@ local Context = {
 	tiers = { maxHealth = 0, armor = 0, speed = 0, stamina = 0, backpack = 0 },
 	-- Mirror of the server's bag (InventorySync).
 	inventory = Inventory.new(Items.BASE_CAPACITY),
-	crouching = false,
 	-- Mirror of the server's gear (GearSync): stash, melee, armor, gadgets, guns.
 	gear = { stash = {}, melee = false, armor = false, gadgets = { false, false, false }, guns = {} } :: any,
 	stamina = base.maxStamina,
@@ -107,7 +106,6 @@ local Context = {
 		notify = signal(),
 		phaseChanged = signal(),
 		inventoryChanged = signal(),
-		crouchChanged = signal(),
 		gearChanged = signal(),
 		dash = signal(), -- (dirX, dirZ, distance) Charge Strike
 		fired = signal(), -- (weaponId) our own shot, for the recoil animation

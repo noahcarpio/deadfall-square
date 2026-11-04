@@ -24,7 +24,6 @@ export type Modifier = {
 	hp: number,
 	speed: number,
 	coins: number,
-	sight: number, -- zombie sight range multiplier
 	fog: number, -- extra atmosphere density
 	brutes: number, -- share of walkers turned into brutes
 }
@@ -85,7 +84,6 @@ local function mod(
 		hp = effects.hp or 1,
 		speed = effects.speed or 1,
 		coins = effects.coins or 1,
-		sight = effects.sight or 1,
 		fog = effects.fog or 0,
 		brutes = effects.brutes or 0,
 	}
@@ -93,7 +91,7 @@ end
 
 local MODIFIERS: { [string]: Modifier } = {
 	none = mod("none", "", "", 3, 1, {}),
-	fog = mod("fog", "Thick Fog", "You can't see far, and neither can they.", 1, 2, { fog = 0.35, sight = 0.7 }),
+	fog = mod("fog", "Thick Fog", "You can't see far.", 1, 2, { fog = 0.35 }),
 	bloodMoon = mod(
 		"bloodMoon",
 		"Blood Moon",

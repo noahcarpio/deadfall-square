@@ -42,5 +42,5 @@ return {
 	BASE_CAPACITY = 10,
 	CAPACITY_PER_BACKPACK = 5,
 	BANDAGE_HEAL = 35,
-	PIPEBOMB = { fuse = 4, radius = 4.5, damage = 220, noise = 30, range = 14 },
+	PIPEBOMB = { fuse = 4, radius = 4.5, damage = 220, range = 14 },
 }

@@ -93,11 +93,7 @@ function GameServer.start()
 	W.collision = collision
 	W.nav = NavGrid.new(-Constants.WORLD_HALF, -Constants.WORLD_HALF, Constants.WORLD_HALF, Constants.WORLD_HALF)
 	W.flow = FlowField.new(W.nav)
-	-- Second field toward points of interest, for zombies investigating noises.
-	W.noiseFlow = FlowField.new(W.nav)
 	W.night = 0
-	local noiseVersion = -1
-	local noiseTimer = 0
 
 	local flowDirty = true
 	local flowTimer = 0
@@ -112,18 +108,11 @@ function GameServer.start()
 	function W.notifyAll(text: string, tone: string)
 		remotes.Notify:FireAllClients(text, tone)
 	end
-	-- A noise zombies within `radius` metres can hear.
-	function W.noise(x: number, z: number, radius: number)
-		if W.zombies and radius > 0 then
-			W.zombies:hear(x, z, radius)
-		end
-	end
 	function W.rebuildNav()
 		W.nav:rebuild(collision.colliders, NAV_INFLATE, function(c)
 			return W.structures:isStructureCollider(c)
 		end)
 		flowDirty = true
-		noiseVersion = -1
 	end
 
 	local toLobby: () -> ()
@@ -378,12 +367,6 @@ function GameServer.start()
 			if player.Character then
 				player.Character:SetAttribute("RollAt", Workspace:GetServerTimeNow())
 			end
-		end
-	end)
-	remotes.Crouch.OnServerEvent:Connect(function(player, on)
-		local ps = stateOf(player)
-		if ps and type(on) == "boolean" then
-			W.players:setCrouch(ps, on)
 		end
 	end)
 	remotes.UseItem.OnServerEvent:Connect(function(player, id, aimX, aimZ, aimDistance)
@@ -688,24 +671,6 @@ function GameServer.start()
 		end
 	end
 
-	-- Investigation field: recomputed when the set of points of interest changes.
-	local function updateNoiseFlow(dt: number)
-		noiseTimer -= dt
-		if noiseTimer > 0 then
-			return
-		end
-		noiseTimer = 0.3
-		local goals = W.zombies:liveGoals()
-		if W.zombies.goalsVersion ~= noiseVersion then
-			noiseVersion = W.zombies.goalsVersion
-			if #goals > 0 then
-				W.noiseFlow:compute(goals)
-			else
-				W.noiseFlow:compute({ { 0, 6 } })
-			end
-		end
-	end
-
 	setPhase("lobby")
 	applyNight(night)
 
@@ -770,9 +735,7 @@ function GameServer.start()
 
 		if phase ~= "lobby" then
 			updateFlow(dt)
-			updateNoiseFlow(dt)
 			W.zombies:update(dt)
-			W.players:markSpotted(W.zombies.spotted)
 			W.weapons:update(dt)
 			W.throwables:update(dt)
 			W.abilities:update(dt)

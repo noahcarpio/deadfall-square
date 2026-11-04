@@ -7,7 +7,7 @@
 	  medBurst     - heal yourself and nearby teammates
 	  shockBeacon  - stun nearby zombies (bosses are only slowed)
 	  scrapDrone   - a temporary turret for 15 seconds
-	  flare        - thrown lure that pulls zombies in and sets them alight
+	  flare        - thrown flare that sets nearby zombies alight
 	  adrenal      - +30% speed and fire rate for a few seconds
 ]]
 local Workspace = game:GetService("Workspace")
@@ -123,7 +123,6 @@ function Abilities.use(self, ps, slot: any, aimX: any, aimZ: any, aimDistance: a
 		ps.invulnUntil = math.max(ps.invulnUntil, now + 0.35)
 		data = { dirX = ax, dirZ = az, distance = reach }
 		W.fx("slam", { x = ps.x + ax * reach, z = ps.z + az * reach, small = true })
-		W.noise(ps.x, ps.z, 8)
 	elseif item.id == "medBurst" then
 		local heal = 40 * amp
 		for _, other in W.players:list() do
@@ -137,7 +136,6 @@ function Abilities.use(self, ps, slot: any, aimX: any, aimZ: any, aimDistance: a
 		local radius = 6 * (if Gear.has(item, "amplified") then 1.3 else 1)
 		self:stun(ps.x, ps.z, radius, 2.5 * math.min(1.6, item.power))
 		W.fx("shockwave", { x = ps.x, z = ps.z, delay = 0, speed = 30, maxRadius = radius })
-		W.noise(ps.x, ps.z, 12)
 	elseif item.id == "scrapDrone" then
 		local placed = nil
 		for _, offset in { { 0, 0 }, { 1.5, 0 }, { -1.5, 0 }, { 0, 1.5 }, { 0, -1.5 }, { 1.5, 1.5 }, { -1.5, -1.5 } } do

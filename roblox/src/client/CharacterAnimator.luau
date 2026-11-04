@@ -7,7 +7,6 @@
 	             it; lowered to a "low ready" while sprinting
 	  recoil   - arm and gun kick back on each shot
 	  reload   - gun twists, support hand drops to the belt for a new magazine
-	  crouch   - knees bent and torso leaning in, with a slow sneaking stride
 	  roll     - a forward tumble during the dodge roll
 	  downed   - lying on the ground until revived
 	  swing    - melee: forehand, backhand and an overhead finisher (the melee
@@ -20,7 +19,7 @@
 	rather than its Transform, which the Animator rewrites every frame, so
 	they always show and the default animations still play on top. Poses are
 	expressed in each joint's parent-part frame so R15 and R6 rigs both work
-	(R6 gets arms, roll and downed; crouching legs need R15). The Output
+	(R6 gets arms, roll and downed; the leg tuck needs R15). The Output
 	window gets one "[CharacterAnimator]" line per character with the joints
 	it found (or a warning if it found none).
 ]]
@@ -40,7 +39,6 @@ local damp = MathUtil.damp
 local S = Constants.STUDS
 local HALF_PI = math.pi / 2
 local ROLL_TIME = PlayerStats.BASE.rollDuration
-local CROUCH_DROP = 0.6
 local SPRINT_SPEED = PlayerStats.BASE.speed * S * 1.25
 
 local JOINTS_R15 = {
@@ -54,8 +52,6 @@ local JOINTS_R15 = {
 	lHip = { "LeftUpperLeg", "LeftHip" },
 	rKnee = { "RightLowerLeg", "RightKnee" },
 	lKnee = { "LeftLowerLeg", "LeftKnee" },
-	rAnkle = { "RightFoot", "RightAnkle" },
-	lAnkle = { "LeftFoot", "LeftAnkle" },
 }
 local JOINTS_R6 = {
 	rShoulder = { "Torso", "Right Shoulder" },
@@ -91,13 +87,10 @@ type Rig = {
 	badTime: number,
 	strategyReported: boolean,
 	failed: boolean,
-	legLength: number,
 	aim: number,
 	sprint: number,
-	crouch: number,
 	downed: number,
 	recoil: number,
-	stride: number,
 	rescanAt: number,
 	firstSeen: number,
 	reported: boolean,
@@ -155,13 +148,6 @@ local function scan(rig: Rig)
 			end
 		end
 	end
-	if rig.r15 then
-		local upper = rig.character:FindFirstChild("RightUpperLeg") :: BasePart?
-		local lower = rig.character:FindFirstChild("RightLowerLeg") :: BasePart?
-		if upper and lower then
-			rig.legLength = upper.Size.Y + lower.Size.Y
-		end
-	end
 	rig.rescanAt = os.clock() + 1
 
 	-- Diagnostics in the Output window, once per character.
@@ -205,17 +191,14 @@ local function rigFor(character: Model): Rig?
 			character = character,
 			r15 = humanoid.RigType == Enum.HumanoidRigType.R15,
 			joints = {},
-			legLength = 2,
 			strategy = 1,
 			badTime = 0,
 			strategyReported = false,
 			failed = false,
 			aim = 0,
 			sprint = 0,
-			crouch = 0,
 			downed = 0,
 			recoil = 0,
-			stride = 0,
 			rescanAt = 0,
 			firstSeen = os.clock(),
 			reported = false,
@@ -346,7 +329,6 @@ end
 type State = {
 	hasGun: boolean,
 	downed: boolean,
-	crouching: boolean,
 	sprinting: boolean,
 	reload: number, -- 0..1 progress, or -1
 	roll: number, -- 0..1 progress, or -1
@@ -382,7 +364,6 @@ end
 local function animate(rig: Rig, st: State, dt: number)
 	rig.aim = damp(rig.aim, if st.hasGun and not st.downed then 1 else 0, 14, dt)
 	rig.sprint = damp(rig.sprint, if st.sprinting then 1 else 0, 10, dt)
-	rig.crouch = damp(rig.crouch, if st.crouching and not st.downed then 1 else 0, 12, dt)
 	rig.downed = damp(rig.downed, if st.downed then 1 else 0, 6, dt)
 	rig.recoil = damp(rig.recoil, 0, 14, dt)
 
@@ -474,26 +455,16 @@ local function animate(rig: Rig, st: State, dt: number)
 
 	-- Legs and torso.
 	if rig.r15 then
-		local c = rig.crouch
-		local alpha = math.acos(math.clamp((rig.legLength - CROUCH_DROP) / rig.legLength, 0, 1))
-		local move = math.clamp(st.speed / 8, 0, 1)
-		rig.stride += dt * st.speed * 0.9
-		local swing = math.sin(rig.stride) * 0.45 * move
-		local lift = 0.3 * move
+		-- Knees tuck in during the roll.
 		local tuck = if st.roll >= 0 then math.sin(math.pi * st.roll) else 0
-		local legW = math.max(c, tuck)
-		local hipA = alpha * c + tuck * 1.3
-		local kneeA = -2 * alpha * c - tuck * 2
-		pose(rig, "rHip", rx(hipA + swing * c), legW)
-		pose(rig, "lHip", rx(hipA - swing * c), legW)
-		pose(rig, "rKnee", rx(kneeA - math.max(0, -math.sin(rig.stride)) * lift * c), legW)
-		pose(rig, "lKnee", rx(kneeA - math.max(0, math.sin(rig.stride)) * lift * c), legW)
-		pose(rig, "rAnkle", rx(alpha * c), c)
-		pose(rig, "lAnkle", rx(alpha * c), c)
-		-- Lean in while crouched; the upper body kicks back a little on each shot.
+		pose(rig, "rHip", rx(tuck * 1.3), tuck)
+		pose(rig, "lHip", rx(tuck * 1.3), tuck)
+		pose(rig, "rKnee", rx(-tuck * 2), tuck)
+		pose(rig, "lKnee", rx(-tuck * 2), tuck)
+		-- The upper body kicks back a little on each shot.
 		if not swinging then
-			local waistW = if (c > 0.01 or rig.recoil > 0.02) and rig.downed < 0.5 then 1 else 0
-			pose(rig, "waist", rx(-0.35 * c + 0.15 * rig.recoil), waistW)
+			local waistW = if rig.recoil > 0.02 and rig.downed < 0.5 then 1 else 0
+			pose(rig, "waist", rx(0.15 * rig.recoil), waistW)
 		end
 	end
 
@@ -513,7 +484,6 @@ local function stateFor(player: Player, character: Model): State
 	local st: State = {
 		hasGun = character:FindFirstChild("Gun") ~= nil,
 		downed = player:GetAttribute("Downed") == true,
-		crouching = false,
 		sprinting = false,
 		reload = -1,
 		roll = -1,
@@ -522,7 +492,6 @@ local function stateFor(player: Player, character: Model): State
 		speed = speed,
 	}
 	if player == Context.player then
-		st.crouching = Context.crouching
 		st.sprinting = Context.sprinting and speed > 1
 		local a = Context.arsenal
 		if a.reloadEnd > 0 and a.reloadDuration > 0 then
@@ -538,7 +507,6 @@ local function stateFor(player: Player, character: Model): State
 		end
 	else
 		local now = Workspace:GetServerTimeNow()
-		st.crouching = character:GetAttribute("Crouching") == true
 		st.sprinting = speed > SPRINT_SPEED
 		local reloadEnd = character:GetAttribute("ReloadEnd")
 		local reloadTime = character:GetAttribute("ReloadTime")

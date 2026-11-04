@@ -171,7 +171,7 @@ def({
 	id = "flare",
 	kind = "gadget",
 	name = "Flare",
-	description = "Throw a burning flare that lures zombies and sets them alight.",
+	description = "Throw a burning flare that sets nearby zombies alight.",
 	weight = 1,
 	price = 160,
 	gadget = { cooldown = 14 },

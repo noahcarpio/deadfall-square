@@ -1,7 +1,7 @@
 --[[
 	Thrown lures, landing at the aim point (stopping short of obstacles):
 	  pipebomb - beeps loudly to lure every zombie in earshot, then explodes
-	  flare    - burns for a while, luring zombies and setting nearby ones alight
+	  flare    - burns for a while, setting nearby zombies alight
 ]]
 local Workspace = game:GetService("Workspace")
 
@@ -12,7 +12,7 @@ local Items = require(Shared.Config.Items)
 local S = Constants.STUDS
 local BOMB = Items.PIPEBOMB
 local THROW_SPEED = 14
-local FLARE = { seconds = 7, noise = 26, burnRadius = 2.6, burnDps = 14 }
+local FLARE = { seconds = 7, burnRadius = 2.6, burnDps = 14 }
 
 local Throwables = {}
 Throwables.__index = Throwables
@@ -128,7 +128,6 @@ function Throwables.update(self, dt: number)
 				b.beep -= dt
 				if b.beep <= 0 then
 					b.beep = 0.5
-					W.noise(b.x, b.z, FLARE.noise)
 					local near = {}
 					local n = W.zombies:queryRadius(b.x, b.z, FLARE.burnRadius, near)
 					for k = 1, n do
@@ -155,7 +154,6 @@ function Throwables.update(self, dt: number)
 				-- Beeps speed up as the fuse runs out.
 				local left = b.flight + BOMB.fuse - b.t
 				b.beep = if left > 1.5 then 0.5 else 0.2
-				W.noise(b.x, b.z, BOMB.noise)
 				W.fx("beep", { x = b.x, z = b.z })
 			end
 			if b.light then

@@ -1,8 +1,7 @@
 --[[
 	Server-side state for every player: vitals (health/armor, downed & revive),
 	position in simulation metres, arsenal, coins/score, perks, upgrades and
-	run statistics, the inventory bag and stealth state (crouching, footstep
-	noise, whether a zombie can see them). Exposes values to clients through
+	run statistics, and the inventory bag. Exposes values to clients through
 	Player attributes and sync remotes; the server is authoritative for all
 	of it.
 ]]
@@ -16,7 +15,6 @@ local Arsenal = require(Shared.Arsenal)
 local Gear = require(Shared.Gear)
 local Inventory = require(Shared.Inventory)
 local Items = require(Shared.Config.Items)
-local Stealth = require(Shared.Config.Stealth)
 local MeshLibrary = require(Shared.MeshLibrary)
 local Economy = require(Shared.Economy)
 local PerkState = require(Shared.PerkState)
@@ -46,12 +44,6 @@ export type PState = {
 	nextUid: number,
 	abilityReady: { [number]: number },
 	meleeStep: number,
-	crouching: boolean,
-	noiseTimer: number,
-	noiseX: number,
-	noiseZ: number,
-	spottedUntil: number,
-	lastShotNoise: number,
 	stats: PlayerStats.Stats,
 	hp: number,
 	armor: number,
@@ -120,7 +112,6 @@ local function freshRunState(ps: PState)
 	ps.inventory = Inventory.new(ps.stats.carryCapacity)
 	ps.inventory:add("cloth", 2)
 	ps.inventory:add("bandage", 1)
-	ps.spottedUntil = 0
 	ps.hp = ps.stats.maxHealth
 	ps.armor = 0
 	ps.downed = false
@@ -152,11 +143,6 @@ function PlayerService.add(self, player: Player)
 		vz = 0,
 		hasBody = false,
 		ready = false,
-		crouching = false,
-		noiseTimer = 0,
-		noiseX = 0,
-		noiseZ = 8,
-		lastShotNoise = 0,
 		lastHurtNotify = 0,
 		connections = {},
 	} :: any
@@ -280,8 +266,6 @@ function PlayerService.setupCharacter(self, ps: PState, character: Model)
 	end)
 	ps.prompt = prompt
 
-	ps.crouching = false
-	character:SetAttribute("Crouching", false)
 	self:updateGunModel(ps)
 	self:updateMeleeModel(ps)
 	self:applyMovement(ps)
@@ -417,7 +401,7 @@ end
 function PlayerService.applyMovement(_self, ps: PState)
 	local h = ps.humanoid
 	if h then
-		h.WalkSpeed = if ps.downed then 0 else ps.stats.speed * S * (if ps.crouching then Stealth.CROUCH_SPEED else 1)
+		h.WalkSpeed = if ps.downed then 0 else ps.stats.speed * S
 	end
 	if ps.prompt then
 		ps.prompt.Enabled = ps.downed
@@ -436,7 +420,6 @@ function PlayerService.tick(self, dt: number, night: number)
 			ps.vz = (nz - ps.z) / math.max(dt, 1e-3)
 			ps.x, ps.z = nx, nz
 			ps.hasBody = true
-			self:footsteps(ps, dt)
 			if ps.flashlight then
 				ps.flashlight.Brightness = if night > 0.35 and not ps.downed then 1.5 + night * 2.5 else 0
 			end
@@ -461,53 +444,7 @@ function PlayerService.syncAttributes(self)
 		p:SetAttribute("ComboMult", ps.economy:multiplier())
 		p:SetAttribute("ComboT", ps.economy:comboRemaining())
 		p:SetAttribute("Ready", ps.ready)
-		p:SetAttribute("Spotted", os.clock() < ps.spottedUntil)
 	end
-end
-
--- Footstep noise from how fast the player actually moved over the last interval.
-function PlayerService.footsteps(self, ps: PState, dt: number)
-	ps.noiseTimer -= dt
-	if ps.noiseTimer > 0 then
-		return
-	end
-	local interval = 0.4
-	ps.noiseTimer = interval
-	local moved = math.sqrt((ps.x - ps.noiseX) ^ 2 + (ps.z - ps.noiseZ) ^ 2) / interval
-	ps.noiseX, ps.noiseZ = ps.x, ps.z
-	if ps.downed or moved < 0.6 or moved > 40 then
-		return -- standing still, or a teleport
-	end
-	local radius = if ps.crouching
-		then Stealth.NOISE.crouch
-		elseif moved > ps.stats.speed * 1.2 then Stealth.NOISE.sprint
-		else Stealth.NOISE.walk
-	self.W.noise(ps.x, ps.z, radius)
-end
-
--- Marks players a zombie saw this tick (for the HUD's "spotted" eye).
-function PlayerService.markSpotted(self, spotted: { [any]: boolean })
-	local now = os.clock()
-	for ps in spotted do
-		if self.states[ps.player] == ps then
-			ps.spottedUntil = now + 1
-		end
-	end
-end
-
-function PlayerService.setCrouch(self, ps: PState, on: boolean)
-	if ps.downed then
-		on = false
-	end
-	if ps.crouching == on then
-		return
-	end
-	ps.crouching = on
-	local character = ps.player.Character
-	if character then
-		character:SetAttribute("Crouching", on)
-	end
-	self:applyMovement(ps)
 end
 
 ------------------------------------------------------------------ gear
@@ -781,7 +718,6 @@ function PlayerService.damage(
 		end
 		ps.hp = 0
 		ps.downed = true
-		self:setCrouch(ps, false)
 		self:applyMovement(ps)
 		W.notifyAll(`{ps.player.DisplayName} is down! Hold F next to them to revive.`, "bad")
 	end
@@ -803,7 +739,6 @@ function PlayerService.resetAll(self)
 	for _, ps in self.states do
 		freshRunState(ps)
 		ps.ready = false
-		self:setCrouch(ps, false)
 		self:applyMovement(ps)
 		self:updateGunModel(ps)
 		self:updateMeleeModel(ps)

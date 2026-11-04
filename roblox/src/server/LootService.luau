@@ -3,7 +3,7 @@
 	piles). Each holds rolled loot shared by everyone: hold the prompt to
 	search it and take whatever fits in your bag; the rest stays for someone
 	else. Containers restock at the start of a run and, by chance, at every
-	grace period. Searching makes a little noise.
+	grace period.
 ]]
 local Workspace = game:GetService("Workspace")
 
@@ -11,7 +11,6 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Items = require(Shared.Config.Items)
 local Loot = require(Shared.Loot)
-local Stealth = require(Shared.Config.Stealth)
 local Weapons = require(Shared.Config.Weapons)
 
 local S = Constants.STUDS
@@ -113,8 +112,6 @@ function LootService.search(self, c, player: Player)
 	if (ps.x - c.x) ^ 2 + (ps.z - c.z) ^ 2 > reach * reach then
 		return
 	end
-	W.noise(c.x, c.z, Stealth.NOISE.search)
-
 	local found = {}
 	local leftOver = false
 	local ammoLeft = false

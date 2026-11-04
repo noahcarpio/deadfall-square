@@ -29,7 +29,6 @@ Net.EVENTS = {
 	"RewardOffer", -- s->c: three reward cards (RewardRules.Card)
 	"GameOver", -- s->c: end-of-run stats
 	"Adrenaline", -- s->c: stamina refund + speed boost after a kill
-	"Crouch", -- c->s: boolean
 	"UseItem", -- c->s: itemId, aimX, aimZ, aimDistance (bandage / pipe bomb)
 	"DiscardItem", -- c->s: itemId, count
 	"InventorySync", -- s->c: { items, capacity }

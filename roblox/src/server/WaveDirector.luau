@@ -124,10 +124,7 @@ function WaveDirector.start(self, players: number)
 	if self.objective == "defend" then
 		local hp = Floors.bellHp(self.wave, self.players)
 		local bx, bz = W.stations:position("bell")
-		self.bell = { x = bx, z = bz - 1.1, vx = 0, vz = 0, hp = hp, maxHp = hp, isBell = true, crouching = false }
-		W.zombies:setHome(self.bell.x, self.bell.z)
-	else
-		W.zombies:setHome(nil, nil)
+		self.bell = { x = bx, z = bz - 1.1, vx = 0, vz = 0, hp = hp, maxHp = hp, isBell = true }
 	end
 end
 
@@ -150,7 +147,6 @@ function WaveDirector.damageBell(self, amount: number)
 		self.bellBroken = true
 		self.W.fx("structureBreak", { x = bell.x, z = bell.z })
 		self.W.notifyAll("The bell is broken! No reward for this floor.", "bad")
-		self.W.zombies:setHome(nil, nil)
 	end
 end
 
@@ -287,7 +283,6 @@ function WaveDirector.update(self, dt: number): boolean
 			self:collapse()
 		end
 		self.active = false
-		W.zombies:setHome(nil, nil)
 		return true
 	end
 	return false

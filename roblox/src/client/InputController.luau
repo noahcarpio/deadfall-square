@@ -26,7 +26,6 @@ local InputController = {
 	onRoll = Context.signal(),
 	onReload = Context.signal(),
 	onSwitch = Context.signal(), -- (slot | nil, direction | nil)
-	onCrouch = Context.signal(), -- toggle
 	onUseItem = Context.signal(), -- (itemId)
 	onToggleBag = Context.signal(),
 	onMelee = Context.signal(),
@@ -188,13 +187,6 @@ local function buildMobileControls(): ScreenGui
 	button("SWAP", function()
 		InputController.onSwitch:fire(nil, 1)
 	end)
-	local crouchButton
-	crouchButton = button("SNEAK", function()
-		InputController.onCrouch:fire()
-	end, column2)
-	Context.signals.crouchChanged:connect(function()
-		crouchButton.BackgroundColor3 = if Context.crouching then T.accent else T.panel
-	end)
 	button("HEAL", function()
 		InputController.onUseItem:fire("bandage")
 	end, column2)
@@ -265,12 +257,13 @@ local function bindActions()
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.ButtonL1)
-	ContextActionService:BindAction("DeadfallCrouch", function(_, state, input)
-		if state == Enum.UserInputState.Begin and not gadgetCombo(input) then
-			InputController.onCrouch:fire()
+	-- B is only a gadget with LB held (menus use it to close).
+	ContextActionService:BindAction("DeadfallGadgetB", function(_, state, input)
+		if state == Enum.UserInputState.Begin and gadgetCombo(input) then
+			return Enum.ContextActionResult.Sink
 		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
+		return Enum.ContextActionResult.Pass
+	end, false, Enum.KeyCode.ButtonB)
 	-- Y is the prompt button; only take it while LB is held.
 	ContextActionService:BindActionAtPriority("DeadfallGadgetY", function(_, state, input)
 		if state == Enum.UserInputState.Begin and gadgetCombo(input) then

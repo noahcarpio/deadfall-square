@@ -24,7 +24,6 @@ export type WeaponDef = {
 	blastRadius: number?,
 	projectileSpeed: number?,
 	-- Zombies within this many metres hear each shot.
-	noise: number,
 	description: string,
 }
 
@@ -33,7 +32,6 @@ local INF = math.huge
 local WEAPONS: { [string]: WeaponDef } = {
 	pistol = {
 		id = "pistol",
-		noise = 22,
 		name = "M9 Pistol",
 		slot = 1,
 		kind = "hitscan",
@@ -56,7 +54,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	shotgun = {
 		id = "shotgun",
-		noise = 32,
 		name = "Pump Shotgun",
 		slot = 2,
 		kind = "hitscan",
@@ -79,7 +76,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	smg = {
 		id = "smg",
-		noise = 26,
 		name = "Vector SMG",
 		slot = 3,
 		kind = "hitscan",
@@ -102,7 +98,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	rifle = {
 		id = "rifle",
-		noise = 30,
 		name = "AR-15 Rifle",
 		slot = 4,
 		kind = "hitscan",
@@ -125,7 +120,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	sniper = {
 		id = "sniper",
-		noise = 40,
 		name = "Bolt Sniper",
 		slot = 5,
 		kind = "hitscan",
@@ -148,7 +142,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	flamer = {
 		id = "flamer",
-		noise = 10,
 		name = "Flamethrower",
 		slot = 6,
 		kind = "flame",
@@ -172,7 +165,6 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 	launcher = {
 		id = "launcher",
-		noise = 24,
 		name = "Grenade Launcher",
 		slot = 7,
 		kind = "grenade",

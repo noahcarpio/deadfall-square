@@ -151,11 +151,6 @@ function WeaponService.onFire(self, ps, weaponId: any, dirs: any, aimDistance: a
 		return
 	end
 	local def = Weapons.defs[weaponId]
-	-- Gunfire carries: every zombie within earshot comes to look.
-	if now - (ps.lastShotNoise or 0) > 0.15 then
-		ps.lastShotNoise = now
-		W.noise(ps.x, ps.z, def.noise)
-	end
 	local w = ps.arsenal:currentState()
 	local damage = Weapons.damageOf(def, w.upgrades) * ps.arsenal:powerOf(def.id)
 	local gunGear = ps.gear.guns[def.id]
@@ -235,7 +230,7 @@ end
 --[[
 	One melee swing toward (aimX, aimZ): everything in the weapon's cone takes
 	damage. Swings chain into a three-hit combo whose last hit is a heavy
-	finisher. Nearly silent, so it pairs well with sneaking.
+	finisher.
 ]]
 function WeaponService.onMelee(self, ps, aimX: any, aimZ: any)
 	local W = self.W
@@ -271,7 +266,6 @@ function WeaponService.onMelee(self, ps, aimX: any, aimZ: any)
 		character:SetAttribute("SwingAt", Workspace:GetServerTimeNow())
 		character:SetAttribute("SwingStep", ps.meleeStep)
 	end
-	W.noise(ps.x, ps.z, MeleeMath.NOISE)
 
 	local near = self.near
 	local n = W.zombies:queryRadius(ps.x, ps.z, def.range + 1.5, near)

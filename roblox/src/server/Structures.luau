@@ -8,7 +8,6 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Constants = require(Shared.Config.Constants)
 local Visuals = require(Shared.Config.Visuals)
-local Stealth = require(Shared.Config.Stealth)
 local Shop = require(Shared.Config.Shop)
 local MathUtil = require(Shared.Util.MathUtil)
 local MeshLibrary = require(Shared.MeshLibrary)
@@ -363,11 +362,6 @@ function Structures.damage(self, s, amount: number)
 	s.hp -= amount
 	self:updateLook(s)
 	self.W.fx("structureHit", { x = s.x, z = s.z })
-	local now = os.clock()
-	if now - (s.noiseAt or 0) > 0.5 then
-		s.noiseAt = now
-		self.W.noise(s.x, s.z, Stealth.NOISE.barricade)
-	end
 	if s.hp <= 0 then
 		self.W.fx("structureBreak", { x = s.x, z = s.z })
 		self.W.notifyAll(`{Shop.structures[s.type].name} destroyed!`, "bad")
@@ -446,11 +440,6 @@ function Structures.update(self, dt: number)
 						attacker = s.owner,
 					})
 					W.remotes.Shot:FireAllClients(0, "turret", ox, oz, { { ex, ez } })
-					local now = os.clock()
-					if now - (s.noiseAt or 0) > 0.5 then
-						s.noiseAt = now
-						W.noise(s.x, s.z, Stealth.NOISE.turret)
-					end
 				end
 			else
 				s.headAngle += dt * 0.6
