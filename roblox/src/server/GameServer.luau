@@ -729,11 +729,7 @@ function GameServer.start()
 				homeBoundAt = nil
 			end
 			local waited = if firstJoin then os.clock() - firstJoin else 0
-			if
-				not homeBoundAt
-				and here > 0
-				and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS)
-			then
+			if not homeBoundAt and here > 0 and (here >= partySize or waited >= Constants.PARTY_WAIT_SECONDS) then
 				startRun()
 			end
 		elseif phase == "countdown" then
