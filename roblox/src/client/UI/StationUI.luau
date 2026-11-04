@@ -171,7 +171,12 @@ function StationUI.new(gui: ScreenGui, onPlace: (string) -> (), onSell: () -> ()
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = root,
 	})
-	Builder.rule({ BackgroundColor3 = T.border, Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 0, 2), Parent = root })
+	Builder.rule({
+		BackgroundColor3 = T.border,
+		Position = UDim2.fromOffset(0, 38),
+		Size = UDim2.new(1, 0, 0, 2),
+		Parent = root,
+	})
 	local tabs = create("Frame", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(0, 46),

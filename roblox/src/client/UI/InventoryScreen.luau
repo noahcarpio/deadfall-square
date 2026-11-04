@@ -100,7 +100,12 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 	create("UISizeConstraint", { MaxSize = Vector2.new(1080, 680), Parent = root })
 	Builder.padding(16).Parent = root
 	Builder.label("INVENTORY", 30, { Font = T.head, Parent = root })
-	Builder.rule({ BackgroundColor3 = T.border, Position = UDim2.fromOffset(0, 42), Size = UDim2.new(1, 0, 0, 2), Parent = root })
+	Builder.rule({
+		BackgroundColor3 = T.border,
+		Position = UDim2.fromOffset(0, 42),
+		Size = UDim2.new(1, 0, 0, 2),
+		Parent = root,
+	})
 	local header = Builder.label("", 16, {
 		Font = T.mono,
 		TextColor3 = T.text,
@@ -349,13 +354,7 @@ function InventoryScreen.new(gui: ScreenGui, onUseItem: (string) -> ())
 				end,
 			})
 			table.insert(buttons, sellButton(c, { kind = "sellGear", uid = item.uid }))
-			card(
-				order,
-				`STASH: {Gear.title(item)}`,
-				Builder.rarityColor(item.rarity),
-				Gear.describe(item),
-				buttons
-			)
+			card(order, `STASH: {Gear.title(item)}`, Builder.rarityColor(item.rarity), Gear.describe(item), buttons)
 		end
 	end
 

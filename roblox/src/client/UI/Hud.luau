@@ -466,9 +466,7 @@ function Hud.start(gui: ScreenGui)
 		armorFill.Size = UDim2.fromScale(math.clamp(armor / math.max(1, maxArmor), 0, 1), 1)
 		armorLabel.Text = `{armor} / {maxArmor}`
 		staminaFill.Size = UDim2.fromScale(math.clamp(Context.stamina / Context.stats.maxStamina, 0, 1), 1)
-		staminaFill.BackgroundColor3 = if Context.exhausted
-			then T.muted
-			else T.text
+		staminaFill.BackgroundColor3 = if Context.exhausted then T.muted else T.text
 
 		-- Wave status.
 		local gs = Context.gameState
