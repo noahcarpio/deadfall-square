@@ -247,8 +247,7 @@ local WEAPONS: { [string]: WeaponDef } = {
 	},
 }
 
-local ORDER =
-	{ "pistol", "revolver", "shotgun", "doublebarrel", "smg", "rifle", "dmr", "sniper", "flamer", "launcher" }
+local ORDER = { "pistol", "revolver", "shotgun", "doublebarrel", "smg", "rifle", "dmr", "sniper", "flamer", "launcher" }
 
 local UPGRADE_LIMITS = { damage = 5, fireRate = 4, magazine = 3 }
 
